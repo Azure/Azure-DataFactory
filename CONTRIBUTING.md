@@ -1,0 +1,8 @@
+
+# Contribute Code or Provide Feedback #
+
+----------
+
+If you would like to become an active contributor to this project please follow the instructions provided in [Microsoft Azure Projects Contribution Guidelines](http://windowsazure.github.com/guidelines.html).
+
+If you encounter any bugs with the code samples for the Microsoft Azure Data Factory, please file an issue in the [Issues](https://github.com/Azure/Azure-DataFactory/issues) section of the project.
