@@ -1,5 +1,4 @@
 # Microsoft Azure Data Factory Samples #
-
 ----------
 
 
