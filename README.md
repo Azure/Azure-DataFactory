@@ -1,6 +1,4 @@
 # Microsoft Azure Data Factory Samples #
-----------
-
 
 This folder contains samples for the Azure Data Factory
 
