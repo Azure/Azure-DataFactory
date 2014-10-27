@@ -1,0 +1,42 @@
+{
+    "name": "MarketingCampaignEffectivenessBlobTable",
+    "properties":
+    {
+        "structure":  
+        [ 
+            { "name": "ProfileID", "type": "String"},
+            { "name": "SessionStart", "type": "String"},
+            { "name": "Duration", "type": "Int"},
+            { "name": "State", "type": "String"},
+            { "name": "SrcIPAddress", "type": "String"},            
+            { "name": "GameType", "type": "String"},
+            { "name": "Multiplayer", "type": "String"},
+            { "name": "EndRank", "type": "Int"},
+            { "name": "WeaponsUsed", "type": "Int"},
+            { "name": "UsersInteractedWith", "type": "String"},
+            { "name": "Impressions", "type": "String"}
+        ],
+        "location": 
+        {
+            "type": "AzureBlobLocation",
+            "folderPath": "adfwalkthrough/marketingcampaigneffectiveness/yearno={Year}/monthno={Month}/dayno={Day}/",
+            "partitionedBy":
+            [
+                { name: "Year", value: { type: "DateTime", date: "SliceStart", format: "yyyy" } },
+                { name: "Month", value: { type: "DateTime", date: "SliceStart", format: "%M" } },
+                { name: "Day", value: { type: "DateTime", date: "SliceStart", format: "%d" } }
+            ],
+            "format":
+            {
+                "type": "TextFormat",
+                "columnDelimiter": ","
+            },
+            "linkedServiceName": "StorageLinkedService"
+        },
+        "availability": 
+        {
+            "frequency": "Day",
+            "interval": 1            
+        }
+    }
+}

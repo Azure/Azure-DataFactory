@@ -1,0 +1,35 @@
+{
+    "name": "RefGeoCodeDictionaryTable",
+    "properties":
+    {
+        "structure":  
+        [ 
+            { "name": "IPAddr", "type": "String"},
+            { "name": "State", "type": "String"}
+        ],
+        "location": 
+        {
+            "type": "AzureBlobLocation",
+            "folderPath": "adfwalkthrough/refdata/refgeocodedictionary/",
+            "format":
+            {
+                "type": "TextFormat",
+                "columnDelimiter": ","
+            },
+            "linkedServiceName": "StorageLinkedService"
+        },
+        "availability": 
+        {
+            "frequency": "day",
+            "interval": 1,
+            "waitonexternal": {}
+        },
+        "policy":
+        {
+            "validation": 
+            {
+                "minimumSizeMB": 0.0001
+            }
+        }
+    }
+}

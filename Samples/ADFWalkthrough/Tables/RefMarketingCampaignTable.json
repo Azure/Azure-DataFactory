@@ -1,0 +1,44 @@
+{
+    "name": "RefMarketingCampaignTable",
+    "properties":
+    {
+        "structure":  
+        [ 
+            { "name": "ID", "type": "String"},
+            { "name": "Day",  "type": "String"},
+            { "name": "City", "type": "String"},
+            { "name": "State", "type": "String"},
+            { "name": "Type", "type": "String"},
+            { "name": "Impressions", "type": "Int"}
+        ],
+        "location": 
+        {
+            "type": "AzureBlobLocation",
+            "folderPath": "adfwalkthrough/refdata/refmarketingcampaign/",
+            "format":
+            {
+                "type": "TextFormat",
+                "columnDelimiter": ","
+            },
+            "linkedServiceName": "StorageLinkedService"
+        },
+        "availability": 
+        {
+            "frequency": "Day",
+            "interval": 1,
+            "waitOnExternal":
+            {
+                "retryInterval": "00:01:00",
+                "retryTimeout": "00:10:00",
+                "maximumRetry": 3
+            }
+        },
+        "policy":
+        {
+            "validation":
+            {
+                "minimumSizeMB": 0.0001
+            }
+        }
+    }
+}
