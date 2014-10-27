@@ -2,7 +2,6 @@
 * Copyright (c) Microsoft Corporation. All rights reserved.
 * Licensed under MIT License. See license file.
 #>
-
 param(
     [Parameter(Mandatory=$true)][string]$JsonFilesFolder,
     [Parameter(Mandatory=$false)][string]$SubscriptionName="Current",
