@@ -1,0 +1,18 @@
+{
+  "name": "AzureTableDest",
+  "properties":
+  {
+    "location":
+    {
+        "type": "AzureTableLocation",
+        "tableName": "<Table>",
+        "linkedServiceName": "StorageLinkedService"
+        
+    },
+  "availability":
+    {
+      "frequency": "Hour",
+      "interval": 1
+    }
+  }
+}

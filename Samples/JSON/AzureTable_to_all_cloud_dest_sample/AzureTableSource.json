@@ -1,0 +1,24 @@
+{
+  "name": "AzureTableSource",
+  "properties":
+  {
+    "location":
+    {
+        "type": "AzureTableLocation",
+        "tableName": "SourceTable",
+        "linkedServiceName": "StorageLinkedService"
+        
+    },
+  "availability":
+    {
+      "frequency": "Hour",
+      "interval": 1,
+	  "waitOnExternal":
+            {
+                "retryInterval": "00:01:00",
+                "retryTimeout": "00:10:00",
+                "maximumRetry": 3
+            }
+    }
+  }
+}

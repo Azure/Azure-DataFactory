@@ -1,0 +1,21 @@
+{
+    "name": "AzureSqlDest",
+    "properties":
+    {
+        "structure":  
+        [ 
+            { "name": "<>", "position": "<>", "type": "<>" }
+        ],
+        "location": 
+        {
+            "type": "AzureSqlTableLocation",
+            "tableName": "<>",
+            "linkedServiceName": "AzureSqlLinkedService"
+        },
+        "availability": 
+        {
+            "frequency": "Hour",
+            "interval": 1
+        }
+    }
+}
