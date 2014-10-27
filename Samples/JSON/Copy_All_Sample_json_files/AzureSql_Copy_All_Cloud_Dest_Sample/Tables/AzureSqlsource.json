@@ -1,0 +1,26 @@
+{  
+   "name":"AzureSqlSource",
+   "properties":{  
+      "structure":[  
+         {  
+            "name":"<>",
+            "position":"<>",
+            "type":"<>"
+         }
+      ],
+      "location":{  
+         "type":"AzureSqlTableLocation",
+         "tableName":"<tablename>",
+         "linkedServiceName":"AzureSqlLinkedService"
+      },
+      "availability":{  
+         "frequency":"Hour",
+         "interval":1,
+         "waitOnExternal":{  
+            "retryInterval":"00:01:00",
+            "retryTimeout":"00:10:00",
+            "maximumRetry":3
+         }
+      }
+   }
+}

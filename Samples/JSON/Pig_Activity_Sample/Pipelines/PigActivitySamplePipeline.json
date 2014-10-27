@@ -1,0 +1,40 @@
+{
+    "name": "PigActivitySamplePipeline",
+    "properties": {
+        "description": "Sample Data Pipeline",
+        "activities": [
+            {
+                "name": "SamplePigActivity",
+                "inputs": [
+                    {
+                        "name": "<InputTable>"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "<OutputTable>"
+                    }
+                ],
+                "linkedServiceName": "<HDInsightLinkedService>",
+                "type": "HDInsightActivity",
+                "transformation": {
+                    "type": "Pig",
+                    "script": "<inline Pig script>",
+                    "scriptpath": "<script blob location>",
+                    "scriptLinkedService": "<linked service for the script blob location>",
+                    "extendedProperties": {
+                        "Year": "$$Text.Format('{0:yyyy}',SliceStart)",
+                        "Month": "$$Text.Format('{0:%M}',SliceStart)",
+                        "Day": "$$Text.Format('{0:%d}',SliceStart)"
+                    }
+                },
+                "policy": {
+                    "concurrency": 1,
+                    "executionPriorityOrder": "OldestFirst",
+                    "retry": 2,
+                    "timeout": "01:00:00"
+                }
+            }
+        ]
+    }
+}

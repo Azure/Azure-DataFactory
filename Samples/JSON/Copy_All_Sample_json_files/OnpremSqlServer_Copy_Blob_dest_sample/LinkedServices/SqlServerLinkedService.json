@@ -1,0 +1,9 @@
+{  
+   "Name":"SqlServerLinkedService",
+   "Properties":{  
+      "type":"OnPremisesSqlLinkedService",
+      "ConnectionString":"Data Source=<servername>;Initial Catalog=<database>;Integrated Security=False;User ID=<username>;Password=<password>;",
+      "gatewayLocation":"wu",
+      "gatewayName":"<gatewayname>"
+   }
+}

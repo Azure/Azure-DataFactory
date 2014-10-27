@@ -1,0 +1,14 @@
+{  
+   "Name":"OutputTable",
+   "Properties":{  
+      "Location":{  
+         "Type":"AzureBlobLocation",
+         "FolderPath":"$$Text.Format('container/folder/{0:yyyyMMdd-HH}', SliceStart)",
+         "LinkedServiceName":"<StorageLinkedService>"
+      },
+      "Availability":{  
+         "Frequency":"Hour",
+         "Interval":1
+      }
+   }
+}

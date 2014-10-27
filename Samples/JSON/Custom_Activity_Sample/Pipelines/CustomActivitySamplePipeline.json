@@ -1,0 +1,42 @@
+{  
+   "Name":"CustomActivitySamplePipeline",
+   "Properties":{  
+      "Description":"CustomActivity Pipeline",
+      "Activities":[  
+         {  
+            "Name":"CustomActivity",
+            "Type":"CustomActivity",
+            "Inputs":[  
+               {  
+                  "Name":"<InputTable1>"
+               },
+               {  
+                  "Name":"<InputTable2>"
+               }
+            ],
+            "Outputs":[  
+               {  
+                  "Name":"<OutputTable>"
+               }
+            ],
+            "LinkedServiceName":"HDInsightLinkedService",
+            "Transformation":{  
+               "AssemblyName":"<CustomActivityBlobSample.dll>",
+               "EntryPoint":"<Microsoft.DataFactories.Samples.CustomActivityBlobSample>",
+               "PackageLinkedService":"<LinkedService-AzureBlobStorage>",
+               "PackageFile":"<activitystore/Debug.zip>",
+               "ExtendedProperties":{  
+                  "SiceStart":"$$Text.Format('{0:yyyyMMddHH-mm}', Time.AddMinutes(SliceStart, 0))"
+               }
+            },
+            "Policy":{  
+               "Concurrency":1,
+               "ExecutionPriorityOrder":"OldestFirst",
+               "Retry":3,
+               "Timeout":"00:30:00",
+               "Delay":"00:00:00"
+            }
+         }
+      ]
+   }
+}

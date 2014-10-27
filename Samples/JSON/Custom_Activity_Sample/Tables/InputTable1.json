@@ -1,0 +1,19 @@
+{  
+   "Name":"InputTable1",
+   "Properties":{  
+      "Location":{  
+         "Type":"AzureBlobLocation",
+         "FolderPath":"$$Text.Format('container/folder/{0:yyyyMMdd-HH}', SliceStart)",
+         "LinkedServiceName":"<StorageLinkedService>"
+      },
+      "Availability":{  
+         "Frequency":"Hour",
+         "Interval":1,
+         "WaitOnExternal":{  
+            "retryInterval":"00:01:00",
+            "retryTimeout":"00:10:00",
+            "maximumRetry":3
+         }
+      }
+   }
+}
