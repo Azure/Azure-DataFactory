@@ -1,0 +1,44 @@
+{  
+   "Name":"CustomActivitySamplePipeline",
+   "Properties":{  
+      "start":"2014-06-01T00:00:00Z",
+      "end":"2014-06-02T00:00:00Z",
+      "Description":"CustomActivity Pipeline X Shape Scenario9",
+      "Activities":[  
+         {  
+            "Name":"CustomActivity",
+            "Type":"CustomActivity",
+            "Inputs":[  
+               {  
+                  "Name":"InputBlob1"
+               },
+               {  
+                  "Name":"InputBlob2"
+               }
+            ],
+            "Outputs":[  
+               {  
+                  "Name":"OutputBlob"
+               }
+            ],
+            "LinkedServiceName":"HDInsightLinkedService",
+            "Transformation":{  
+               "AssemblyName":"CustomActivityBlobSample.dll",
+               "EntryPoint":"Microsoft.DataFactories.Samples.CustomActivityBlobSample",
+               "PackageLinkedService":"LinkedService-CA-AzureStorage",
+               "PackageFile":"activitystore/Debug.zip",
+               "ExtendedProperties":{  
+                  "SiceStart":"$$Text.Format('{0:yyyyMMddHH-mm}', Time.AddMinutes(SliceStart, 0))"
+               }
+            },
+            "Policy":{  
+               "Concurrency":1,
+               "ExecutionPriorityOrder":"OldestFirst",
+               "Retry":3,
+               "Timeout":"00:30:00",
+               "Delay":"00:00:00"
+            }
+         }
+      ]
+   }
+}

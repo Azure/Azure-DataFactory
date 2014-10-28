@@ -1,0 +1,10 @@
+{
+  "Name": "SqlServerLinkedService",
+  "Properties":
+  {
+    "type": "OnPremisesSqlLinkedService",
+    "ConnectionString": "Data Source=<servername>;Initial Catalog=<databasename>;Integrated Security=False;User ID=<username>;Password=<password>;",
+    "gatewayLocation": "westus",
+    "gatewayName": "<gatewayname>"
+  }
+}

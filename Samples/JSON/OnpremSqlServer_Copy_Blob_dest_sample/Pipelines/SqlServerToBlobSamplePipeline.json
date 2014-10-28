@@ -1,0 +1,39 @@
+{
+    "name": "SqlServerToBlobSamplePipeline",
+    "properties":
+    {
+		"start": "2014-06-01T18:00:00",
+		"end": "2014-06-01T19:00:00",
+		"description" : "SqlServerToBlobSamplePipeline",
+		"activities":
+		[
+			
+			{
+				"name": "SQLServertoBlob",
+				"description": "SQLServertoBlob", 
+				"type": "CopyActivity",
+				"inputs":  [ { "name": "SqlServerSource"  } ],
+				"outputs":  [ { "name": "AzureBlobDest" } ],
+				"transformation":
+				{
+					"source":
+					{                               
+						"type": "SqlSource",						
+					},
+					"sink":
+					{
+						"type": "BlobSink",
+					}
+				},
+				"policy":
+				{
+					"concurrency": 1,
+					"executionPriorityOrder": "OldestFirst",
+					"retry": 0,
+					"timeout": "01:00:00"
+				}
+			},
+			
+		]
+    }
+}

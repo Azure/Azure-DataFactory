@@ -1,0 +1,31 @@
+{  
+   "name":"AzureBlobSource",
+   "properties":{  
+      "structure":[  
+         {  
+            "name":"<columnname>",
+            "type":"<columntype>"
+         }
+      ],
+	  "location":{  
+         "type":"AzureBlobLocation",
+         "folderPath":"<Container>/<folder>",
+		 "filename":"<filename>",
+         "linkedServiceName":"StorageLinkedService",
+         "format":{  
+            "type":"TextFormat",
+            "columnDelimiter":",",
+            "rowDelimiter":"\n"
+         }
+      },
+      "availability":{  
+         "frequency":"Hour",
+         "interval":1,
+         "waitOnExternal":{  
+            "retryInterval":"00:01:00",
+            "retryTimeout":"00:10:00",
+            "maximumRetry":3
+         }
+      }
+   }
+}

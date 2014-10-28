@@ -1,0 +1,35 @@
+{
+    "name": "AzureBlobDest",
+    "properties":
+    {
+            "structure":[  
+         {  
+            "name":"<columnname>",
+            "type":"<columntype>"
+         }
+      ],
+	"location":
+      {
+            "type": "AzureBlobLocation",
+            "folderPath": "<container>/<folder>/yearno={Year}/monthno={Month}/dayno={Day}/",
+            "partitionedBy":
+            [
+                { "name": "Year", "value": { "type": "DateTime", "date": "SliceStart", "format": "yyyy" } },
+                { "name": "Month", "value": { "type": "DateTime", "date": "SliceStart", "format": "%M" } },
+                { "name": "Day", "value": { "type": "DateTime", "date": "SliceStart", "format": "%d" } }
+            ],
+       "format":
+       {
+            "type": "TextFormat",
+            "columnDelimiter": "\t",
+            "rowDelimiter": "\n"
+       },
+       "linkedServiceName": "StorageLinkedService"
+    },
+    "availability":
+      {
+        "frequency": "Hour",
+        "interval": 1
+      }
+    }
+}
