@@ -3,7 +3,7 @@
    "Properties":{  
       "Location":{  
          "Type":"AzureBlobLocation",
-         "BlobPath":"$$Text.Format('container/folder/{0:yyyyMMdd-HH}', SliceStart)",
+         "FolderPath":"$$Text.Format('container/folder/{0:yyyyMMdd-HH}', SliceStart)",
          "LinkedServiceName":"StorageLinkedService"
       },
       "Availability":{  
