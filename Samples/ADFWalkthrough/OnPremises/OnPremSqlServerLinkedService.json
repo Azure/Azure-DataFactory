@@ -1,0 +1,10 @@
+{
+  "Name": "OnPremSqlServerLinkedService",
+  "Properties":
+  {
+    "type": "OnPremisesSqlLinkedService",
+    "ConnectionString": "Data Source=<servername>;Initial Catalog=MarketingCampaigns;Integrated Security=False;User ID=<username>;Password=<password>;",
+    "gatewayLocation": "West US",
+    "gatewayName": "<gatewayname>"
+  }
+}
