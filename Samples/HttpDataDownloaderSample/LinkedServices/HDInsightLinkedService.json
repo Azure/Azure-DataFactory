@@ -1,0 +1,11 @@
+{
+    "name": "HDInsightLinkedService",
+    "properties": 
+    {
+        "type": "HDInsightBYOCLinkedService",
+        "clusterUri": "<>",
+        "userName": "<>",
+        "password": "<>",
+        "linkedServiceName": "RawEventsLinkedService"
+    }
+}
