@@ -7,8 +7,7 @@
         [
 	   {
                 "name": "DownloadData",
-                "description": "Download raw data from an http endpoint",
-                "inputs": [ {"name": "DataDownloadTable"} ],
+                "description": "Download raw data from an http endpoint",                
                 "outputs": [ {"name": "RawEventsTable"} ],
                 "linkedServiceName": "HDInsightLinkedService",
                 "type": "CustomActivity",
@@ -17,7 +16,7 @@
                     "assemblyName": "CustomDataDownloader.dll",
                     "entryPoint": "CustomDataDownloader.DataDownloader",
                     "packageLinkedService": "RawEventsLinkedService",
-                    "packageFile": "adfwalkthrough/package/DataDownloaderPackage.zip",
+                    "packageFile": "<container>/package/DataDownloaderPackage.zip",
                     "extendedProperties":
                     {
                         "sliceStart": "$$Text.Format('{0:yyyyMMddHHmm}', Time.AddMinutes(SliceStart, 0))",

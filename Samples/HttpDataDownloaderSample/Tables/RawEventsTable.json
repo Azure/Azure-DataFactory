@@ -3,30 +3,14 @@
    "properties":{  
       "location":{  
          "type":"AzureBlobLocation",
-         "folderPath":"<Container>/<folder>/yearno={Year}/monthno={Month}/dayno={Day}/",
+         "folderPath":"<Container>/httpdownloaddatain/{DateTimeInfo}/",
          "partitionedBy":[  
             {  
-               "name":"Year",
+               "name":"DateTimeInfo",
                "value":{  
                   "type":"DateTime",
                   "date":"SliceStart",
-                  "format":"yyyy"
-               }
-            },
-            {  
-               "name":"Month",
-               "value":{  
-                  "type":"DateTime",
-                  "date":"SliceStart",
-                  "format":"%M"
-               }
-            },
-            {  
-               "name":"Day",
-               "value":{  
-                  "type":"DateTime",
-                  "date":"SliceStart",
-                  "format":"%d"
+                  "format":"yyyyMMddHHmm"
                }
             }
          ],
