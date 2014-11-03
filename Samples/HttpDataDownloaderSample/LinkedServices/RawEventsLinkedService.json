@@ -1,8 +1,0 @@
-{
-    "name": "RawEventsLinkedService",
-    "properties":
-    {
-        "type": "AzureStorageLinkedService",
-        "connectionString": "DefaultEndpointsProtocol=https;AccountName=<>;AccountKey=<>"
-    }
-}
