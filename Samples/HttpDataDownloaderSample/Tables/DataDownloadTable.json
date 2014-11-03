@@ -1,0 +1,17 @@
+{            
+    "name": "DataDownloadTable",
+    "properties":
+    {
+        "location":
+        {
+            "type": "AzureBlobLocation",
+            "blobPath": "adfwalkthrough/",
+            "linkedServiceName": "RawEventsLinkedService"
+        },
+        "availability": {
+            "frequency": "Hour",
+            "interval": 1,
+            "waitonexternal": {}
+        }
+    }
+}
