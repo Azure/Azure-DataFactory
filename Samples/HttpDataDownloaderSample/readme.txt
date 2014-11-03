@@ -9,7 +9,6 @@ This sample contains the following:
 2. Azure Data Factory Linked Services, Tables, Pipeline Jsons
 
 This project does the following:
-Pac
 Downloads the data from an Http End Point and loads it into the blob.
 You will use the class file provided to construct a C# dll project and zip the contents of the bin/debug directory and upload that to the storage account.
 You will refer the path of the uploaded zip in your pipeline Json. As per the sample class file and the DataDownloderSamplePipelin json, the dll needs to be named 
