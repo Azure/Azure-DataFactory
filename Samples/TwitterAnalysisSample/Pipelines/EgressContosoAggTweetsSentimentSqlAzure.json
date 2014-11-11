@@ -1,0 +1,43 @@
+{  
+   "name":"EgressContosoAggTweetsSentimentSqlAzure",
+   "properties":{  
+      "description":"Egress Twitter feed sentiment to Sql Azure",
+      "activities":[  
+         {  
+            "name":"EgressSqlAzure",
+            "description":"Move Tweets Sentiment Output from Blob to Sql Azure.",
+            "type":"CopyActivity",
+            "inputs":[  
+               {  
+                  "name":"ContosoTweetsAggSentimentBlob"
+               }
+            ],
+            "outputs":[  
+               {  
+                  "name":"ContosoTweetsAggSentimentSQLTable"
+               }
+            ],
+            "linkedServiceName":"HDInsightLinkedService",
+            "transformation":{  
+               "source":{  
+                  "type":"BlobSource",
+                  "blobColumnSeparators":",",
+                  "NullValues":"\\N"
+               },
+               "sink":{  
+                  "type":"SqlSink",
+                  "writeBatchSize":10000,
+                  "writeBatchTimeout":"01:00:00"
+               }
+            },
+            "Policy":{  
+               "concurrency":1,
+               "executionPriorityOrder":"NewestFirst",
+               "style":"StartOfInterval",
+               "retry":0,
+               "timeout":"10:00:00"
+            }
+         }
+      ]
+   }
+}

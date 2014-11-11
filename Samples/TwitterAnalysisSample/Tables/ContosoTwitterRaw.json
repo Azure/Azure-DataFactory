@@ -1,0 +1,21 @@
+{  
+   "name":"ContosoTwitterRaw",
+   "properties":{  
+      "location":{  
+         "type":"AzureBlobLocation",
+         "folderPath":"twitteranalysis/twitter/rawdata",
+         "format":{  
+            "type":"TextFormat",
+            "columnDelimiter":","
+         },
+         "linkedServiceName":"StorageLinkedService"
+      },
+      "availability":{  
+         "frequency":"minute",
+         "interval":15,
+         "waitonexternal":{  
+
+         }
+      }
+   }
+}
