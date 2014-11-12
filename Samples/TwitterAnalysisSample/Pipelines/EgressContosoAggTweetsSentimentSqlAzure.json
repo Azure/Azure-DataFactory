@@ -16,12 +16,12 @@
                {  
                   "name":"ContosoTweetsAggSentimentSQLTable"
                }
-            ],
-            "linkedServiceName":"HDInsightLinkedService",
+            ],            
             "transformation":{  
                "source":{  
                   "type":"BlobSource",
                   "blobColumnSeparators":",",
+                  "skipHeaderLineCount":"1",
                   "NullValues":"\\N"
                },
                "sink":{  

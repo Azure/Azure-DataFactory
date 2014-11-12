@@ -22,7 +22,7 @@
                "assemblyName":"SentimentAnalysisService.dll",
                "entryPoint":"SentimentAnalysisService.SentimentAnalysis",
                "packageLinkedService":"StorageLinkedService",
-               "packageFile":"<container>/twitter/packages/SentimentAnalysis.zip",
+               "packageFile":"twitteranalysis/twitter/packages/SentimentAnalysis.zip",
                "extendedProperties":{  
                   "sliceStart":"$$Text.Format('{0:yyyyMMddHHmm}', Time.AddMinutes(SliceStart, 0))",
                   "baseUrl":"<URL to Sentiment Analysis Azure ML Model",

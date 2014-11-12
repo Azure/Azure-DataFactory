@@ -24,13 +24,13 @@
             "transformation":{  
                "type":"Hive",
                "extendedProperties":{  
-                  "TwitterRaw":"wasb://<container>@<accountname>.blob.core.windows.net/twitter/rawdata/",
-                  "TweetsCount":"wasb://<container>@<accountname>.blob.core.windows.net/twitter/aggregate/TweetsCount/",
-                  "TweetsByDate":"wasb://<container>@<accountname>.blob.core.windows.net/twitter/aggregate/TweetsByDate/",
-                  "Tweets":"wasb://<container>@<accountname>.blob.core.windows.net/twitter/aggregate/Tweets/",
-                  "TweetsByHour":"wasb://<container>@<accountname>.blob.core.windows.net/twitter/aggregate/TweetsByHour/",                  
+                  "TwitterRaw":"wasb://twitteranalysis@<accountname>.blob.core.windows.net/twitter/rawdata/",
+                  "TweetsCount":"wasb://twitteranalysis@<accountname>.blob.core.windows.net/twitter/aggregate/TweetsCount/",
+                  "TweetsByDate":"wasb://twitteranalysis@<accountname>.blob.core.windows.net/twitter/aggregate/TweetsByDate/",
+                  "Tweets":"wasb://twitteranalysis@<accountname>.blob.core.windows.net/twitter/aggregate/Tweets/",
+                  "TweetsByHour":"wasb://twitteranalysis@<accountname>.blob.core.windows.net/twitter/aggregate/TweetsByHour/",                  
                },
-               "scriptpath":"<container>\\twitter\\scripts\\Twitteragg.hql",
+               "scriptpath":"twitteranalysis\\twitter\\scripts\\Twitteragg.hql",
                "scriptLinkedService":"StorageLinkedService"
             },
             "policy":{  
