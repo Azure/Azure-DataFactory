@@ -2,10 +2,10 @@
     "name": "HDInsightLinkedService",
     "properties": 
     {
-	"type": "HDInsightOnDemandLinkedService",
-        "clusterSize": "4",
-        "jobsContainer": "adfjobs",
-        "timeToLive": "00:05:00",
-        "linkedServiceName": "HDInsightStorageLinkedService"
+	"type": "HDInsightOnDemandLinkedService",
+	"clusterSize": "4",
+	"jobsContainer": "adfjobs",
+	"timeToLive": "00:05:00",
+	"linkedServiceName": "HDInsightStorageLinkedService"
     }
 }
