@@ -2,10 +2,10 @@
     "name": "HDInsightLinkedService",
     "properties": 
     {
-        "type": "HDInsightBYOCLinkedService",
-        "clusterUri": "https://<hdinsightcluster>.azurehdinsight.net/",
-        "userName": "admin",
-        "password": "<password>",
+	"type": "HDInsightOnDemandLinkedService",
+        "clusterSize": "4",
+        "jobsContainer": "adfjobs",
+        "timeToLive": "00:05:00",
         "linkedServiceName": "HDInsightStorageLinkedService"
     }
 }
