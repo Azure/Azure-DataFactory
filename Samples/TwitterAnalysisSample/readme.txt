@@ -12,7 +12,7 @@ Using Custom C# Activity in Azure Data Factory, you can call an Azure ML model a
 TwitterAnalysisSample:
 
 This sample does the following:
-a) The sample will use your raw tweets and aggregate the raw tweets to generate TweetCountPerHour, TweetCountPerDay and the Total Tweet Count.
+a) The sample will use your raw tweets in Azure blob store and aggregate the raw tweets to generate TweetCountPerHour, TweetCountPerDay and the Total Tweet Count.
 b) The Tweets will be passed to a 'SentimentAnalysis' model in Azure ML. The Sentiment Analyis Azure ML model will take the raw tweets and return whether the sentiment is 'Positive', 'Negative' or 'Neutral'
    along with the 'ConfidenceLevel'.
 c) Following that, the sample will aggregate the sentiment for individual tweets to determine the overall sentiment i.e. No of Tweets with Positive, Negative or Neutral Sentiment.
