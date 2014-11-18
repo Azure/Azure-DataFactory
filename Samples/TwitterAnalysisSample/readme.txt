@@ -10,6 +10,14 @@ In this sample, we will showcase how Contoso can use Azure Data Factory and Azur
 Using Custom C# Activity in Azure Data Factory, you can call an Azure ML model and do sentiment analysis, scoring, prediction etc.
 
 TwitterAnalysisSample:
+
+This sample does the following:
+a) The sample will use your raw tweets and aggregate the raw tweets to generate TweetCountPerHour, TweetCountPerDay and the Total Tweet Count.
+b) The Tweets will be passed to a 'SentimentAnalysis' model in Azure ML. The Sentiment Analyis Azure ML model will take the raw tweets and return whether the sentiment is 'Positive', 'Negative' or 'Neutral'
+   along with the 'ConfidenceLevel'.
+c) Following that, the sample will aggregate the sentiment for individual tweets to determine the overall sentiment i.e. No of Tweets with Positive, Negative or Neutral Sentiment.
+d) The Aggregated Sentiment Data will be moved to Sql Azure 'ContosoTweetsAnalysis' database.
+
 This sample contains the following:
 1.Azure Data Factory Linked Services, Tables, Pipeline Jsons.
 2.SentimentAnalysis C# Class file to call the Azure ML Sentiment Model.
@@ -28,10 +36,3 @@ g) Create a 'ContosoTweetsAnalysis' Azure SQL database and run the 'ContosoAggTw
 h) Create a ADF Custom C# Activity Dll Project. Call it 'SentimentAnalysisService'. Use the 'SentimentAnalysis.cs' class file for creating Custom C# Activity project. 
    Once created, you will have to zip the contents of bin/debug folder and call it 'SentimentAnalysis.zip'. Upload this zip to 'twitteranalysis/twitter/packages/' folder in your storage account.
    To learn more about Custom C# Activity, visit the Documentation Center for 'Azure Data Factory' and read 'Use Custom Activities in a Data Factory Pipeline'
-
-This sample does the following:
-a) The sample will use your raw tweets and aggregate the raw tweets to generate TweetCountPerHour, TweetCountPerDay and the Total Tweet Count.
-b) The Tweets will be passed to a 'SentimentAnalysis' model in Azure ML. The Sentiment Analyis Azure ML model will take the raw tweets and return whether the sentiment is 'Positive', 'Negative' or 'Neutral'
-   along with the 'ConfidenceLevel'.
-c) Following that, the sample will aggregate the sentiment for individual tweets to determine the overall sentiment i.e. No of Tweets with Positive, Negative or Neutral Sentiment.
-d) The Aggregated Sentiment Data will be moved to Sql Azure 'ContosoTweetsAnalysis' database.
