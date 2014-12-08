@@ -1,0 +1,16 @@
+{  
+   "name":"YahooFinanceMSFTTable",
+   "properties":{  
+      "location":{  
+         "type":"CustomLocation",
+         "linkedServiceName":"YahooFinanceLinkedService",
+         "extendedProperties":{  
+            "queryString":"$$Text.Format('?s=MSFT&a={0:MM}&b={0:dd}&c={0:yy}&d={1:MM}&e={1:dd}&f={1:yy}', SliceStart, SliceEnd)"
+         }
+      },
+      "availability":{  
+         "interval":1,
+         "frequency":"Day"
+      }
+   }
+}

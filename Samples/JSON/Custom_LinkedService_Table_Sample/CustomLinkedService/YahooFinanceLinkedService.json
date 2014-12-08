@@ -1,0 +1,10 @@
+Formatted JSON Data
+{  
+   "name":"YahooFinanceLinkedService",
+   "properties":{  
+      "type":"CustomLinkedService",
+      "extendedProperties":{  
+         "endpoint":"http://ichart.yahoo.com/table.csv"
+      }
+   }
+}
