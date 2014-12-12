@@ -1,0 +1,26 @@
+{  
+   "name":"ContosoTweetsAggSentimentSQLTable",
+   "properties":{  
+      "structure":[  
+         {  
+            "name":"TweetSentimentCount",
+            "position":0,
+            "type":"Int"
+         },
+         {  
+            "name":"TweetSentiment",
+            "position":1,
+            "type":"String"
+         }
+      ],      
+      "location":{  
+         "type":"AzureSqlTableLocation",
+         "tableName":"ContosoAggTweetsSentiment",
+         "linkedServiceName":"AzureSqlLinkedService"
+      },
+      "availability":{  
+         "frequency":"minute",
+         "interval":15
+      }
+   }
+}

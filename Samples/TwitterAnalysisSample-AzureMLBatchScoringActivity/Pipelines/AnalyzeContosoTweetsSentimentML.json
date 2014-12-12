@@ -1,0 +1,30 @@
+{  
+   "name":"AnalyzeContosoTweetsSentimentML",
+   "properties":{  
+      "description":"Analyse Twitter feed sentiment",
+      "activities":[  
+         {  
+            "name":"SentimentAnalysisMLActivity",
+            "description":"Get Sentiment and Confident Level of Tweets using a ML Model",
+            "inputs":[  
+               {  
+                  "name":"ContosoTweetsBlob"
+               }
+            ],
+            "outputs":[  
+               {  
+                  "name":"ContosoTweetsSentimentBlob"
+               }
+            ],
+            "linkedServiceName":"AzureMachineLearningLinkedService",
+            "type":"AzureMLBatchScoringActivity",
+            "policy":{  
+               "concurrency":1,
+               "executionPriorityOrder":"NewestFirst",
+               "retry":1,
+               "timeout":"02:00:00"
+            }
+         }
+      ]
+   }
+}

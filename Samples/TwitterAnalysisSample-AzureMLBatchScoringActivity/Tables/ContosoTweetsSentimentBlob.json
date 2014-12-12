@@ -1,0 +1,36 @@
+{  
+   "name":"ContosoTweetsSentimentBlob",
+   "properties":{  
+      "structure":[  
+         {  
+            "name":"TweetText",
+            "position":0,
+            "type":"String"
+         },
+         {  
+            "name":"AssignedSentiment",
+            "position":1,
+            "type":"String"
+         },
+         {  
+            "name":"ConfidenceLevel",
+            "position":2,
+            "type":"String"
+         }
+      ],
+      "location":{  
+         "type":"AzureBlobLocation",
+         "folderPath":"twitteranalysis/twitter/sentiment/Tweets/",
+         "fileName":"TweetsSentiment.csv",
+         "format":{  
+            "type":"TextFormat",
+            "columnDelimiter":","
+         },
+         "linkedServiceName":"StorageLinkedService"
+      },
+      "availability":{  
+         "frequency":"minute",
+         "interval":15
+      }
+   }
+}

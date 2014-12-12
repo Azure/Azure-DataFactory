@@ -1,0 +1,11 @@
+{  
+   "name":"HDInsightLinkedService",
+   "properties":{  
+      "type":"HDInsightBYOCLinkedService",
+      "clusterUri":"https://<hdinsightclustername>.azurehdinsight.net/",
+      "userName":"<hdiusername>",
+      "location":"<hdiregion>",
+      "password":"<hdipassword>",
+      "linkedServiceName":"<HDInsightStorageLinkedServiceName>"
+   }
+}
