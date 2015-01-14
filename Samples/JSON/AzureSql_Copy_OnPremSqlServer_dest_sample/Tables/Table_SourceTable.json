@@ -1,0 +1,28 @@
+{
+    "Name": "Table-Sql2Sql-Source",
+    "properties":
+    {
+		"Location":
+		{
+			"type": "AzureSqlTableLocation",
+			"tableName": "<table>",
+			"linkedServiceName": "LinkedService-AzureSql"
+		},
+		"Availability":
+		{
+			"interval": 1, 
+			"frequency": "Hour", 
+			"waitOnExternal":
+			{
+                "retryInterval": "00:01:00",
+                "retryTimeout": "00:10:00",
+                "maximumRetry": 1
+            }
+		},
+		"Structure":
+		[
+			{"Name":"Col1","Position":1,"Type":"String"},
+			{"Name":"Col2","Position":2,"Type":"Int"}        
+		]
+    }
+}
