@@ -3,8 +3,7 @@
     "Properties":
     {
         "type": "OnPremisesSqlLinkedService",
-        "connectionString": "Data Source=<servername>;Initial Catalog=<database>;Integrated Security=False;User ID=<username>;Password=<password>;",
-        "gatewayLocation": "westus",
+        "connectionString": "Data Source=<servername>;Initial Catalog=<databasename>;Integrated Security=False;User ID=<username>;Password=<password>;",
         "gatewayName": "<gatewayname>"
     }
 }
