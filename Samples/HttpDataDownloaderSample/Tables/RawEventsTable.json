@@ -3,10 +3,10 @@
    "properties":{  
       "location":{  
          "type":"AzureBlobLocation",
-         "folderPath":"<Container>/httpdownloaddatain/{DateTimeInfo}/",
+         "folderPath":"<Container>/httpDownloadDataIn/{Slice}/",
          "partitionedBy":[  
             {  
-               "name":"DateTimeInfo",
+               "name":"Slice",
                "value":{  
                   "type":"DateTime",
                   "date":"SliceStart",

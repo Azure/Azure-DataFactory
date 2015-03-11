@@ -1,19 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Net;
-using System.Reflection;
-using System.Threading;
-using Microsoft.DataFactories.Runtime;
-using Microsoft.WindowsAzure;
-using Microsoft.WindowsAzure.StorageClient;
-
-namespace CustomDataDownloader
+﻿namespace DataDownloaderActivityNS
 {
-    public class DataDownloader : ICustomActivity
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Globalization;
+    using System.IO;
+    using System.IO.Compression;
+    using System.Net;
+    using System.Reflection;
+    using System.Threading;
+    using Microsoft.DataFactories.Runtime;
+    using Microsoft.WindowsAzure.Storage.Auth;
+    using Microsoft.WindowsAzure.Storage.Blob;
+
+    public class DataDownloaderActivity : IDotNetActivity
     {
         private IActivityLogger _logger;
         private string _dataStorageAccountName;
@@ -36,8 +36,10 @@ namespace CustomDataDownloader
             _logger.Write(TraceEventType.Information, "Data Storage Account Name is : {0}", _dataStorageAccountKey);
             _logger.Write(TraceEventType.Information, "URL Format is : {0}", urlFormat);
             _logger.Write(TraceEventType.Information, "Slice start time is : {0}", sliceStartTime);
+
             GatherDataForOneHour(sliceStartTime, urlFormat);
 
+            _logger.Write(TraceEventType.Information, "Exit");
             return new Dictionary<string, string>();
         }
 
@@ -72,25 +74,20 @@ namespace CustomDataDownloader
                 TriggerRequest(urlFormat, year, month, day, hour, decompressedFile);
 
                 _logger.Write(TraceEventType.Information, "Uploading to Blob: ..");
-                CloudBlobClient blobClient = new CloudBlobClient(storageAccountUri, new StorageCredentialsAccountAndKey(_dataStorageAccountName, _dataStorageAccountKey));
+                CloudBlobClient blobClient = new CloudBlobClient(storageAccountUri, new StorageCredentials(_dataStorageAccountName, _dataStorageAccountKey));
                 string blobPath = string.Format(CultureInfo.InvariantCulture, "httpdownloaddatain/{0}-{1}-{2}-{3}/{4}",
                     year, month, day, hour, hourlyFileName);
 
                 CloudBlobContainer container = blobClient.GetContainerReference(_dataStorageContainer);
-                container.CreateIfNotExist();
+                container.CreateIfNotExists();
 
-                CloudBlob blob = container.GetBlobReference(blobPath);
-
-                BlobRequestOptions options = new BlobRequestOptions
-                {
-                    Timeout = new TimeSpan(0, 5, 0),
-                    RetryPolicy = RetryPolicies.Retry(3, new TimeSpan(0, 1, 0))
-                };
-                blob.UploadFile(decompressedFile, options);
+                var blob = container.GetBlockBlobReference(blobPath);
+                blob.UploadFromFile(decompressedFile, FileMode.OpenOrCreate);
             }
             catch (Exception ex)
             {
                 _logger.Write(TraceEventType.Error, "Error occurred : {0}", ex);
+                throw;
             }
             finally
             {
@@ -112,13 +109,13 @@ namespace CustomDataDownloader
         /// <param name="decompressedFile"></param>
         private void TriggerRequest(string urlFormat, string year, string month, string day, string hour, string decompressedFile)
         {
-            int retries = 1;
+            int retries = 0;
             bool found = false;
             while (retries <= 10 && !found)
             {
+                string url = string.Format(urlFormat, year, month, day, hour, retries.ToString("00"));
                 try
                 {
-                    string url = string.Format(urlFormat, year, month, day, hour, retries.ToString("00"));
                     _logger.Write(TraceEventType.Information, "Making request to url : {0}..", url);
 
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
@@ -139,15 +136,16 @@ namespace CustomDataDownloader
                     }
                     found = true;
                 }
-                catch
+                catch(Exception e)
                 {
+                    _logger.Write(TraceEventType.Warning, "Unable to download : {0} with error: {1}.", url, e.Message);
                     if (retries == 10)
                     {
                         throw;
                     }
                 }
                 retries++;
-                Thread.Sleep(5000);
+                Thread.Sleep(1000);
             }
         }
     }
