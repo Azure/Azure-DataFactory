@@ -2,10 +2,8 @@
 
 ## Introduction
 
-This showcases downloading of data from an HTTP Endpoint to Azure Blob Storage using Azure Data Factory Custom C# Activity. Once the data is downloaded into Azure Blob, it can be consumed for further processing.
-
-
-To learn more about Custom C# Activity, visit the Documentation Center for 'Azure Data Factory' and read 'Use Custom Activities in a Data Factory Pipeline'
+This showcases downloading of data from an HTTP Endpoint to Azure Blob Storage using 
+[Azure Data Factory Custom C# Activity](http://azure.microsoft.com/en-us/documentation/articles/data-factory-use-custom-activities/). Once the data is downloaded into Azure Blob, it can be consumed for further processing.
 
 ## Contents
 
@@ -26,7 +24,7 @@ To learn more about Custom C# Activity, visit the Documentation Center for 'Azur
 
 1. `New-AzureDataFactoryLinkedService -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /LinkedServices/RawEventsLinkedService.json`
 
-Optionally, if you choose you run your own instance of HDInsight in lieu of the on-demand HDInsight cluster:
+Optionally, if you choose to run your own instance of HDInsight in lieu of the on-demand HDInsight cluster:
 
 1. `New-AzureDataFactoryLinkedService -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /LinkedServices/HDInsightLinkedService.json`
 
@@ -51,3 +49,8 @@ Given each time splice, the custom activity (DataDownloader.cs) will download da
 ### Pipeline
 
 1. `New-AzureDataFactoryPipeline -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME]  -File /Pipelines/DataDownloaderSamplePipeline.json`
+
+
+## Known Issues
+
+* Manually create the *adfjobs* container in your Azure Storage. When the custom activity runs, Azure Data Factory will be able to capture that output from the HDInsight cluster, and save it in the adfjobs storage container in your Azure Blob Storage account.
