@@ -5,22 +5,22 @@
         "description" : "Custom Data Downloader from an HTTP EndPoint Sample Pipeline",
         "activities":
         [
-	   {
+           {
                 "name": "DownloadData",
                 "description": "Download raw data from an http endpoint",                
                 "outputs": [ {"name": "RawEventsTable"} ],
                 "linkedServiceName": "HDInsightLinkedService",
-                "type": "CustomActivity",
+                "type": "DotNetActivity",
                 "transformation":
                 {
-                    "assemblyName": "CustomDataDownloader.dll",
-                    "entryPoint": "CustomDataDownloader.DataDownloader",
+                    "assemblyName": "DataDownloaderActivity.dll",
+                    "entryPoint": "DataDownloaderActivityNS.DataDownloaderActivity",
                     "packageLinkedService": "RawEventsLinkedService",
-                    "packageFile": "<container>/package/DataDownloaderPackage.zip",
+                    "packageFile": "<container>/package/DataDownloaderActivity.zip",
                     "extendedProperties":
                     {
                         "sliceStart": "$$Text.Format('{0:yyyyMMddHHmm}', Time.AddMinutes(SliceStart, 0))",
-                        "urlFormat": "<URL that downloads a .gz file from a Http EndPoint. For ex: http://dumps.wikimedia.org/other/pagecounts-raw/{0}/{0}-{1}/pagecounts-{0}{1}{2}-{3}00{4}.gz>",
+                        "urlFormat": "http://dumps.wikimedia.org/other/pagecounts-raw/{0}/{0}-{1}/pagecounts-{0}{1}{2}-{3}00{4}.gz",
                         "dataStorageAccountName": "<>",
                         "dataStorageAccountKey": "<>",
                         "dataStorageContainer": "<>",
@@ -29,11 +29,13 @@
                 "policy":
                 {
                     "concurrency": 1,
-                    "executionPriorityOrder": "NewestFirst",
+                    "executionPriorityOrder": "OldestFirst",
                     "retry": 2,
                     "timeout": "00:30:00"
                 },                
             },		
-        ]
+        ],
+        "start": "2015-03-08T00:00:00Z",
+        "end": "9999-09-09T00:00:00Z"
     }
 }
