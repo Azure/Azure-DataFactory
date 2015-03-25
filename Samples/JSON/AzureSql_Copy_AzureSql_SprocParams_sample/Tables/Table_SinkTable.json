@@ -1,0 +1,16 @@
+{
+    "name": "MyAzureSQLTable",
+    "properties": {
+        "published": false,
+        "location": {
+            "type": "AzureSqlTableLocation",
+            "tableName": "Marketing",
+            "linkedServiceName": "AzureSqlLinkedService"
+        },
+        "availability": {
+            "frequency": "Hour",
+            "interval": 1,
+            "waitOnExternal": null
+        }
+    }
+}

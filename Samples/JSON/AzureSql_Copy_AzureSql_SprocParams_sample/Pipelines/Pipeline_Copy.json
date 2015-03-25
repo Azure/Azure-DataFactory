@@ -1,0 +1,45 @@
+{
+    "name": "SqlSinkSprocParams",
+    "properties": {
+        "description": "Copy data from Azure Sql to Azure Sql Server with additional params on sproc",
+        "activities": [
+            {
+                "name": "CopyActivity-Sql2Sql",
+                "type": "CopyActivity",
+                "transformation": {
+                    "source": {
+                        "type": "SqlSource",
+                        "sqlReaderQuery": "select * from [SprocTestSrcTbl]"
+                    },
+                    "sink": {
+                        "type": "SqlSink",
+                        "sqlWriterStoredProcedureName": "spOverwriteMarketing",
+                        "storedProcedureParameters": {
+                            "stringData": {
+                                "value": "str1"
+                            }
+                        },
+                        "sqlWriterTableType": "MarketingType",
+                        "writeBatchSize": 1000000,
+                        "writeBatchTimeout": "00:05:00"
+                    }
+                },
+                "inputs": [
+                    {
+                        "name": "MyAzureSQLTableSrc"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "MyAzureSQLTable"
+                    }
+                ],
+                "policy": {
+                    "timeout": "00:10:00",
+                    "concurrency": 1,
+                    "retry": 1
+                }
+            }
+        ]
+    }
+}

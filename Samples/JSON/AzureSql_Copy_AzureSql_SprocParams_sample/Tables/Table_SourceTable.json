@@ -1,0 +1,16 @@
+{
+    "name": "MyAzureSQLTableSrc",
+    "properties": {
+        "published": false,
+        "location": {
+            "type": "AzureSqlTableLocation",
+            "tableName": "SprocTestSrcTbl",
+            "linkedServiceName": "AzureSqlLinkedService"
+        },
+        "availability": {
+            "frequency": "Hour",
+            "interval": 1,
+            "waitOnExternal": {}
+        }
+    }
+}
