@@ -22,9 +22,9 @@
             "folderPath": "adfwalkthrough/marketingcampaigneffectiveness/yearno={Year}/monthno={Month}/dayno={Day}/",
             "partitionedBy":
             [
-                { name: "Year", value: { type: "DateTime", date: "SliceStart", format: "yyyy" } },
-                { name: "Month", value: { type: "DateTime", date: "SliceStart", format: "%M" } },
-                { name: "Day", value: { type: "DateTime", date: "SliceStart", format: "%d" } }
+                { "name": "Year", "value": { "type": "DateTime", "date": "SliceStart", "format": "yyyy" } },
+                { "name": "Month", "value": { "type": "DateTime", "date": "SliceStart", "format": "%M" } },
+                { "name": "Day", "value": { "type": "DateTime", "date": "SliceStart", "format": "%d" } }
             ],
             "format":
             {
