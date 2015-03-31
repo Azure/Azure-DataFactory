@@ -1,9 +1,9 @@
 {
-    name: "EgressDataToOnPremPipeline",
-    properties:
+    "name": "EgressDataToOnPremPipeline",
+    "properties":
     {
-        description : "Egress data to on-premises SQL Server (v1.0)",
-        activities:
+        "description" : "Egress data to on-premises SQL Server (v1.0)",
+        "activities":
         [
 			{
 				"name": "EgressDataToSqlServer",
