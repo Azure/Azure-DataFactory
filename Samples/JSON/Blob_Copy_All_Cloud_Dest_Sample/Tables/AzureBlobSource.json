@@ -1,31 +1,62 @@
-{  
-   "name":"AzureBlobSource",
-   "properties":{  
-      "structure":[  
-         {  
-            "name":"<columnname>",
-            "type":"<columntype>"
-         }
+{
+  "name": "AzureBlobInput",
+  "properties": {
+    "type": "AzureBlob",
+    "linkedServiceName": "StorageLinkedService",
+    "typeProperties": {
+      "folderPath": "MyContainer/MyFolder/yearno={Year}/monthno={Month}/dayno={Day}",
+      "filename": "{Hour}.csv",
+      "partitionedBy": [
+        {
+          "name": "Year",
+          "value": {
+            "type": "DateTime",
+            "date": "SliceStart",
+            "format": "yyyy"
+          }
+        },
+        {
+          "name": "Month",
+          "value": {
+            "type": "DateTime",
+            "date": "SliceStart",
+            "format": "%M"
+          }
+        },
+        {
+          "name": "Day",
+          "value": {
+            "type": "DateTime",
+            "date": "SliceStart",
+            "format": "%d"
+          }
+        },
+        {
+          "name": "Hour",
+          "value": {
+            "type": "DateTime",
+            "date": "SliceStart",
+            "format": "%HH"
+          }
+        }
       ],
-	  "location":{  
-         "type":"AzureBlobLocation",
-         "folderPath":"<Container>/<folder>",
-		 "filename":"<filename>",
-         "linkedServiceName":"StorageLinkedService",
-         "format":{  
-            "type":"TextFormat",
-            "columnDelimiter":",",
-            "rowDelimiter":"\n"
-         }
-      },
-      "availability":{  
-         "frequency":"Hour",
-         "interval":1,
-         "waitOnExternal":{  
-            "retryInterval":"00:01:00",
-            "retryTimeout":"00:10:00",
-            "maximumRetry":3
-         }
+      "format": {
+        "type": "TextFormat",
+        "columnDelimiter": ",",
+        "rowDelimiter": "\n"
       }
-   }
+    },
+    "external": true,
+    "availability": {
+      "frequency": "Hour",
+      "interval": 1
+    },
+    "policy": {
+      "externalData": {
+        "retryInterval": "00:01:00",
+        "retryTimeout": "00:10:00",
+        "maximumRetry": 3
+      }
+    }
+  }
 }

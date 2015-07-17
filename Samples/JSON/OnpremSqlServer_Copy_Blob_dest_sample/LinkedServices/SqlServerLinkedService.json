@@ -1,9 +1,10 @@
 {
-	"Name": "SqlServerLinkedService",
-	"Properties":
-	{
-		"type": "OnPremisesSqlLinkedService",
-		"connectionString": "Data Source=<servername>;Initial Catalog=<databasename>;Integrated Security=False;User ID=<username>;Password=<password>;",
-		"gatewayName": "<gatewayname>"
-	}
+  "Name": "SqlServerLinkedService",
+  "properties": {
+    "type": "OnPremisesSqlServer",
+    "typeProperties": {
+      "connectionString": "Data Source=<servername>;Initial Catalog=<databasename>;Integrated Security=False;User ID=<username>;Password=<password>;",
+      "gatewayName": "<gatewayname>"
+    }
+  }
 }

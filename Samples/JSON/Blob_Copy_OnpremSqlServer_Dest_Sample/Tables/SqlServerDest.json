@@ -1,23 +1,14 @@
 {
-    "name": "sqlserverdest",
-    "properties":
-    {
-      "structure":[  
-         {  
-            "name":"<columnname>",
-            "type":"<columntype>"
-         }
-      ],
-        "location": 
-        {
-            "type": "OnPremisesSqlServerTableLocation",
-            "tableName": "<tablename>",
-            "linkedServiceName": "SqlServerLinkedService"
-        },
-        "availability": 
-        {
-            "frequency": "Hour",
-            "interval": 1,
-		}
+  "name": "SqlServerOutput",
+  "properties": {
+    "type": "SqlServerTable",
+    "linkedServiceName": "SqlServerLinkedService",
+    "typeProperties": {
+      "tableName": "MyOutputTable"
+    },
+    "availability": {
+      "frequency": "Hour",
+      "interval": 1
     }
+  }
 }

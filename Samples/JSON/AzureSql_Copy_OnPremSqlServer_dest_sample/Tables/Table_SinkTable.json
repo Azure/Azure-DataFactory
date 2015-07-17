@@ -1,22 +1,14 @@
 {
-    "Name": "Table-Sql2Sql-Sink",
-    "properties":
-    {
-		"Location":
-		{
-			"type": "OnPremisesSqlServerTableLocation",
-			"tableName": "<table>",
-			"linkedServiceName": "LinkedService-OnPremDb"
-		},
-		"Availability":
-		{
-			"interval": 1, 
-			"frequency": "Hour"
-		},
-		"Structure":
-		[
-			{"Name":"Col1","Position":1,"Type":"String"},
-			{"Name":"Col2","Position":2,"Type":"Int"}        
-		]
+  "Name": "OnPremisesSqlServerOutput",
+  "properties": {
+    "type": "SqlServerTable",
+    "linkedServiceName": "OnPremisesSqlLinkedService",
+    "typeProperties": {
+      "tableName": "MyOutputTable"
+    },
+    "Availability": {
+      "interval": 1,
+      "frequency": "Hour"
     }
+  }
 }

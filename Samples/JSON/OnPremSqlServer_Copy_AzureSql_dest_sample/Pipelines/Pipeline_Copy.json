@@ -1,37 +1,39 @@
 {
-	"name": "DataPipeline-Sql2SqlTest",    
-	"properties": 
-	{		
-		"description" : "copy data from OnPremises Sql Server to Azure Sql",
-		"activities":
-		[ 
-		{
-			"name": "Ingress-Sql2Sql",
-			"inputs": [ {"Name": "Table-Sql2Sql-Source" }],
-			"outputs": [ {"Name": "Table-Sql2Sql-Sink" }],
-			"type": "CopyActivity",
-			"transformation":
-			{               
-				"source": 
-				{
-					"type": "SqlSource",
-					"SqlReaderQuery": "select * from [Source]"
-				},
-				"sink": 
-				{
-					"type": "SqlSink",
-					"WriteBatchSize": 1000000,
-					"WriteBatchTimeout": "00:5:00"
-				}
-			},
-			"policy": 
-			{
-				"concurrency": 1,
-				"executionPriorityOrder": "OldestFirst",				
-				"retry": 1,
-				"timeout": "00:10:00"
-			}				
-		}
-		]
-	}
+  "name": "SqlServerSqToAzureSql",
+  "properties": {
+    "description": "copy data from OnPremises Sql Server to Azure Sql",
+    "activities": [
+      {
+        "name": "copy activity",
+        "inputs": [
+          {
+            "Name": "SqlServerInput"
+          }
+        ],
+        "outputs": [
+          {
+            "Name": "AzureSqlOutput"
+          }
+        ],
+        "type": "Copy",
+        "typeProperties": {
+          "source": {
+            "type": "SqlSource",
+            "SqlReaderQuery": "select * from [Source]"
+          },
+          "sink": {
+            "type": "SqlSink",
+            "WriteBatchSize": 1000000,
+            "WriteBatchTimeout": "00:5:00"
+          }
+        },
+        "policy": {
+          "concurrency": 1,
+          "executionPriorityOrder": "OldestFirst",
+          "retry": 1,
+          "timeout": "00:10:00"
+        }
+      }
+    ]
+  }
 }

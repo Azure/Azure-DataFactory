@@ -1,8 +1,9 @@
 {
-    "name": "LinkedService-AzureSql",
-    "properties":
-    {
-        "type": "AzureSqlLinkedService",
-        "connectionString": "Server=<servername>.database.windows.net; Database=<databasename>;User ID=<username>;Password=<password>"
+  "name": "AzureSqlLinkedService",
+  "properties": {
+    "type": "AzureSqlDatabase",
+    "typeProperties": {
+      "connectionString": "Server=<servername>.database.windows.net; Database=<databasename>;User ID=<username>;Password=<password>"
     }
+  }
 }
