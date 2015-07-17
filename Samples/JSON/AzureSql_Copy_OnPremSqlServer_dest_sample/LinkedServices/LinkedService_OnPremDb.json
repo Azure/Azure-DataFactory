@@ -1,9 +1,10 @@
 {
-  "name": "AzureSqlLinkedService",
+  "Name": "OnPremisesSqlLinkedService",
   "properties": {
-    "type": "AzureSqlDatabase",
+    "type": "OnPremisesSqlServer",
     "typeProperties": {
-      "connectionString": "Server=<servername>.database.windows.net; Database=<databasename>;User ID=<username>;Password=<password>"
+      "connectionString": "Data Source=<servername>;Initial Catalog=<databasename>;Integrated Security=False;User ID=<username>;Password=<password>;",
+      "gatewayName": "<gatewayname>"
     }
   }
 }
