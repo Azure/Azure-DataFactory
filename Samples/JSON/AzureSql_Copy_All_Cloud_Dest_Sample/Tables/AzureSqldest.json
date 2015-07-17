@@ -1,22 +1,14 @@
 {
-  "name": "AzureSqlInput",
+  "name": "AzureSqlOutput",
   "properties": {
     "type": "AzureSqlTable",
     "linkedServiceName": "AzureSqlLinkedService",
     "typeProperties": {
-      "tableName": "MyTable"
+      "tableName": "MyOutputTable"
     },
-    "external": true,
     "availability": {
       "frequency": "Hour",
       "interval": 1
-    },
-    "policy": {
-      "externalData": {
-        "retryInterval": "00:01:00",
-        "retryTimeout": "00:10:00",
-        "maximumRetry": 3
-      }
     }
   }
 }
