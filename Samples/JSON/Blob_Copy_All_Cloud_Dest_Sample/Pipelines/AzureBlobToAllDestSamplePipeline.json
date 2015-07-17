@@ -1,104 +1,104 @@
-{  
-   "name":"AzureBlobToAllSinksSamplePipeline",
-   "properties":{  
-      "start":"2014-06-01T18:00:00",
-      "end":"2014-06-01T19:00:00",
-      "description":"AzureBlobToAllSinksSamplePipeline",
-      "activities":[  
-         {  
-            "name":"AzureBlobtoBlob",
-            "description":"AzureBlobtoBlob",
-            "type":"CopyActivity",
-            "inputs":[  
-               {  
-                  "name":"AzureBlobSource"
-               }
-            ],
-            "outputs":[  
-               {  
-                  "name":"AzureBlobDest"
-               }
-            ],            
-            "transformation":{  
-               "source":{  
-                  "type":"BlobSource",
-                  "blobColumnSeparators":","
-               },
-               "sink":{  
-                  "type":"BlobSink"
-               }
-            },
-            "policy":{  
-               "concurrency":1,
-               "executionPriorityOrder":"OldestFirst",
-               "retry":0,
-               "timeout":"01:00:00"
-            }
-         },
-         {  
-            "name":"AzureBlobtoTable",
-            "description":"AzureBlobtoTable",
-            "type":"CopyActivity",
-            "inputs":[  
-               {  
-                  "name":"AzureBlobSource"
-               }
-            ],
-            "outputs":[  
-               {  
-                  "name":"AzureTableDest"
-               }
-            ],            
-            "transformation":{  
-               "source":{  
-                  "type":"BlobSource",
-                  "blobColumnSeparators":","
-               },
-               "sink":{  
-                  "type":"AzureTableSink",
-                  "writeBatchSize":1000000,
-                  "writeBatchTimeout":"01:00:00",
-                  "azureTableRetryIntervalInSec":60,
-                  "azureTableRetryTimes":5
-               }
-            },
-            "policy":{  
-               "concurrency":1,
-               "executionPriorityOrder":"OldestFirst",
-               "retry":0,
-               "timeout":"01:00:00"
-            }
-         },
-         {  
-            "name":"AzureBlobtoSQL",
-            "description":"AzureBlobtoSQL",
-            "type":"CopyActivity",
-            "inputs":[  
-               {  
-                  "name":"AzureBlobSource"
-               }
-            ],
-            "outputs":[  
-               {  
-                  "name":"AzureSqlDest"
-               }
-            ],            
-            "transformation":{  
-               "source":{  
-                  "type":"BlobSource",
-                  "blobColumnSeparators":","
-               },
-               "sink":{  
-                  "type":"SqlSink"
-               }
-            },
-            "policy":{  
-               "concurrency":1,
-               "executionPriorityOrder":"OldestFirst",
-               "retry":0,
-               "timeout":"01:00:00"
-            }
-         }
-      ]
-   }
+{
+  "name": "AzureBlobToAllSinksSamplePipeline",
+  "properties": {
+    "start": "2014-06-01T18:00:00",
+    "end": "2014-06-01T19:00:00",
+    "description": "SamplePipeline",
+    "activities": [
+      {
+        "name": "AzureBlobtoBlob",
+        "description": "Copy Activity",
+        "type": "Copy",
+        "inputs": [
+          {
+            "name": "AzureBlobInput"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "AzureBlobOutput"
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "BlobSource",
+            "blobColumnSeparators": ","
+          },
+          "sink": {
+            "type": "BlobSink"
+          }
+        },
+        "policy": {
+          "concurrency": 1,
+          "executionPriorityOrder": "OldestFirst",
+          "retry": 0,
+          "timeout": "01:00:00"
+        }
+      },
+      {
+        "name": "AzureBlobtoTable",
+        "description": "Copy Activity",
+        "type": "Copy",
+        "inputs": [
+          {
+            "name": "AzureBlobInput"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "AzureTableOutput"
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "BlobSource",
+            "blobColumnSeparators": ","
+          },
+          "sink": {
+            "type": "AzureTableSink",
+            "writeBatchSize": 1000000,
+            "writeBatchTimeout": "01:00:00",
+            "azureTableRetryIntervalInSec": 60,
+            "azureTableRetryTimes": 5
+          }
+        },
+        "policy": {
+          "concurrency": 1,
+          "executionPriorityOrder": "OldestFirst",
+          "retry": 0,
+          "timeout": "01:00:00"
+        }
+      },
+      {
+        "name": "AzureBlobtoSQL",
+        "description": "Copy Activity",
+        "type": "Copy",
+        "inputs": [
+          {
+            "name": "AzureBlobInput"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "AzureSqlOutput"
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "BlobSource",
+            "blobColumnSeparators": ","
+          },
+          "sink": {
+            "type": "SqlSink"
+          }
+        },
+        "policy": {
+          "concurrency": 1,
+          "executionPriorityOrder": "OldestFirst",
+          "retry": 0,
+          "timeout": "01:00:00"
+        }
+      }
+    ]
+  }
 }
