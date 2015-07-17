@@ -1,21 +1,22 @@
-{  
-   "name":"AzureSqlDest",
-   "properties":{  
-      "structure":[  
-         {  
-            "name":"<columnname>",
-            "type":"<columntype>"
-         }
-      ],
-      "location":{  
-         "type":"AzureSqlTableLocation",
-         "tableName":"<tablename>",
-         "linkedServiceName":"AzureSqlLinkedService"
-      },
-      "availability":{  
-         "frequency":"Hour",
-         "interval":1
+{
+  "name": "AzureSqlInput",
+  "properties": {
+    "type": "AzureSqlTable",
+    "linkedServiceName": "AzureSqlLinkedService",
+    "typeProperties": {
+      "tableName": "MyTable"
+    },
+    "external": true,
+    "availability": {
+      "frequency": "Hour",
+      "interval": 1
+    },
+    "policy": {
+      "externalData": {
+        "retryInterval": "00:01:00",
+        "retryTimeout": "00:10:00",
+        "maximumRetry": 3
       }
-   }
+    }
+  }
 }
-
