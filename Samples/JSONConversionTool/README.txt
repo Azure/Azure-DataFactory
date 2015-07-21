@@ -1,6 +1,12 @@
-This tool enables you to convert the JSON files to the latest format.
+This tool enables you to convert the Azure Data Factory JSON files to the latest format.
 
-JsonUpgradeTool.exe /sd <source directory> /td <target directory> [/v <target API version>]
+After you have installed the tool, you can find the JsonConversionTool.exe in 
+C:\Program Files\Microsoft\Data Factory JSON Conversion Tool
+
+For the JSON changes, see 
+https://azure.microsoft.com/en-us/documentation/articles/data-factory-release-notes/#notes-for-07172015-release-of-data-factory
+
+JsonConversionTool /sd <source directory> /td <target directory> [/v <target API version>]
 Where:
 /sd <source directory>  -  Source Directory containing JSON definitions.
 /td <target directory>  -  Target Directory for new Upgraded JSON defintions. 
