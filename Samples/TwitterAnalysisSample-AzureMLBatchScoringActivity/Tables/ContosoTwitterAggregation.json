@@ -1,18 +1,18 @@
-{  
-   "name":"ContosoTwitterAggregation",
-   "properties":{  
-      "location":{  
-         "type":"AzureBlobLocation",
-         "folderPath":"twitteranalysis/twitter/aggregate/",
-         "format":{  
-            "type":"TextFormat",
-            "columnDelimiter":","
-         },
-         "linkedServiceName":"StorageLinkedService"
-      },
-      "availability":{  
-         "frequency":"minute",
-         "interval":15
+{
+  "name": "ContosoTwitterAggregation",
+  "properties": {
+    "type": "AzureBlob",
+    "linkedServiceName": "StorageLinkedService",
+    "typeProperties": {
+      "folderPath": "twitteranalysis/twitter/aggregate/",
+      "format": {
+        "type": "TextFormat",
+        "columnDelimiter": ","
       }
-   }
+    },
+    "availability": {
+      "frequency": "minute",
+      "interval": 15
+    }
+  }
 }
