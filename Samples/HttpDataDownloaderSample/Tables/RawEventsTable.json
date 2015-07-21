@@ -1,24 +1,24 @@
-{  
-   "name":"RawEventsTable",
-   "properties":{  
-      "location":{  
-         "type":"AzureBlobLocation",
-         "folderPath":"<Container>/httpDownloadDataIn/{Slice}/",
-         "partitionedBy":[  
-            {  
-               "name":"Slice",
-               "value":{  
-                  "type":"DateTime",
-                  "date":"SliceStart",
-                  "format":"yyyyMMddHHmm"
-               }
-            }
-         ],
-         "linkedServiceName":"RawEventsLinkedService"
-      },
-      "availability":{  
-         "frequency":"Hour",
-         "interval":1
-      }
-   }
+{
+  "name": "RawEventsTable",
+  "properties": {
+    "type": "AzureBlob",
+    "linkedServiceName": "RawEventsLinkedService",
+    "typeProperties": {
+      "folderPath": "<Container>/httpDownloadDataIn/{Slice}/",
+      "partitionedBy": [
+        {
+          "name": "Slice",
+          "value": {
+            "type": "DateTime",
+            "date": "SliceStart",
+            "format": "yyyyMMddHHmm"
+          }
+        }
+      ]
+    },
+    "availability": {
+      "frequency": "Hour",
+      "interval": 1
+    }
+  }
 }
