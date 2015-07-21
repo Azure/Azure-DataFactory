@@ -1,37 +1,42 @@
 {
-    "name": "EnrichGameLogsPipeline",
-    "properties":
-    {
-        "description": "Uses pig script to geocode partitioned game logs by state and hide last octet of IP address, producing enriched game logs (v1.0)",
-        "activities":
-        [
-            {
-                "name": "PigEnrichLogs",
-                "description": "Enrich logs using pig",
-                "type": "HDInsightActivity",
-                "inputs": [ {"name": "PartitionedGameEventsTable"}, {"name": "RefGeoCodeDictionaryTable"} ],
-                "outputs": [ {"name": "EnrichedGameEventsTable"} ],
-                "linkedServiceName": "HDInsightLinkedService",
-                "transformation":
-                {
-                    "type": "Pig",
-                    "extendedProperties":
-                    {
-                        "LOGINPUT": "$$Text.Format('wasb://adfwalkthrough@<storageaccountname>.blob.core.windows.net/logs/partitionedgameevents/yearno={0:yyyy}/monthno={0:%M}/dayno={0:%d}/', SliceStart)",
-                        "MAPINPUT": "wasb://adfwalkthrough@<storageaccountname>.blob.core.windows.net/refdata/refgeocodedictionary/",
-                        "LOGOUTPUT": "$$Text.Format('wasb://adfwalkthrough@<storageaccountname>.blob.core.windows.net/logs/enrichedgameevents/yearno={0:yyyy}/monthno={0:%M}/dayno={0:%d}/', SliceStart)"
-                    },
-                    "scriptPath": "adfwalkthrough\\scripts\\enrichlogs.pig",
-                    "scriptLinkedService": "StorageLinkedService"
-                },
-                "policy":
-                {
-                    "Concurrency": 1,
-                    "ExecutionPriorityOrder": "NewestFirst",
-                    "Retry": 1,
-                    "Timeout": "01:00:00"
-                }
-            }
-        ]
-    }
+  "name": "EnrichGameLogsPipeline",
+  "properties": {
+    "description": "Uses pig script to geocode partitioned game logs by state and hide last octet of IP address, producing enriched game logs (v1.0)",
+    "activities": [
+      {
+        "name": "PigEnrichLogs",
+        "description": "Enrich logs using pig",
+        "inputs": [
+          {
+            "name": "PartitionedGameEventsTable"
+          },
+          {
+            "name": "RefGeoCodeDictionaryTable"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "EnrichedGameEventsTable"
+          }
+        ],
+        "linkedServiceName": "HDInsightLinkedService",
+        "type": "HDInsightPig",
+        "typeProperties": {
+          "scriptPath": "adfwalkthrough\\scripts\\enrichlogs.pig",
+          "scriptLinkedService": "StorageLinkedService",
+          "defines": {
+            "LOGINPUT": "$$Text.Format('wasb://adfwalkthrough@<storageaccountname>.blob.core.windows.net/logs/partitionedgameevents/yearno={0:yyyy}/monthno={0:%M}/dayno={0:%d}/', SliceStart)",
+            "MAPINPUT": "wasb://adfwalkthrough@<storageaccountname>.blob.core.windows.net/refdata/refgeocodedictionary/",
+            "LOGOUTPUT": "$$Text.Format('wasb://adfwalkthrough@<storageaccountname>.blob.core.windows.net/logs/enrichedgameevents/yearno={0:yyyy}/monthno={0:%M}/dayno={0:%d}/', SliceStart)"
+          }
+        },
+        "policy": {
+          "Concurrency": 1,
+          "ExecutionPriorityOrder": "NewestFirst",
+          "Retry": 1,
+          "Timeout": "01:00:00"
+        }
+      }
+    ]
+  }
 }
