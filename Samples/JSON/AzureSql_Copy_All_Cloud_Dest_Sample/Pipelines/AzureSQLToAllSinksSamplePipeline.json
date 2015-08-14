@@ -3,7 +3,7 @@
   "properties": {
     "start": "2014-06-01T18:00:00",
     "end": "2014-06-01T19:00:00",
-    "description": "sample pipeline",
+    "description": "Sample pipeline",
     "activities": [
       {
         "name": "AzureSQLtoBlob",
