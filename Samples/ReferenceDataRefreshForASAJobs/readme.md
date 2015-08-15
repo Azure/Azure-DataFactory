@@ -32,7 +32,64 @@ To learn more about the details of the solution follow the step by step walk thr
 
 ## Step by Step Walk Through ##
 
-### Setting up the ASA job for Telco Fraud Detection ###
+### Setting up the ASA job for Telecommunication SIM Fraud Detection ###
+
+1. First follow the step by step guide to setup the [ASA job for detecting telecommunication SIM fraud](https://azure.microsoft.com/en-us/documentation/articles/stream-analytics-get-started/). If you already have a stream analytics job setup you can skip setting up this step but read through to understand how the next piece - using data factory to refresh reference data fits with your ASA job.
+
+	The above guide will walk you through the following setup.
+
+	a. Creating an eventhub.
+
+	b. Using the [TelcoGenerator app ](https://github.com/Azure/azure-stream-analytics/tree/master/DataGenerators/TelcoGenerator.)to generate events to send to EventHub.
+
+	c. Setup the ASA job with the right inputs and the query for fraud detection.
+
+	The query for fraud detection from the article above is:
+
+		SELECT System.Timestamp as Time, CS1.CallingIMSI, CS1.CallingNum as CallingNum1,
+		CS2.CallingNum as CallingNum2, CS1.SwitchNum as Switch1, CS2.SwitchNum as Switch2
+		FROM CallStream CS1 TIMESTAMP BY CallRecTime
+		JOIN CallStream CS2 TIMESTAMP BY CallRecTime
+		ON CS1.CallingIMSI = CS2.CallingIMSI
+		AND DATEDIFF(ss, CS1, CS2) BETWEEN 1 AND 5
+		WHERE CS1.SwitchNum != CS2.SwitchNum
+
+	Once you get the ASA job setup, running and producing output with the above query you would want to stop the job and modify it according to the steps below before starting it again.
+    
+2. Next we will modify the TelcoGenerator to reduce the no. of possible IMSI values to a smaller list. Note: This step is optional but it will help us make sure we only have to create a customertable with a small no. of contacts.
+
+ 	In CDRecord.cs file of TelcoGenerator App comment out the big IMSI numbers list and replace it with a smaller list   as follows:
+
+            //static string[] IMSIList = { "466923300507919","466921602131264","466923200348594","466922002560205","466922201102759","466922702346260","466920400352400","466922202546859","466923000886460","466921302209862","466923101048691","466921200135361","466922202613463","466921402416657","466921402237651","466922202679249","466923300236137","466921602343040","466920403025604","262021390056324","466920401237309","466922000696024","466923100098619","466922702341485","466922200432822","466923000464324","466923200779222","466923100807296","466923200408045" };
+        static string[] IMSIList = { "466923100098619", "466922002560205", "466922201102759", "466923200348594", "466923300507919"};
+
+	You can restart the TelcoGenerator app after the above change. Also chose a high probablity of .9 for fraud so we can easily see lots of output fraudulent events.
+
+ 
+
+1. Now we will modify the ASA job to add customertable reference data as input and update the query above to join against that input.
+
+	Select the inputs tab, add an input and select the type of input as reference data. Specify storage account information and setup reference data with the following container and path pattern as a csv file.
+
+	![referencedatainput](./DocumentationImages/referencedatainput.png)
+
+4. Next update the query for the job to add the step to join against the customertable data as follows:
+
+		SELECT System.Timestamp as Time, CS1.CallingIMSI, CS1.CallingNum as CallingNum1,
+		CS2.CallingNum as CallingNum2, CS1.SwitchNum as Switch1, CS2.SwitchNum as Switch2, CI.ID, CI.IMSI, CI.FirstName, CI.LastName
+		FROM CallStream CS1 TIMESTAMP BY CallRecTime
+		JOIN CallStream CS2 TIMESTAMP BY CallRecTime
+		ON CS1.CallingIMSI = CS2.CallingIMSI
+		AND DATEDIFF(ss, CS1, CS2) BETWEEN 1 AND 5
+		JOIN customerdata CI
+		ON CS1.CallingIMSI = CI.IMSI
+		WHERE CS1.SwitchNum != CS2.SwitchNum
+
+	We are pulling the first name and last name of the customer to whom the IMSI number involved in fraud belongs. 
+
+ We are now all set with the ASA job. You can now start the job. Note: even though we have added the reference data input we have not done the data factory setup to pull this table from Azure SQL and drop it the above blob location. As a result the ASA job will start but initially will not find any reference data. As a result the job will not produce any output. Next we will setup the Azure data factory pipeline to drop the reference data which will cause the ASA job to start picking up the data and start generating the output of fraudulent calls with customer first name and last name.
+
+
 
 
 
