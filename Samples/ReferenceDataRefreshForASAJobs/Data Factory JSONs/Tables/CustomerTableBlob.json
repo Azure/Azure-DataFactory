@@ -1,0 +1,63 @@
+{
+    "name": "CustomerTableBlob",
+    "properties": {
+        "published": false,
+        "type": "AzureBlob",
+        "linkedServiceName": "StorageLinkedService",
+        "typeProperties": {
+            "fileName": "customertable.csv",
+            "folderPath": "satest/referencedata/{Year}/{Month}/{Day}/{Hour}/{Minute}",
+            "format": {
+                "type": "TextFormat",
+                "columnDelimiter": ","
+            },
+            "partitionedBy": [
+                {
+                    "name": "Year",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceEnd",
+                        "format": "yyyy"
+                    }
+                },
+                {
+                    "name": "Month",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceEnd",
+                        "format": "MM"
+                    }
+                },
+                {
+                    "name": "Day",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceEnd",
+                        "format": "dd"
+                    }
+                },
+                {
+                    "name": "Hour",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceEnd",
+                        "format": "HH"
+                    }
+                },
+                {
+                    "name": "Minute",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceEnd",
+                        "format": "mm"
+                    }
+                }
+            ]
+        },
+        "availability": {
+            "frequency": "Minute",
+            "interval": 15,
+            "style": "StartOfInterval"
+        }
+    }
+}
