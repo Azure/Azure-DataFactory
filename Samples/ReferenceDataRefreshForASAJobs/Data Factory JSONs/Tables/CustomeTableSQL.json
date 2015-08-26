@@ -1,0 +1,18 @@
+{
+    "name": "CustomerTableSQL",
+    "properties": {
+        "published": false,
+        "type": "AzureSqlTable",
+        "linkedServiceName": "AzureSqlLinkedService",
+        "typeProperties": {
+            "tableName": "customerinfo"
+        },
+        "availability": {
+            "frequency": "Minute",
+            "interval": 15,
+            "style": "StartOfInterval"
+        },
+        "external": true,
+        "policy": {}
+    }
+}
