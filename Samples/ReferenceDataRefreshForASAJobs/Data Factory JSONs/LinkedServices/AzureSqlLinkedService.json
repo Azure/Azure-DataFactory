@@ -1,0 +1,9 @@
+{
+    "name": "AzureSqlLinkedService",
+    "properties": {
+        "type": "AzureSqlDatabase",
+        "typeProperties": {
+            "connectionString": "Data Source=<data source>;Initial Catalog=<catalog name>;User ID=<user id>;Password=<password>"
+        }
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "name": "SATestReferenceDataCopy",
+    "properties": {
+        "description": "Copy reference data from a Azure SQL table to blob",
+        "activities": [
+            {
+                "type": "Copy",
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlSource"
+                    },
+                    "sink": {
+                        "type": "BlobSink",
+                        "blobWriterAddHeader": true,
+                        "writeBatchSize": 0,
+                        "writeBatchTimeout": "00:00:00"
+                    }
+                },
+                "inputs": [
+                    {
+                        "name": "CustomerTableSQL"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "CustomerTableBlob"
+                    }
+                ],
+                "policy": {
+                    "timeout": "01:00:00",
+                    "concurrency": 1,
+                    "executionPriorityOrder": "NewestFirst",
+                    "style": "StartOfInterval"
+                },
+                "scheduler": {
+                    "frequency": "Minute",
+                    "interval": 15,
+                    "style": "StartOfInterval"
+                },
+                "name": "CopyFromSQLToBlob",
+                "description": "Copy reference customer data from a Azure SQL table to blob"
+            }
+        ],
+        "start": "2015-07-23T17:00:00Z",
+        "end": "2015-07-27T00:00:00Z",
+        "isPaused": false
+    }
+}

@@ -1,21 +1,19 @@
-{  
-   "name":"ContosoTwitterRaw",
-   "properties":{  
-      "location":{  
-         "type":"AzureBlobLocation",
-         "folderPath":"twitteranalysis/twitter/rawdata",
-         "format":{  
-            "type":"TextFormat",
-            "columnDelimiter":","
-         },
-         "linkedServiceName":"StorageLinkedService"
-      },
-      "availability":{  
-         "frequency":"minute",
-         "interval":15,
-         "waitonexternal":{  
-
-         }
+{
+  "name": "ContosoTwitterRaw",
+  "properties": {
+    "type": "AzureBlob",
+    "linkedServiceName": "StorageLinkedService",
+    "typeProperties": {
+      "folderPath": "twitteranalysis/twitter/rawdata",
+      "format": {
+        "type": "TextFormat",
+        "columnDelimiter": ","
       }
-   }
+    },
+    "external": true,
+    "availability": {
+      "frequency": "minute",
+      "interval": 15
+    }
+  }
 }
