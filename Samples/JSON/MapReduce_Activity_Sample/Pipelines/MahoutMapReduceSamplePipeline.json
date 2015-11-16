@@ -35,6 +35,8 @@
             "wasb://<container>@<accountname>.blob.core.windows.net/Mahout/temp/mahout"
           ]
         },
+        "start": "2014-01-03T00:00:00Z",
+        "end": "2014-01-04T00:00:00Z",
         "policy": {
           "concurrency": 1,
           "executionPriorityOrder": "OldestFirst",
