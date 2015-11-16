@@ -1,0 +1,19 @@
+{
+  "name": "MahoutInput",
+  "properties": {
+    "type": "AzureBlob",
+    "linkedServiceName": "StorageLinkedService",
+    "typeProperties": {
+      "folderPath": "adfsamples/Mahout/input/",
+      "format": {
+        "type": "TextFormat",
+        "columnDelimiter": "\t"
+      }
+    },
+    "external": true,
+    "availability": {
+      "frequency": "hour",
+      "interval": 1
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "HDInsightStorageLinkedService",
+  "properties": {
+    "type": "AzureStorage",
+    "typeProperties": {
+      "connectionString": "DefaultEndpointsProtocol=https;AccountName=<accountname>;AccountKey=<accountkey>"
+    }
+  }
+}
