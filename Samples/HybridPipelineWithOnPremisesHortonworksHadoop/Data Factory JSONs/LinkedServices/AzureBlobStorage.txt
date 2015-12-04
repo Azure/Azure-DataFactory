@@ -1,0 +1,10 @@
+{
+    "name": "AzureBlobStorage",
+    "properties": {
+        "hubName": "hwkadftest1026_hub",
+        "type": "AzureStorage",
+        "typeProperties": {
+            "connectionString": "DefaultEndpointsProtocol=https;AccountName=<your storage account name>;AccountKey=<your storage account key>"
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "name": "OnpremisesInputHDFSForHadoopHive",
+    "properties": {
+        "published": false,
+        "type": "CustomDataset",
+        "linkedServiceName": "OnpremisesHadoopCluster",
+        "typeProperties": {
+            "tableName": "partitionedcdrs",
+            "partitionedBy": "yearno=${YEAR};monthno=${MONTH}"
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1
+        },
+        "external": true,
+        "policy": {}
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "name": "OnpremisesInputHDFSForHadoopPig",
+    "properties": {
+        "published": false,
+        "type": "CustomDataset",
+        "linkedServiceName": "OnpremisesHadoopCluster",
+        "typeProperties": {
+            "folderPath": "/data/in/${YEAR}/${MONTH}/"
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1
+        },
+        "external": true,
+        "policy": {}
+    }
+}

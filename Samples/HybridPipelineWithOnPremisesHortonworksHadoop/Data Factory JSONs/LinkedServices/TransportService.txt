@@ -1,0 +1,16 @@
+{
+    "name": "TransportLinkedService",
+    "properties": {
+        "hubName": "hwkadftest1026_hub",
+        "type": "AzureServiceBus",
+        "typeProperties": {
+            "endpoint": "<enter your service bus namespace url>",
+            "sharedAccessKeyName": "RootManageSharedAccessKey",
+            "sharedAccessKey": "<enter your service bus key>",
+            "activityQueueName": "adfrequest",
+            "statusQueueName": "adfstatus",
+            "extendedProperties": {},
+            "transportProtocolVersion": "2.0-preview"
+        }
+    }
+}

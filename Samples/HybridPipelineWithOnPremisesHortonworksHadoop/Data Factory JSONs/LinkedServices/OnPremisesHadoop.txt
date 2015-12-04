@@ -1,0 +1,13 @@
+{
+    "name": "OnpremisesHadoopCluster",
+    "properties": {
+        "description": "",
+        "hubName": "hwkadftest1026_hub",
+        "type": "OnPremisesHadoop",
+        "typeProperties": {
+            "clusterName": "primaryCluster",
+            "transportLinkedServiceName": "TransportService",
+            "runOnBehalf": "ambari-qa"
+        }
+    }
+}
