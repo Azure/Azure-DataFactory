@@ -1,0 +1,21 @@
+{
+  "name": "input",
+  "properties": {
+    "published": false,
+    "type": "AzureBlob",
+    "linkedServiceName": "StorageLinkedService",
+    "typeProperties": {
+      "folderPath": "input/data",
+      "format": {
+        "type": "TextFormat",
+        "columnDelimiter": "\t"
+      }
+    },
+    "availability": {
+      "frequency": "Day",
+      "interval": 1
+    },
+    "external": true,
+    "policy": {}
+  }
+}
