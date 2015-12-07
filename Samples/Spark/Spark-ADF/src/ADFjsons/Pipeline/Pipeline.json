@@ -59,7 +59,7 @@
             }
         ],
         "start": "2015-11-16T00:00:01Z",
-        "end": "2015-11-17T23:59:00Z",
+        "end": "2015-11-16T23:59:00Z",
         "isPaused": false,
         "pipelineMode": "Scheduled"
     }
