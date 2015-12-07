@@ -4,9 +4,9 @@
     "description": "",
     "type": "HDInsight",
     "typeProperties": {
-      "clusterUri": "https://yourcluster.azurehdinsight.net",
-      "userName": "admin",
-      "password": "**********",
+      "clusterUri": "https://<ClusterName>.azurehdinsight.net",
+      "userName": "<UserName>",
+      "password": "<Password>",
       "linkedServiceName": "StorageLinkedService"
     }
   }

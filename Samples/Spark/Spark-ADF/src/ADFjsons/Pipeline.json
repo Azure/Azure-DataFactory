@@ -29,9 +29,9 @@
                         "--sparkHome",
                         "/usr/hdp/current/spark",
                         "--connectionString",
-                        "DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT;AccountKey=YOUR_KEY",
-                        "input=wasb://input@YOUR_ACCOUNT.blob.core.windows.net/data",
-                        "output=wasb://output@YOUR_ACCOUNT.blob.core.windows.net/results"
+                        "DefaultEndpointsProtocol=https;AccountName=<YOUR_ACCOUNT>;AccountKey=<YOUR_KEY>",
+                        "input=wasb://input@<YOUR_ACCOUNT>.blob.core.windows.net/data",
+                        "output=wasb://output@<YOUR_ACCOUNT>.blob.core.windows.net/results"
                     ]
                 },
                 "inputs": [
