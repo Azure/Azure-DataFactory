@@ -1,0 +1,15 @@
+target/
+*.class
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+
+## Directory-based project format:
+.idea/
+# IntelliJ
+/out/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
