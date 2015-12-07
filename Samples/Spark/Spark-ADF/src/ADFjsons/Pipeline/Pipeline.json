@@ -13,7 +13,7 @@
                         "--jarFile",
                         "libs/sparkdemoapp_2.10-1.0.jar",
                         "--jars",
-                        "/usr/hdp/current/hadoop-client/hadoop-azure-2.7.1.2.3.3.0-2983.jar,/usr/hdp/current/hadoop-client/lib/azure-storage-2.2.0.jar",
+                        "/usr/hdp/current/hadoop-client/hadoop-azure-2.7.1.2.3.3.0-3039.jar,/usr/hdp/current/hadoop-client/lib/azure-storage-2.2.0.jar",
                         "--mainClass",
                         "com.adf.spark.demo.Demo",
                         "--master",
