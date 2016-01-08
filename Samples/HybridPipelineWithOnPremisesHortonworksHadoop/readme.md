@@ -81,7 +81,94 @@ The private preview is available for a small set of customers participating in H
 
 	At this point you have successfully connected Azure data factory and on-premises Falcon!
 
-**Step 3. Run a Hive job on-premises using data factory from cloud**
+**Step 3. Run Hive, Pig jobs on-premises using data factory from cloud**
+
+You can now create datasets and pipeilines to run Hive and Pig jobs targetting the on-premises Hadoop cluster.
+
+Here is sample dataset and pipeline for running a Hive script.  Similarly you can also run a Pig job on-premises. The sample JSONs for all the objects can be found in ./Data factory JSONs/ folder.
 
 
+		{
+	    "name": "OnpremisesInputHDFSForHadoopHive",
+	    "properties": {
+	        "published": false,
+	        "type": "CustomDataset",
+	        "linkedServiceName": "OnpremisesHadoopCluster",
+	        "typeProperties": {
+	            "tableName": "partitionedcdrs",
+	            "partitionedBy": "yearno=${YEAR};monthno=${MONTH}"
+	        },
+	        "availability": {
+	            "frequency": "Day",
+	            "interval": 1
+	        },
+	        "external": true,
+	        "policy": {}
+	    }
+	    }
 
+		{
+ 		   "name": "OnpremisesOutputHDFSForHadoopHive",
+ 		   "properties": {
+        	"published": false,
+        	"type": "CustomDataset",
+        	"linkedServiceName": "OnpremisesHadoopCluster",
+        	"typeProperties": {
+            	"tableName": "callsummarybymonth",
+            	"partitionedBy": "yearno=${YEAR};monthno=${MONTH}"
+        	},
+        	"availability": {
+            	"frequency": "Day",
+            	"interval": 1
+        	}
+ 	   	}
+		}
+
+		{
+	    "name": "TestHiveRunningOnHDPHiveInHDFS",
+	    "properties": {
+	        "description": "Test pipeline to run Hive script on an-onpremises HDP cluster (Hive is in HDFS location)",
+	        "activities": [
+	            {
+	                "type": "HadoopHive",
+	                "typeProperties": {
+	                    "runOnBehalf": "ambari-qa",
+	                    "scriptPath": "/apps/falcon/adf-demo/demo.hql",
+	                    "Year": "$$Text.Format('{0:yyyy}',SliceStart)",
+	                    "Month": "$$Text.Format('{0:%M}',SliceStart)",
+	                    "Day": "$$Text.Format('{0:%d}',SliceStart)"
+	                },
+	                "inputs": [
+	                    {
+	                        "name": "OnpremisesInputHDFSForHadoopHive"
+	                    }
+	                ],
+	                "outputs": [
+	                    {
+	                        "name": "OnpremisesOutputHDFSForHadoopHive"
+	                    }
+	                ],
+	                "policy": {
+	                    "timeout": "00:05:00",
+	                    "concurrency": 1,
+	                    "retry": 1
+	                },
+	                "scheduler": {
+	                    "frequency": "Day",
+	                    "interval": 1
+	                },
+	                "name": "HiveScriptOnHDPCluster",
+	                "linkedServiceName": "OnpremisesHadoopCluster"
+	            }
+	        ],
+	        "start": "2014-11-01T00:00:00Z",
+	        "end": "2014-11-02T00:00:00Z",
+	        "isPaused": false,
+	        "hubName": "hwkadftest1026_hub",
+	        "pipelineMode": "Scheduled"
+	    }
+	}
+
+**Step 4. Run replication job ton copy files from on-premises HDFS store to Azure blob**
+
+Coming soon...
