@@ -20,4 +20,68 @@ You can enable connectivity between your on-premises cluster with data factory s
 
 The private preview is available for a small set of customers participating in Hortonworks Dec 2015 tech preview (TODO: add link to tech preview).
  
-For more details on how hybrid pipelines are enabled under the covers, how data factory and Falcon communicate with each other and step by step instructions on how to set this up if you are part of the private preview please refer to our GitHub sample for hybrid Hadoop pipelines.
+# Step by Step instructions for enabling hybrid pipelines #
+
+**Step 1 Upgrade your on-premise Hortonworks distribution to the tech preview version (TODO: add link for instructions)**
+
+**Step 2 Create a data factory and connect the cloud data factory to your on-premises Hadoop cluster**
+
+1. Create a data factory using your Azure subscription.
+
+2. Leverage the "New Hadoop cluster" option in data factory editor in Azure web portal as shown below. Enter the required information like name of the Hadoop cluster etc. and complete the wizard.
+
+	![NewHadoopCluster](./DocumentationImages/NewHadoopButton.png)
+	
+	The wizard will create 2 linked services in your data factory. The JSON for the linked services can be found in ./Data Factory JSONs/LinkedServices folder in the sample.
+	
+	a. TransportLinkedService
+	
+	This linked service contains information about a unique Azure service bus namespace that is used for communicating job requests and status information between data factory and your on-premises Hadoop cluster.
+	
+	b. OnPremisesHadoopCluster linked service
+	
+	This linked service references the above mentioned transport linked service and represents the on-premises Hadoop cluster as a data factory compute resource. You can use this resource as compute target for your data factory Hive and Pig jobs.
+
+3. Configure on-premises Hadoop Falcon instance to connect using Azure service bus namespace transport.
+
+	Falcon reads Azure Service Bus information from conf/startup.properties when it starts. Hence Azuer service bus namespac and credential needs to be added before startingFalcon, and Falcon needs to be restarted if there is  any change in the credential. 
+	
+	Add the following section in your Falcon conf/startup.properties file with Azure namespace taken from Transport linked service and credentials for the Azure bus namespace taken from Azure web portal.
+
+		######### ADF Configurations start #########    
+		
+		# A String object that represents the namespace
+		
+		*.microsoft.windowsazure.services.servicebus.namespace=hwpoctransport    
+		
+		# Request and status queues on the namespace
+		
+		*.microsoft.windowsazure.services.servicebus.requestqueuename=adfrequest  
+		*.microsoft.windowsazure.services.servicebus.statusqueuename=adfstatus
+		
+		# A String object that contains the SAS key name  
+		*.microsoft.windowsazure.services.servicebus.sasKeyName=RootManageSharedAccessKey
+		
+		# A String object that contains the SAS key  
+		*.microsoft.windowsazure.services.servicebus.sasKey=4kt2x6yEoWZZSFZofyXEoxly7knHL7FP NqLD14ov1jo=     		
+		
+		# A String object containing the base URI that is added to your Service Bus namespace to form  the URI to connect  
+		# to the Service Bus service. To access the default public Azure service, pass  ".servicebus.windows.net"  
+		*.microsoft.windowsazure.services.servicebus.serviceBusRootUri=.servicebus.windows.net
+		
+		# Service bus polling frequency (in seconds)  
+		*.microsoft.windowsazure.services.servicebus.polling.frequency=60
+
+4. Restart Falcon with start/stop commands as follows:
+
+		Change to falcon user: su ­ falcon
+		Go to Falcon directory on Sandbox: ​cd /usr/hdp/2.3*/falcon­/
+		To start Falcon: ​bin/falcon­start  
+		To stop Falcon: ​bin/falcon­stop  Falcon logs are stored at ​logs/falcon.application.log
+
+	At this point you have successfully connected Azure data factory and on-premises Falcon!
+
+**Step 3. Run a Hive job on-premises using data factory from cloud**
+
+
+
