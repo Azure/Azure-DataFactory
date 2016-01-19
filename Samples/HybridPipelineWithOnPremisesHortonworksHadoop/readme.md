@@ -14,15 +14,15 @@ Hybrid Hadoop pipeline preview enables these scenarios by allowing you to now ad
 
 You can enable connectivity between your on-premises cluster with data factory service over a secure channel with just a few clicks. Once you do that as shown above you can develop a hybrid pipeline that does the following:
 
-1.	Run Hadoop Hive & Pig jobs on-premises with the new on-premises Hadoop Hive, Pig activities in data factory.
-2.	Copy data from on-premises HDFS to Azure blob in cloud with the new on-premises replication activity.
+1.	Run Hadoop Hive & Pig jobs on-premises with the **new on-premises Hadoop Hive, Pig activities** in data factory.
+2.	Copy data from on-premises HDFS to Azure blob in cloud with the **new on-premises replication activity**.
 3.	Add more steps to the pipeline and continue big data processing in cloud with Hadoop HDInsight activity for example.
 
-The private preview is available for a small set of customers participating in Hortonworks Dec 2015 tech preview (TODO: add link to tech preview).
+The private preview is available for a small set of select customers. If you are interested in becoming a private preview customer please take this brief survey and we will let you know if your use case is a good fit for the private preview. 
  
 # Step by Step instructions for enabling hybrid pipelines #
 
-**Step 1 Upgrade your on-premise Hortonworks distribution to the tech preview version (TODO: add link for instructions)**
+**Step 1 Upgrade your on-premise Hortonworks distribution Falcon binaries to the tech preview version (TODO: add link for instructions)**
 
 **Step 2 Create a data factory and connect the cloud data factory to your on-premises Hadoop cluster**
 
@@ -30,7 +30,7 @@ The private preview is available for a small set of customers participating in H
 
 2. Leverage the "New Hadoop cluster" option in data factory editor in Azure web portal as shown below. Enter the required information like name of the Hadoop cluster etc. and complete the wizard.
 
-	![NewHadoopCluster](./DocumentationImages/NewHadoopButton.png)
+	![NewHadoopCluster](./DocumentationImages/NewHadoopButton.jpg)
 	
 	The wizard will create 2 linked services in your data factory. The JSON for the linked services can be found in ./Data Factory JSONs/LinkedServices folder in the sample.
 	
@@ -169,6 +169,109 @@ Here is sample dataset and pipeline for running a Hive script.  Similarly you ca
 	    }
 	}
 
-**Step 4. Run replication job ton copy files from on-premises HDFS store to Azure blob**
+**Step 4. Run replication job to copy files from on-premises HDFS store to Azure blob**
 
-Coming soon...
+1. Set up Azure Blob credentials
+
+	To move data to and from Azure blobs with Falcon replication job, we need to add Azure blob credentials in HDFS. The best way is to add Azure blob credential property to coresite through Ambari.
+	
+	a. Log in to Ambari: http://[cluster ip]:8080. 
+	
+	b. Add Azure blob credential property to custom coresite.
+	
+	Go to advanced configs for HDFS, , expand custom coresite and click “add property” (see images below) and add Azure credential as key/value property. Use the following format for the key:
+	
+	fs.azure.account.key.AZURE_BLOB_ACCOUNT_NAME.blob.core.windows.net, 
+	
+	e.g.
+	fs.azure.account.key.hwkadfstorage.blob.core.windows.net. 
+	
+	Use the Azure blob account key for the value.
+	
+	c. Restart the relevant components in the following order: HDFS, YARN, MapReduce2, Oozie, Falcon. The best way is to click on each component and use ‘restart all’ action on Ambari. Use the instructions above on how to restart Falcon. 
+	
+	d. Test if we can access Azure blobs through HDFS:
+	
+	e.g. hdfs dfs ls wasb://<containername>@hwkadfstorage.blob.core.windows.net/
+
+	![HDFSAzureConfig](./DocumentationImages/HDFSAzureConfig.jpg)
+
+	![HDFSAzureConfigProperty](./DocumentationImages/HDFSAzureConfigProperty.jpg)
+
+2. You can now setup the on-premises input dataset, output dataset in Azure blob and a pipeline to copy the data with the replication activity. The sample JSONs are shown below.
+ 
+		{
+		    "name": "OnpremisesInputHDFSForHadoopMirror",
+		    "properties": {
+		        "published": false,
+		        "type": "CustomDataset",
+		        "linkedServiceName": "OnpremisesHadoopCluster",
+		        "typeProperties": {
+		            "folderPath": "/apps/hive/warehouse/callsummarybymonth/yearno=${YEAR}/monthno=${MONTH}"
+		        },
+		        "availability": {
+		            "frequency": "Day",
+		            "interval": 1
+		        },
+		        "external": true,
+		        "policy": {}
+		    }
+		}
+
+		{
+		    "name": "AzureBlobDatasetForHadoopMirror",
+		    "properties": {
+		        "published": false,
+		        "type": "AzureBlob",
+		        "linkedServiceName": "AzureBlobStorage",
+		        "typeProperties": {
+		            "folderPath": "results/${YEAR}/${MONTH}",
+		            "format": {
+		                "type": "TextFormat"
+		            }
+		        },
+		        "availability": {
+		            "frequency": "Day",
+		            "interval": 1
+		        }
+		    }
+		}
+
+		{
+		    "name": "TestReplicate2Azure",
+		    "properties": {
+		        "description": "Test pipeline to mirror data on onpremises HDFS to azure",
+		        "activities": [
+		            {
+		                "type": "HadoopMirror",
+		                "typeProperties": {},
+		                "inputs": [
+		                    {
+		                        "name": "OnpremisesInputHDFSForHadoopMirror"
+		                    }
+		                ],
+		                "outputs": [
+		                    {
+		                        "name": "AzureBlobDatasetForHadoopMirror"
+		                    }
+		                ],
+		                "policy": {
+		                    "timeout": "00:05:00",
+		                    "concurrency": 1,
+		                    "retry": 1
+		                },
+		                "scheduler": {
+		                    "frequency": "Day",
+		                    "interval": 1
+		                },
+		                "name": "MirrorData 2Azure",
+		                "linkedServiceName": "OnpremisesHadoopCluster"
+		            }
+		        ],
+		        "start": "2014-11-01T00:00:00Z",
+		        "end": "2014-11-02T00:00:00Z",
+		        "isPaused": false,
+		        "hubName": "hwkadftest1026_hub",
+		        "pipelineMode": "Scheduled"
+		    }
+		}
