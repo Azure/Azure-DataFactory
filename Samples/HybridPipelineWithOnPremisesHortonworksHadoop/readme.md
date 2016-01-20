@@ -18,11 +18,11 @@ You can enable connectivity between your on-premises cluster with data factory s
 2.	Copy data from on-premises HDFS to Azure blob in cloud with the **new on-premises replication activity**.
 3.	Add more steps to the pipeline and continue big data processing in cloud with Hadoop HDInsight activity for example.
 
-The private preview is available for a small set of select customers. If you are interested in becoming a private preview customer please take this brief survey and we will let you know if your use case is a good fit for the private preview. 
+The private preview is available for a small set of select customers. If you are interested in becoming a private preview customer please take this [brief survey](http://www.instant.ly/s/5se7W/nav#p/186a0) and we will let you know if your use case is a good fit for the private preview. 
  
 # Step by Step instructions for enabling hybrid pipelines #
 
-**Step 1 Upgrade your on-premise Hortonworks distribution Falcon binaries to the tech preview version (TODO: add link for instructions)**
+**Step 1 Upgrade your on-premise Hortonworks distribution Falcon binaries to the tech preview version (TODO: add Hortonworks side link for instructions)**
 
 **Step 2 Create a data factory and connect the cloud data factory to your on-premises Hadoop cluster**
 
