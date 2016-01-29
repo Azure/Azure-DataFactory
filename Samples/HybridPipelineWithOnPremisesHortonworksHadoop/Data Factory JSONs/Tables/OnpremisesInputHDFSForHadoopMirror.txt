@@ -1,0 +1,17 @@
+{
+    "name": "OnpremisesInputHDFSForHadoopMirror",
+    "properties": {
+        "published": false,
+        "type": "CustomDataset",
+        "linkedServiceName": "OnpremisesHadoopCluster",
+        "typeProperties": {
+            "folderPath": "/apps/hive/warehouse/callsummarybymonth/yearno=${YEAR}/monthno=${MONTH}"
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1
+        },
+        "external": true,
+        "policy": {}
+    }
+}

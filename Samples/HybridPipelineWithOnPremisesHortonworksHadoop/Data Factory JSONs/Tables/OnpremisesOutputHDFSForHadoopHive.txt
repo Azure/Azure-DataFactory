@@ -1,0 +1,16 @@
+{
+    "name": "OnpremisesOutputHDFSForHadoopHive",
+    "properties": {
+        "published": false,
+        "type": "CustomDataset",
+        "linkedServiceName": "OnpremisesHadoopCluster",
+        "typeProperties": {
+            "tableName": "callsummarybymonth",
+            "partitionedBy": "yearno=${YEAR};monthno=${MONTH}"
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1
+        }
+    }
+}
