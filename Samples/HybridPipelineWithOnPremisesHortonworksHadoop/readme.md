@@ -83,7 +83,7 @@ The private preview is available for a small set of select customers. If you are
 
 **Step 3. Run Hive, Pig jobs on-premises using data factory from cloud**
 
-You can now create datasets and pipeilines to run Hive and Pig jobs targetting the on-premises Hadoop cluster.
+You can now create datasets and pipelines to run Hive and Pig jobs targeting the on-premises Hadoop cluster.
 
 Here is sample dataset and pipeline for running a Hive script.  Similarly you can also run a Pig job on-premises. The sample JSONs for all the objects can be found in ./Data factory JSONs/ folder.
 
