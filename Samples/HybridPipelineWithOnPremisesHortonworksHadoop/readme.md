@@ -44,7 +44,7 @@ The private preview is available for a small set of select customers. If you are
 
 3. Configure on-premises Hadoop Falcon instance to connect using Azure service bus namespace transport.
 
-	Falcon reads Azure Service Bus information from conf/startup.properties when it starts. Hence Azuer service bus namespac and credential needs to be added before startingFalcon, and Falcon needs to be restarted if there is  any change in the credential. 
+	Falcon reads Azure Service Bus information from conf/startup.properties when it starts. Hence Azure service bus namespace and credential needs to be added before starting Falcon, and Falcon needs to be restarted if there is  any change in the credential. 
 	
 	Add the following section in your Falcon conf/startup.properties file with Azure namespace taken from Transport linked service and credentials for the Azure bus namespace taken from Azure web portal.
 
@@ -52,7 +52,7 @@ The private preview is available for a small set of select customers. If you are
 		
 		# A String object that represents the namespace
 		
-		*.microsoft.windowsazure.services.servicebus.namespace=hwpoctransport    
+		*.microsoft.windowsazure.services.servicebus.namespace=<your azure service bus namespace>    
 		
 		# Request and status queues on the namespace
 		
@@ -63,7 +63,7 @@ The private preview is available for a small set of select customers. If you are
 		*.microsoft.windowsazure.services.servicebus.sasKeyName=RootManageSharedAccessKey
 		
 		# A String object that contains the SAS key  
-		*.microsoft.windowsazure.services.servicebus.sasKey=4kt2x6yEoWZZSFZofyXEoxly7knHL7FP NqLD14ov1jo=     		
+		*.microsoft.windowsazure.services.servicebus.sasKey=<your Azure service bus SAS key>
 		
 		# A String object containing the base URI that is added to your Service Bus namespace to form  the URI to connect  
 		# to the Service Bus service. To access the default public Azure service, pass  ".servicebus.windows.net"  
@@ -74,10 +74,11 @@ The private preview is available for a small set of select customers. If you are
 
 4. Restart Falcon with start/stop commands as follows:
 
-		Change to falcon user: su ­ falcon
+		Change to falcon user: su ­- falcon
 		Go to Falcon directory on Sandbox: ​cd /usr/hdp/2.3*/falcon­/
-		To start Falcon: ​bin/falcon­start  
-		To stop Falcon: ​bin/falcon­stop  Falcon logs are stored at ​logs/falcon.application.log
+		To start Falcon: ​bin/falcon­-start  
+		To stop Falcon: ​bin/falcon-­stop  
+		Note:Falcon logs are stored at ​logs/falcon.application.log
 
 	At this point you have successfully connected Azure data factory and on-premises Falcon!
 
