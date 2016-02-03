@@ -22,7 +22,7 @@ The private preview is available for a small set of select customers. If you are
  
 # Step by Step instructions for enabling hybrid pipelines #
 
-**Step 1 Upgrade your on-premise Hortonworks distribution Falcon binaries to the tech preview version by following the Falcon upgrade instructions [here](http://1drv.ms/1WLscTx)**.
+**Step 1 Upgrade your on-premise Hortonworks distribution Falcon binaries to the tech preview version by following the Falcon upgrade instructions [here](./DocumentationFiles/ADFTutorial.pdf)**.
 
 **Step 2 Create a data factory and connect the cloud data factory to your on-premises Hadoop cluster**
 
