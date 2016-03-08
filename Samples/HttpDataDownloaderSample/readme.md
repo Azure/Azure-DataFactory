@@ -16,22 +16,21 @@ This showcases downloading of data from an HTTP Endpoint to Azure Blob Storage u
 
 ### Azure Data Factory
 
-1. `Switch-AzureMode AzureResourceManager `
-2. `New-AzureResourceGroup -Name [RESOURCE_GROUP_NAME]  -Location "West US"`
-3. `New-AzureDataFactory -ResourceGroupName [RESOURCE_GROUP_NAME] -Name [DATA_FACTORY_NAME] –Location "West US"`
+1. `New-AzureRmResourceGroup -Name [RESOURCE_GROUP_NAME]  -Location "West US"`
+2. `New-AzureRmDataFactory -ResourceGroupName [RESOURCE_GROUP_NAME] -Name [DATA_FACTORY_NAME] –Location "West US"`
 
 ### Linked Services
 
-1. `New-AzureDataFactoryLinkedService -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /LinkedServices/RawEventsLinkedService.json`
+1. `New-AzureRmDataFactoryLinkedService -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /LinkedServices/RawEventsLinkedService.json`
 
 Optionally, if you choose to run your own instance of HDInsight in lieu of the on-demand HDInsight cluster:
 
-1. `New-AzureDataFactoryLinkedService -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /LinkedServices/HDInsightLinkedService.json`
+1. `New-AzureRmDataFactoryLinkedService -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /LinkedServices/HDInsightLinkedService.json`
 
 
 ### Dataset
 
-1. `New-AzureDataFactoryTable -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /Tables/RawEventsTable.json`
+1. `New-AzureRmDataFactoryDataset -ResourceGroupName [RESOURCE_GROUP_NAME] -DataFactoryName [DATA_FACTORY_NAME] -File /Tables/RawEventsTable.json`
 
 ### Custom Activity
 
