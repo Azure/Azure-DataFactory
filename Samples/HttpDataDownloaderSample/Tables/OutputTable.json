@@ -1,10 +1,10 @@
 {
-  "name": "RawEventsTable",
+  "name": "OutputTable",
   "properties": {
     "type": "AzureBlob",
-    "linkedServiceName": "RawEventsLinkedService",
+    "linkedServiceName": "AzureStorageLinkedService",
     "typeProperties": {
-      "folderPath": "<Container>/httpDownloadDataIn/{Slice}/",
+      "folderPath": "<blob container>/httpDownloadDataIn/{Slice}/",
       "partitionedBy": [
         {
           "name": "Slice",
