@@ -9,7 +9,7 @@
                     "assemblyName": "DataDownloaderActivity.dll",
                     "entryPoint": "DataDownloaderActivityNS.DataDownloaderActivity",
                     "packageLinkedService": "AzureStorageLinkedService",
-                    "packageFile": "adftutorial/package/DataDownloaderActivity.zip",
+                    "packageFile": "<blob container>/package/DataDownloaderActivity.zip",
                     "extendedProperties": {
                         "sliceStart": "$$Text.Format('{0:yyyyMMddHHmm}', Time.AddMinutes(SliceStart, 0))",
                         "urlFormat": "http://dumps.wikimedia.org/other/pagecounts-raw/{0}/{0}-{1}/pagecounts-{0}{1}{2}-{3}00{4}.gz",
@@ -25,7 +25,7 @@
                 ],
                 "policy": {
                     "timeout": "00:30:00",
-                    "concurrency": 1,
+                    "concurrency": 2,
                     "retry": 2
                 },
                 "scheduler": {
