@@ -27,6 +27,7 @@
     },
     "policy": {
       "validation": {
+        "validationPriorityOrder": "OldestFirst",
         "minimumSizeMB": 0.0001
       }
     }

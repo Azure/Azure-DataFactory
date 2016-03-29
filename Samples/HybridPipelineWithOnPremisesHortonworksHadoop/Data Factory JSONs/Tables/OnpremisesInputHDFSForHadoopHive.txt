@@ -13,6 +13,8 @@
             "interval": 1
         },
         "external": true,
-        "policy": {}
+        "policy": {
+            "executionPriorityOrder": "OldestFirst"
+        }
     }
 }

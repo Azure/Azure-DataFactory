@@ -160,7 +160,9 @@ b. The input dataset references the linked service for Azure SQL we created earl
             "style": "StartOfInterval"
         },
         "external": true,
-        "policy": {}
+        "policy": {
+            "executionPriorityOrder": "OldestFirst",
+        }
     }
 	}
 

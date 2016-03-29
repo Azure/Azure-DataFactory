@@ -104,7 +104,9 @@ Here is sample dataset and pipeline for running a Hive script.  Similarly you ca
 	            "interval": 1
 	        },
 	        "external": true,
-	        "policy": {}
+	        "policy": {
+	            "executionPriorityOrder": "OldestFirst"
+            }
 	    }
 	    }
 
@@ -150,6 +152,7 @@ Here is sample dataset and pipeline for running a Hive script.  Similarly you ca
 	                    }
 	                ],
 	                "policy": {
+	                    "executionPriorityOrder": "OldestFirst",
 	                    "timeout": "00:05:00",
 	                    "concurrency": 1,
 	                    "retry": 1
@@ -215,7 +218,9 @@ Here is sample dataset and pipeline for running a Hive script.  Similarly you ca
 		            "interval": 1
 		        },
 		        "external": true,
-		        "policy": {}
+		        "policy": {
+		            "executionPriorityOrder": "OldestFirst"
+		        }
 		    }
 		}
 
@@ -257,7 +262,8 @@ Here is sample dataset and pipeline for running a Hive script.  Similarly you ca
 		                    }
 		                ],
 		                "policy": {
-		                    "timeout": "00:05:00",
+		                    "executionPriorityOrder": "OldestFirst",
+							"timeout": "00:05:00",
 		                    "concurrency": 1,
 		                    "retry": 1
 		                },
