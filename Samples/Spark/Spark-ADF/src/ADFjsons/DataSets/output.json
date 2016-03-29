@@ -16,6 +16,8 @@
       "interval": 1
     },
     "external": false,
-    "policy": {}
+    "policy": {
+      "executionPriorityOrder": "OldestFirst"
+    }
   }
 }

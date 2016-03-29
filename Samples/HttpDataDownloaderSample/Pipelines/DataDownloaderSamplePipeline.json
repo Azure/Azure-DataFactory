@@ -24,6 +24,7 @@
                     }
                 ],
                 "policy": {
+                    "executionPriorityOrder": "OldestFirst",
                     "timeout": "00:30:00",
                     "concurrency": 2,
                     "retry": 2
