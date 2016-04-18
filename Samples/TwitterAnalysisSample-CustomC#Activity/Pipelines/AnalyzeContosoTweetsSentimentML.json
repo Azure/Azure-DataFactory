@@ -17,14 +17,14 @@
           }
         ],
         "linkedServiceName": "HDInsightLinkedService",
-        "type": "DotNotActivity",
+        "type": "DotNetActivity",
         "typeProperties": {
           "assemblyName": "SentimentAnalysisService.dll",
           "entryPoint": "SentimentAnalysisService.SentimentAnalysis",
           "packageLinkedService": "StorageLinkedService",
           "packageFile": "twitteranalysis/twitter/packages/SentimentAnalysis.zip",
-          "defines": {
-            "sliceStart": "$$Text.Format('{0:yyyyMMddHHmm}', Time.AddMinutes(SliceStart, 0))",
+          "extendedProperties": {
+            "SliceStart": "$$Text.Format('{0:yyyyMMddHH-mm}', Time.AddMinutes(SliceStart, 0))",
             "baseUrl": "<URL to Sentiment Analysis Azure ML Model",
             "apiKey": "<API Key to above Model>"
           }
