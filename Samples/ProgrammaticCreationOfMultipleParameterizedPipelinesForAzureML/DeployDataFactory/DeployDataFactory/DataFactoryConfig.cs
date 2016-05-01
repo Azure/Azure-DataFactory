@@ -5,13 +5,13 @@ namespace DeployDataFactory
     class DataFactoryConfig
     {
         // Data factory config
-        public static string DataFactoryName = "ParameterizedDataFactory";
+        public static string DataFactoryName = "DemoMLParameterizedDataFactory";
         public static string ResourceGroupName = "ADF";
-        public static string DeploymentRegion = "northeu";
+        public static string DeploymentRegion = "North Europe";
 
         // Storage account
         public static string StorageAccountName = "hirensmontest";
-        public static string StorageAccountKey = "aXSYzsAKzLZYFA8zfEdBSmv63hvpuzLTFH9c/0OKCDVqPM3lDb5MSFlk52Ds1IxuLYyvLZhmSV+m40KKSeFaLQ==";
+        public static string StorageAccountKey = "jQX8fINIGLTO8hmi5+EYRZt2Kux1d2wUw9zZsKCocP2+UK+5OTe2DU8bbocc/v4JcRwAiNOqBw8Jk1zB/BUDxQ==";
 
         // Retraining endpoints
         public static string RetrainingEndPoint = @"https://ussouthcentral.services.azureml.net/workspaces/aac49c5151fa40abbc206711d502a9c5/services/ab7157832ac84a54b5691413cd62b353/jobs?api-version=2.0";
