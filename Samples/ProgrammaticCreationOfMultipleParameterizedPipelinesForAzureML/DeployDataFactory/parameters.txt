@@ -1,5 +1,0 @@
-region1, substation1, model1
-region1, substation1, model2
-region2, substation1, model1
-region2, substation1, model2
-region2, substation2, model1

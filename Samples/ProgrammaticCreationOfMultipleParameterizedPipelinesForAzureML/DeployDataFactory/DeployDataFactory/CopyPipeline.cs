@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All Rights Reserved.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,16 +20,32 @@ namespace DeployDataFactory
 {
     class CopyPipeline
     {
-        public static void CreateObjects(string[] parameters, DataFactoryManagementClient client)
+        public static void CreateObjects(
+                string[] parameters, 
+                DataFactoryManagementClient client)
         {
-            string Table_Source;
-            string Table_Destination;
-            CreateInputOutputTables(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, out Table_Source, out Table_Destination);
+            string Dataset_Source;
+            string Dataset_Destination;
+            CreateInputOutputDatasets(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, out Dataset_Source, 
+                out Dataset_Destination);
 
-            CreatePipelines(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, Table_Source, Table_Destination, parameters);
+            CreatePipelines(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, Dataset_Source, 
+                Dataset_Destination, parameters);
         }
 
-        private static void CreatePipelines(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, string Table_Source, string Table_Destination, string[] parameters)
+        private static void CreatePipelines
+            (string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            string Dataset_Source, 
+            string Dataset_Destination, 
+            string[] parameters)
         {
             foreach (string parameter in parameters)
             {
@@ -50,59 +68,64 @@ namespace DeployDataFactory
                             {
                                 Description = "Demo Pipeline for data transfer between blobs",
 
-                                // Initial value for pipeline's active period. With this, you won't need to set slice status
+                                // Initial value for pipeline's active period.
                                 Start = PipelineActivePeriodStartTime,
                                 End = PipelineActivePeriodEndTime,
 
                                 Activities = new List<Activity>()
-                {                                
-                    new Activity()
-                    {   
-                        Name = "BlobToBlob",
-                        Inputs = new List<ActivityInput>()
-                        {
-                            new ActivityInput() {
-                                Name = Table_Source
-                            }
-                        },
-                        Outputs = new List<ActivityOutput>()
-                        {
-                            new ActivityOutput()
-                            {
-                                Name = Table_Destination
-                            }
-                        },
-                        TypeProperties = new CopyActivity()
-                        {
-                            Source = new BlobSource(),
-                            Sink = new BlobSink()
-                            {
-                                WriteBatchSize = 10000,
-                                WriteBatchTimeout = TimeSpan.FromMinutes(10)
-                            }
-                        }
-                    }
+                                {                                
+                                    new Activity()
+                                    {   
+                                        Name = "BlobToBlob",
+                                        Inputs = new List<ActivityInput>()
+                                        {
+                                            new ActivityInput() {
+                                                Name = Dataset_Source
+                                            }
+                                        },
+                                        Outputs = new List<ActivityOutput>()
+                                        {
+                                            new ActivityOutput()
+                                            {
+                                                Name = Dataset_Destination
+                                            }
+                                        },
+                                        TypeProperties = new CopyActivity()
+                                        {
+                                            Source = new BlobSource(),
+                                            Sink = new BlobSink()
+                                            {
+                                                WriteBatchSize = 10000,
+                                                WriteBatchTimeout = TimeSpan.FromMinutes(10)
+                                            }
+                                        }
+                                    }
 
-                },
+                                },
                             }
                         }
                     });
             }
         }
 
-        private static void CreateInputOutputTables(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, out string Table_Source, out string Table_Destination)
+        private static void CreateInputOutputDatasets(
+            string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            out string Dataset_Source, 
+            out string Dataset_Destination)
         {
             // create input and output tables
             Console.WriteLine("Creating input and output tables");
-            Table_Source = "TableBlobSource";
-            Table_Destination = "TableBlobDestination";
+            Dataset_Source = "DatasetBlobSource";
+            Dataset_Destination = "DatasetBlobDestination";
 
             client.Datasets.CreateOrUpdate(resourceGroupName, dataFactoryName,
                 new DatasetCreateOrUpdateParameters()
                 {
                     Dataset = new Dataset()
                     {
-                        Name = Table_Source,
+                        Name = Dataset_Source,
                         Properties = new DatasetProperties()
                         {
                             LinkedServiceName = "LinkedService-AzureStorage",
@@ -134,14 +157,14 @@ namespace DeployDataFactory
                 {
                     Dataset = new Dataset()
                     {
-                        Name = Table_Destination,
+                        Name = Dataset_Destination,
                         Properties = new DatasetProperties()
                         {
 
                             LinkedServiceName = "LinkedService-AzureStorage",
                             TypeProperties = new AzureBlobDataset()
                             {
-                                FolderPath = "genscapesample/output/{Slice}",
+                                FolderPath = "sample/output/{Slice}",
                                 PartitionedBy = new Collection<Partition>()
                     {
                         new Partition()

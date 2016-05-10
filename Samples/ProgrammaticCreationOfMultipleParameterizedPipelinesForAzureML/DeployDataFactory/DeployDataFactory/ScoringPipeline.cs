@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All Rights Reserved.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,16 +20,34 @@ namespace DeployDataFactory
 {
     class ScoringPipeline
     {
-        public static void CreateObjects(string[] parameters, DataFactoryManagementClient client)
+        public static void CreateObjects(
+            string[] parameters, 
+            DataFactoryManagementClient client)
         {
-            string inputTable;
-            IList<string> outputTables;
-            CreateInputOutputTables(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, out inputTable, out outputTables, parameters);
+            string inputDataset;
+            IList<string> outputDatasets;
+            CreateInputOutputDatasets(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, out inputDataset, 
+                out outputDatasets, 
+                parameters);
 
-            CreatePipelines(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, inputTable, outputTables, parameters);
+            CreatePipelines(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, inputDataset, 
+                outputDatasets, 
+                parameters);
         }
 
-        private static void CreatePipelines(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, string inputTable, IList<string> outputTables, string[] parameters)
+        private static void CreatePipelines(
+            string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            string inputDataset, 
+            IList<string> outputDatasets, 
+            string[] parameters)
         {
             int i = 0;
             foreach (string parameter in parameters)
@@ -51,7 +71,7 @@ namespace DeployDataFactory
                             {
                                 Description = "Pipeline for scoring",
 
-                                // Initial value for pipeline's active period. With this, you won't need to set slice status
+                                // Initial value for pipeline's active period.
                                 Start = PipelineActivePeriodStartTime,
                                 End = PipelineActivePeriodEndTime,
 
@@ -63,23 +83,24 @@ namespace DeployDataFactory
                                         Inputs = new List<ActivityInput>()
                                         {
                                             new ActivityInput() {
-                                                Name = inputTable
+                                                Name = inputDataset
                                             }
                                         },
                                         Outputs = new List<ActivityOutput>()
                                         {
                                             new ActivityOutput()
                                             {
-                                                Name = outputTables[i]
+                                                Name = outputDatasets[i]
                                             }
                                         },
-                                        LinkedServiceName = String.Format("{0}{1}",DataFactoryConfig.ScoringLinkedServiceNamePrefix,region),
+                                        // Note:  The linked service names referenced here are generated previously by the retraining pipeline code.                                       
+                                        LinkedServiceName = Utilities.GetScoringLinkedServiceName(DataFactoryConfig.ScoringLinkedServiceNamePrefix, region),
                                         TypeProperties = new AzureMLBatchExecutionActivity()
                                         {
-                                            WebServiceInput = inputTable,
+                                            WebServiceInput = inputDataset,
                                             WebServiceOutputs = new Dictionary<string, string>
                                             {
-                                              {"output1", outputTables[i]}                                                        
+                                              {"output1", outputDatasets[i]}                                                        
                                             },
                                             GlobalParameters = new Dictionary<string, string>
                                             {                                                
@@ -97,10 +118,16 @@ namespace DeployDataFactory
             }
         }
 
-        private static void CreateInputOutputTables(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, out string inputTable, out IList<string> outputTables, string[] parameters)
+        private static void CreateInputOutputDatasets(
+            string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            out string inputDataset, 
+            out IList<string> outputDatasets, 
+            string[] parameters)
         {
-            inputTable = "InputTableScoring";
-            outputTables = new List<string>();
+            inputDataset = "InputDatasetScoring";
+            outputDatasets = new List<string>();
             foreach (string parameter in parameters)
             {
                 string[] parameterList = parameter.Split(',');
@@ -147,7 +174,7 @@ namespace DeployDataFactory
                             }
                         }                        
                     });
-                outputTables.Add(tableName);                           
+                outputDatasets.Add(tableName);                           
             }
         }
     }

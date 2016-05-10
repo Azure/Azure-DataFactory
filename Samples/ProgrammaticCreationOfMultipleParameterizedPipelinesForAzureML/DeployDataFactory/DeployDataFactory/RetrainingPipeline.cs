@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All Rights Reserved.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,19 +20,47 @@ namespace DeployDataFactory
 {
     class RetrainingPipeline
     {
-        public static void CreateObjects(string[] parameters, DataFactoryManagementClient client, IList<UpdateResourceEndpoint> endpoints)
+        public static void CreateObjects(
+            string[] parameters, 
+            DataFactoryManagementClient client, 
+            IList<UpdateResourceEndpoint> endpoints)
         {
-            CreateLinkedService(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, endpoints, parameters);
+            CreateLinkedService(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, endpoints, 
+                parameters);
 
-            string inputTable;
-            IList<string> outputModelTables;
-            IList<string> outputPlaceholderTables;
-            CreateInputOutputTables(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, out inputTable, out outputModelTables, out outputPlaceholderTables, parameters, endpoints);
+            string inputDataset;
+            IList<string> outputModelDatasets;
+            IList<string> outputPlaceholderDatasets;
+            CreateInputOutputDatasets(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, out inputDataset, 
+                out outputModelDatasets, 
+                out outputPlaceholderDatasets, 
+                parameters, endpoints);
 
-            CreatePipelines(DataFactoryConfig.ResourceGroupName, DataFactoryConfig.DataFactoryName, client, inputTable, outputModelTables, outputPlaceholderTables, parameters, endpoints);
+            CreatePipelines(
+                DataFactoryConfig.ResourceGroupName, 
+                DataFactoryConfig.DataFactoryName, 
+                client, inputDataset, 
+                outputModelDatasets, 
+                outputPlaceholderDatasets, 
+                parameters, 
+                endpoints);
         }
 
-        private static void CreatePipelines(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, string inputTable, IList<string> outputModelTables, IList<string> outputPlaceholderTables, string[] parameters, IList<UpdateResourceEndpoint> endpoints)
+        private static void CreatePipelines(
+            string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            string inputDataset, 
+            IList<string> outputModelDatasets, 
+            IList<string> outputPlaceholderDatasets, 
+            string[] parameters, 
+            IList<UpdateResourceEndpoint> endpoints)
         {
             int i = 0;
             foreach (string parameter in parameters)
@@ -54,7 +84,7 @@ namespace DeployDataFactory
                             {
                                 Description = "Pipeline for retraining",
 
-                                // Initial value for pipeline's active period. With this, you won't need to set slice status
+                                // Initial value for pipeline's active period.
                                 Start = PipelineActivePeriodStartTime,
                                 End = PipelineActivePeriodEndTime,
 
@@ -66,23 +96,23 @@ namespace DeployDataFactory
                                         Inputs = new List<ActivityInput>()
                                         {
                                             new ActivityInput() {
-                                                Name = inputTable
+                                                Name = inputDataset
                                             }
                                         },
                                         Outputs = new List<ActivityOutput>()
                                         {
                                             new ActivityOutput()
                                             {
-                                                Name = outputModelTables[i]
+                                                Name = outputModelDatasets[i]
                                             }
                                         },
                                         LinkedServiceName = "LinkedServiceRetraining-AzureML",
                                         TypeProperties = new AzureMLBatchExecutionActivity()
                                         {
-                                            WebServiceInput = inputTable,
+                                            WebServiceInput = inputDataset,
                                             WebServiceOutputs = new Dictionary<string, string>
                                             {
-                                              {"output1", outputModelTables[i]}                                                        
+                                              {"output1", outputModelDatasets[i]}                                                        
                                             },
                                             GlobalParameters = new Dictionary<string, string>
                                             {                                                
@@ -98,21 +128,21 @@ namespace DeployDataFactory
                                         Inputs = new List<ActivityInput>()
                                         {
                                             new ActivityInput() {
-                                                Name = outputModelTables[i]
+                                                Name = outputModelDatasets[i]
                                             }
                                         },
                                         Outputs = new List<ActivityOutput>()
                                         {
                                             new ActivityOutput()
                                             {
-                                                Name = outputPlaceholderTables[i]
+                                                Name = outputPlaceholderDatasets[i]
                                             }
                                         },
                                         LinkedServiceName = "LinkedServiceScoring-AzureML-" + region,
                                         TypeProperties = new AzureMLUpdateResourceActivity()
                                         {
                                             TrainedModelName = "Trained model for facility " + region,
-                                            TrainedModelDatasetName = outputModelTables[i]
+                                            TrainedModelDatasetName = outputModelDatasets[i]
                                         }
                                     }
                                 },
@@ -123,20 +153,28 @@ namespace DeployDataFactory
             }
         }
 
-        private static void CreateInputOutputTables(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, out string inputTable, out IList<string> outputModelTables, out IList<string> outputPlaceholderTables, string[] parameters, IList<UpdateResourceEndpoint> endpoints)
+        private static void CreateInputOutputDatasets(
+            string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            out string inputDataset, 
+            out IList<string> outputModelDatasets, 
+            out IList<string> outputPlaceholderDatasets, 
+            string[] parameters, 
+            IList<UpdateResourceEndpoint> endpoints)
         {
             // create input and output tables
             Console.WriteLine("Creating input and output tables");
-            inputTable = "InputTableScoring";
-            outputModelTables = new List<string>();
-            outputPlaceholderTables = new List<string>();
+            inputDataset = "InputDatasetScoring";
+            outputModelDatasets = new List<string>();
+            outputPlaceholderDatasets = new List<string>();
 
             client.Datasets.CreateOrUpdate(resourceGroupName, dataFactoryName,
                 new DatasetCreateOrUpdateParameters()
                 {
                     Dataset = new Dataset()
                     {
-                        Name = inputTable,
+                        Name = inputDataset,
                         Properties = new DatasetProperties()
                         {
                             LinkedServiceName = "LinkedService-AzureStorage",
@@ -172,14 +210,14 @@ namespace DeployDataFactory
                 string[] parameterList = parameter.Split(',');
                 string region = parameterList[0];
                 
-                string outputModelTable = String.Format("outputModel_{0}", region);
+                string outputModelDataset = String.Format("outputModel_{0}", region);
 
                 client.Datasets.CreateOrUpdate(resourceGroupName, dataFactoryName,
                     new DatasetCreateOrUpdateParameters()
                     {
                         Dataset = new Dataset()
                         {
-                            Name = outputModelTable,
+                            Name = outputModelDataset,
                             Properties = new DatasetProperties()
                             {
                                 LinkedServiceName = "LinkedService-AzureStorage",
@@ -213,15 +251,15 @@ namespace DeployDataFactory
                         }
                     });
 
-                outputModelTables.Add(outputModelTable);
+                outputModelDatasets.Add(outputModelDataset);
 
-                string outputPlaceholderTable = String.Format("outputplaceholder_{0}", region);
+                string outputPlaceholderDataset = String.Format("outputplaceholder_{0}", region);
                 client.Datasets.CreateOrUpdate(resourceGroupName, dataFactoryName,
                     new DatasetCreateOrUpdateParameters()
                     {
                         Dataset = new Dataset()
                         {
-                            Name = outputPlaceholderTable,
+                            Name = outputPlaceholderDataset,
                             Properties = new DatasetProperties()
                             {
                                 LinkedServiceName = "LinkedService-AzureStorage",
@@ -242,11 +280,16 @@ namespace DeployDataFactory
                         }
                     });
 
-                outputPlaceholderTables.Add(outputPlaceholderTable);
+                outputPlaceholderDatasets.Add(outputPlaceholderDataset);
             }
         }
 
-        private static void CreateLinkedService(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client, IList<UpdateResourceEndpoint> endpoints, string[] parameters)
+        private static void CreateLinkedService(
+            string resourceGroupName, 
+            string dataFactoryName, 
+            DataFactoryManagementClient client, 
+            IList<UpdateResourceEndpoint> endpoints, 
+            string[] parameters)
         {
             // create Azure ML training linked services
             Console.WriteLine("Creating Azure ML training linked service");
@@ -279,7 +322,8 @@ namespace DeployDataFactory
                     {
                         LinkedService = new LinkedService()
                         {
-                            Name = String.Format("{0}{1}",DataFactoryConfig.ScoringLinkedServiceNamePrefix,region),
+                            // Note: The linked service names generated here are also used by the scoring pipeline. 
+                            Name = Utilities.GetScoringLinkedServiceName(DataFactoryConfig.ScoringLinkedServiceNamePrefix, region),
                             Properties = new LinkedServiceProperties
                             (
                                 new AzureMLLinkedService(endpoint.mlEndpoint, endpoint.apiKey) 

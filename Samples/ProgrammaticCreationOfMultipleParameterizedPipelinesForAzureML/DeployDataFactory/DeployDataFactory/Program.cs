@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All Rights Reserved.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -47,13 +49,16 @@ namespace DeployDataFactory
             // to replace this code with code that programatically creates multiple endpoints.
             IList<UpdateResourceEndpoint> mlEndpoints;
             Utilities.CreateMLEndpoints(out mlEndpoints, parameters.Length);
-             
+            
+            // Note: retraining pipeline generation code creates the scoring linked services that are referenced by 
+            // scoring pipeline. Hence retraining pipeline code MUST run before the scoring pipeline code.            
             RetrainingPipeline.CreateObjects(parameters, client, mlEndpoints);
             ScoringPipeline.CreateObjects(parameters, client);
 
-            // We don't have a copy step. This is commented outs bonus code for copying data if you needed to have data movement as well.
+            // We don't have a copy step. This is commented out bonus code for copying data if you needed to have data movement as well.
             //CopyPipeline.CreateObjects(parameters, client);
 
+            Console.WriteLine("Press Enter to exit");
             Console.ReadLine();
         }
 

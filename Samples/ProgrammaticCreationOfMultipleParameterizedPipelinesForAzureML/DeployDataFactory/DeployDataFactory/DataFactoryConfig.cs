@@ -1,26 +1,36 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All Rights Reserved.
+
+using System;
 
 namespace DeployDataFactory
 {
     class DataFactoryConfig
     {
         // Data factory config
-        public static string DataFactoryName = "DemoMLParameterizedDataFactory";
-        public static string ResourceGroupName = "ADF";
+        public static string DataFactoryName = "<your data factory name>";
+        public static string ResourceGroupName = "<your resource group name>";
         public static string DeploymentRegion = "North Europe";
 
         // Storage account
-        public static string StorageAccountName = "hirensmontest";
-        public static string StorageAccountKey = "jQX8fINIGLTO8hmi5+EYRZt2Kux1d2wUw9zZsKCocP2+UK+5OTe2DU8bbocc/v4JcRwAiNOqBw8Jk1zB/BUDxQ==";
+        public static string StorageAccountName = "<your storage account>";
+        public static string StorageAccountKey = "<your storage account key>";
 
         // Retraining endpoints
-        public static string RetrainingEndPoint = @"https://ussouthcentral.services.azureml.net/workspaces/aac49c5151fa40abbc206711d502a9c5/services/ab7157832ac84a54b5691413cd62b353/jobs?api-version=2.0";
-        public static string RetrainingApiKey = @"Pt8H4jWNR26nmT7858n2FoesZjahf9FhGS9os3hi36r2GX7SGxskpuwHckKIWMULibQ8k3pYt9F3wTfSu4QiAw==";
+        public static string RetrainingEndPoint = @"<your retraining web service endpoint url>";
+        public static string RetrainingApiKey = @"<your retraining web service api key>";
 
-        // Scoring endpoint templates
-        public static string ScoringEndPoint = @"https://ussouthcentral.services.azureml.net/workspaces/aac49c5151fa40abbc206711d502a9c5/services/751c1a1b149e4fba9a08bbb0f21cdaec/jobs?api-version=2.0";
-        public static string ScoringApiKey = @"o8gGBGgf33OUiC6ed65N7Pw6SmTg0/VefjbrVaLa4I8t2bWhQ65KzWenw2lszQ8NS7mwk5ibsnmhjCmHk6AAew==";
-        public static string ScoringUpdateResourceEndPoint = @"https://management.azureml.net/workspaces/aac49c5151fa40abbc206711d502a9c5/services/751c1a1b149e4fba9a08bbb0f21cdaec/update-resource";
+        //  This sample uses the same hardwired scoring endpoint for each entry in the list of scoring endpoints.
+        // 
+        // In reality you want to replace this with code that iterates and creates
+        // the required no. of endpoints programmaticaly.
+        // 
+        // The relevant code for this can be found here:
+        // 
+        // https://github.com/raymondlaghaeian/AML_EndpointMgmt/blob/master/Program.cs
+
+        public static string ScoringEndPoint = @"<scoring endpoint>";
+        public static string ScoringApiKey = @"<scoring endpoint apikey>";
+        public static string ScoringUpdateResourceEndPoint = @"<scoring endpoint update reource endpoint>";
         public static string ScoringLinkedServiceNamePrefix = "LinkedServiceScoring-AzureML-";
 
         // Pipeline schedule config

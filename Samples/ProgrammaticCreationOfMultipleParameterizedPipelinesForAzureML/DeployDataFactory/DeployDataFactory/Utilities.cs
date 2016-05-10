@@ -8,6 +8,8 @@ using System.Configuration;
 using System.Collections.ObjectModel;
 
 using Microsoft.Azure.Management.DataFactories;
+// Copyright (c) Microsoft Corporation. All Rights Reserved.
+
 using Microsoft.Azure.Management.DataFactories.Models;
 using Microsoft.Azure.Management.DataFactories.Common.Models;
 
@@ -21,9 +23,6 @@ namespace DeployDataFactory
         /// <summary>
         /// Creates a data factory with a given name, resource group in the specified data factory region
         /// </summary>
-        /// <param name="resourceGroupName"></param>
-        /// <param name="dataFactoryName"></param>
-        /// <param name="client"></param>
         public static void CreateDataFactory(string resourceGroupName, string dataFactoryName, DataFactoryManagementClient client)
         {
             // create a data factory
@@ -66,6 +65,21 @@ namespace DeployDataFactory
             );
         }
 
+        /// <summary>
+        /// The following function takes the requested no. of endpoints and returns a
+        /// list with corresponding no. of endpoints.
+        /// 
+        /// The function uses the same hardwired endpoint for each entry in the list
+        /// 
+        /// In reality you want to replace this with code that iterates and creates
+        /// the required no. of endpoints programmaticaly.
+        /// 
+        /// The relevant code for this can be found here:
+        /// 
+        /// https://github.com/raymondlaghaeian/AML_EndpointMgmt/blob/master/Program.cs
+        /// </summary>
+        /// <param name="mlEndpoints">List of ML endpoints created</param>
+        /// <param name="count">No. of ml endpoints to create</param>
         public static void CreateMLEndpoints(out IList<UpdateResourceEndpoint> mlEndpoints, int count)
         {
             mlEndpoints = new List<UpdateResourceEndpoint>();
@@ -114,6 +128,10 @@ namespace DeployDataFactory
             }
 
             throw new InvalidOperationException("Failed to acquire token");
-        } 
+        }
+        public static string GetScoringLinkedServiceName(string scoringLinkedServiceNamePrefix, string region)
+        {
+            return String.Format("{0}{1}", scoringLinkedServiceNamePrefix, region);
+        }
     }
 }
