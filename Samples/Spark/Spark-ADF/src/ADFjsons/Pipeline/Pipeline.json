@@ -31,7 +31,9 @@
                         "--connectionString",
                         "DefaultEndpointsProtocol=https;AccountName=<YOUR_ACCOUNT>;AccountKey=<YOUR_KEY>",
                         "input=wasb://input@<YOUR_ACCOUNT>.blob.core.windows.net/data",
-                        "output=wasb://output@<YOUR_ACCOUNT>.blob.core.windows.net/results"
+                        "output=wasb://output@<YOUR_ACCOUNT>.blob.core.windows.net/results",
+                        "--extraFiles",
+			"<Extra files that you want to send as an argument to spark submit. If you don't have any extra files, remove the "--extraFiles" option. In case you want to pass multiple files, they should be in the format "","" so on.."
                     ]
                 },
                 "inputs": [
