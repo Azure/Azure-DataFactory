@@ -44,6 +44,7 @@ public class SparkJob extends Configured implements Tool {
     private static final String EXECUTOR_CORES = "executorCores";
     private static final String EXECUTOR_MEMORY = "executorMemory";
     private static final String NUM_EXECUTORS = "numExecutors";
+    private static final String EXTRA_FILES = "extraFiles";
 
 
     public static void main(String[] args) throws Exception {
@@ -84,6 +85,7 @@ public class SparkJob extends Configured implements Tool {
         options.addOption(EXECUTOR_MEMORY, EXECUTOR_MEMORY, true, "Spark Executor Memory");
         options.addOption(NUM_EXECUTORS, NUM_EXECUTORS, true, "Spark No of Executors");
         options.addOption(CONNECTION_STRING, CONNECTION_STRING, true, "Connection String for blob storage in which jar files contain");
+        options.addOption(EXTRA_FILES, EXTRA_FILES, true, "Extra Files");
 
         try {
             cmd = parser.parse(options, args);
@@ -114,10 +116,17 @@ public class SparkJob extends Configured implements Tool {
                 .addSparkArg("--num-executors", cmd.getOptionValue(NUM_EXECUTORS, "2"))
                 .addAppArgs(filterArgs(cmd.getArgs()));
 
-        String[] jars = getJars(cmd.getOptionValue(JARS));
+        String[] jars = getPaths(cmd.getOptionValue(JARS));
         for (String path : jars) {
             launcher.addJar(path);
         }
+        
+        //add extra files
+        String[] extraFiles = getPaths(cmd.getOptionValue(EXTRA_FILES));
+        for (String path : extraFiles) {
+        	launcher.addFile(downloadFile(cmd.getOptionValue(CONNECTION_STRING), path));
+        }
+        
         Process spark = launcher.launch();
 
         //Wait for completion
@@ -146,8 +155,10 @@ public class SparkJob extends Configured implements Tool {
         return destinationPath;
     }
 
-    private String[] getJars(String jars) {
-        String[] paths = jars.split(",");
+    private String[] getPaths(String path) {
+        String[] paths = new String[0];
+        if (path != null && !path.trim().isEmpty())
+        	paths = path.split(",");
         return paths;
     }
 
@@ -161,9 +172,9 @@ public class SparkJob extends Configured implements Tool {
     private static String[] filterArgs(String[]args){
         List<String> filteredArgs = new ArrayList<String>();
         for(String a:args){
-            if(a.contains("=")){
+            //if(a.contains("=")){
                 filteredArgs.add(a);
-            }
+            //}
         }
        return filteredArgs.toArray(new String[]{});
     }
