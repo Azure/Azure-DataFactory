@@ -172,9 +172,7 @@ public class SparkJob extends Configured implements Tool {
     private static String[] filterArgs(String[]args){
         List<String> filteredArgs = new ArrayList<String>();
         for(String a:args){
-            //if(a.contains("=")){
                 filteredArgs.add(a);
-            //}
         }
        return filteredArgs.toArray(new String[]{});
     }
