@@ -1,0 +1,42 @@
+{
+    "name": "AdfSparkSubmitPythonSimple2",
+    "properties": {
+        "description": "Submit a spark job",
+        "activities": [
+            {
+                "type": "HDInsightMapReduce",
+                "typeProperties": {
+                    "className": "com.adf.sparklauncher.AdfSparkJobLauncher",
+                    "jarFilePath": "adflibs/com.adf.sparklauncher.jar",
+                    "jarLinkedService": "StorageLinkedService",
+                    "arguments": [
+                        "--appFile",
+                        "wasb://adflibs@***.blob.core.windows.net/SimplePythonAdf.py"
+                    ]
+                },
+                "outputs": [
+                    {
+                        "name": "output"
+                    }
+                ],
+                "policy": {
+                    "timeout": "00:30:00",
+                    "concurrency": 1,
+                    "retry": 1
+                },
+                "scheduler": {
+                    "frequency": "Day",
+                    "interval": 1,
+                    "style": "StartOfInterval"
+                },
+                "name": "Spark Launcher",
+                "description": "Submits a Spark Job",
+                "linkedServiceName": "HDInsightLinkedService"
+            }
+        ],
+        "start": "2012-10-01T00:00:00Z",
+        "end": "2012-10-02T00:00:00Z",
+        "isPaused": false,
+        "pipelineMode": "Scheduled"
+    }
+}

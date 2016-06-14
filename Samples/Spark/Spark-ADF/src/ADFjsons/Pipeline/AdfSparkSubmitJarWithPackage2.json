@@ -1,0 +1,48 @@
+{
+    "name": "AdfSparkSubmitJarWithPackage2",
+    "properties": {
+        "description": "Submit a spark job",
+        "activities": [
+            {
+                "type": "HDInsightMapReduce",
+                "typeProperties": {
+                    "className": "com.adf.sparklauncher.AdfSparkJobLauncher",
+                    "jarFilePath": "adflibs/com.adf.sparklauncher.jar",
+                    "jarLinkedService": "StorageLinkedService",
+                    "arguments": [
+                        "--appFile",
+                        "wasb://adflibs@***.blob.core.windows.net/simplesparkadfwithpackage_2.11-1.0.jar",
+                        "--additional_options",
+                        "--conf spark.driver.maxResultSize=2g",
+                        "--packages",
+                        "com.databricks:spark-csv_2.11:1.3.0",
+                        "--jars",
+                        "/usr/hdp/2.4.1.1-3/spark/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/2.4.1.1-3/spark/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/2.4.1.1-3/spark/lib/datanucleus-core-3.2.10.jar"
+                    ]
+                },
+                "outputs": [
+                    {
+                        "name": "output"
+                    }
+                ],
+                "policy": {
+                    "timeout": "00:30:00",
+                    "concurrency": 1,
+                    "retry": 1
+                },
+                "scheduler": {
+                    "frequency": "Day",
+                    "interval": 1,
+                    "style": "StartOfInterval"
+                },
+                "name": "Spark Launcher",
+                "description": "Submits a Spark Job",
+                "linkedServiceName": "HDInsightLinkedService"
+            }
+        ],
+        "start": "2011-06-04T00:00:00Z",
+        "end": "2011-06-05T00:00:00Z",
+        "isPaused": false,
+        "pipelineMode": "Scheduled"
+    }
+}

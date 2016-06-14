@@ -1,0 +1,54 @@
+{
+    "name": "AdfSparkSubmitJarCreateHiveTable",
+    "properties": {
+        "description": "Submit a spark job",
+        "activities": [
+            {
+                "type": "HDInsightMapReduce",
+                "typeProperties": {
+                    "className": "com.adf.sparklauncher.AdfSparkJobLauncher",
+                    "jarFilePath": "adflibs/com.adf.sparklauncher.jar",
+                    "jarLinkedService": "StorageLinkedService",
+                    "arguments": [
+                        "--appFile",
+                        "wasb://adflibs@***.blob.core.windows.net/adfhivetable1_2.11-1.0.jar",
+                        "--files",
+                        "/usr/hdp/current/spark-client/conf/hive-site.xml",
+                        "--jars",
+                        "/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-core-3.2.10.jar",
+                        "--executor_cores",
+                        "5",
+                        "--executor_memory",
+                        "15g",
+                        "--num_executors",
+                        "4",
+                        "--class",
+                        "AdfHiveTable1"
+                    ]
+                },
+                "outputs": [
+                    {
+                        "name": "output"
+                    }
+                ],
+                "policy": {
+                    "timeout": "00:30:00",
+                    "concurrency": 1,
+                    "retry": 1
+                },
+                "scheduler": {
+                    "frequency": "Day",
+                    "interval": 1,
+                    "style": "StartOfInterval"
+                },
+                "name": "Spark Launcher",
+                "description": "Submits a Spark Job",
+                "linkedServiceName": "HDInsightLinkedService"
+            }
+        ],
+        "start": "2014-03-24T00:00:00Z",
+        "end": "2014-03-25T00:00:00Z",
+        "isPaused": false,
+        "pipelineMode": "Scheduled"
+    }
+}
