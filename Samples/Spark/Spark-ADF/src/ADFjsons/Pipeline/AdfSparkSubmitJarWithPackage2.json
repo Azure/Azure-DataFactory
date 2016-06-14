@@ -1,5 +1,5 @@
 {
-    "name": "AdfSparkSubmitJarInsertHiveTable",
+    "name": "AdfSparkSubmitJarWithPackage2",
     "properties": {
         "description": "Submit a spark job",
         "activities": [
@@ -11,21 +11,13 @@
                     "jarLinkedService": "StorageLinkedService",
                     "arguments": [
                         "--appFile",
-                        "adflibs/adfhivetable2_2.11-1.0.jar",
-                        "--files",
-                        "/usr/hdp/current/spark-client/conf/hive-site.xml",
+                        "wasb://adflibs@***.blob.core.windows.net/simplesparkadfwithpackage_2.11-1.0.jar",
+                        "--additional_options",
+                        "--conf spark.driver.maxResultSize=2g",
+                        "--packages",
+                        "com.databricks:spark-csv_2.11:1.3.0",
                         "--jars",
-                        "/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-core-3.2.10.jar",
-                        "--executor_cores",
-                        "5",
-                        "--executor_memory",
-                        "15g",
-                        "--num_executors",
-                        "4",
-                        "--class",
-                        "AdfHiveTable2",
-                        "--connectionString",
-                        "DefaultEndpointsProtocol=https;AccountName=***;AccountKey=***"
+                        "/usr/hdp/2.4.1.1-3/spark/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/2.4.1.1-3/spark/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/2.4.1.1-3/spark/lib/datanucleus-core-3.2.10.jar"
                     ]
                 },
                 "outputs": [
@@ -48,8 +40,8 @@
                 "linkedServiceName": "HDInsightLinkedService"
             }
         ],
-        "start": "2014-09-25T00:00:00Z",
-        "end": "2014-09-26T00:00:00Z",
+        "start": "2011-06-04T00:00:00Z",
+        "end": "2011-06-05T00:00:00Z",
         "isPaused": false,
         "pipelineMode": "Scheduled"
     }
