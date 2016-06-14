@@ -28,11 +28,6 @@
                         "DefaultEndpointsProtocol=https;AccountName=***;AccountKey=***"
                     ]
                 },
-                "inputs": [
-                    {
-                        "name": "input"
-                    }
-                ],
                 "outputs": [
                     {
                         "name": "output"
@@ -56,7 +51,6 @@
         "start": "2014-09-25T00:00:00Z",
         "end": "2014-09-26T00:00:00Z",
         "isPaused": false,
-        "hubName": "wayneadfspark_hub",
         "pipelineMode": "Scheduled"
     }
 }

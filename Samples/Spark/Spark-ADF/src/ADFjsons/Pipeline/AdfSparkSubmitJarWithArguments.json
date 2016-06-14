@@ -15,16 +15,11 @@
                         "--jars",
                         "/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-api-jdo-3.2.6.jar,/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-rdbms-3.2.9.jar,/usr/hdp/2.4.2.0-258/spark/lib/datanucleus-core-3.2.10.jar",
                         "--app_arguments",
-                        "Your Full Name",
+                        "Arg1 Arg2 Arg3",
                         "--connectionString",
                         "DefaultEndpointsProtocol=https;AccountName=***;AccountKey=***"
                     ]
                 },
-                "inputs": [
-                    {
-                        "name": "input"
-                    }
-                ],
                 "outputs": [
                     {
                         "name": "output"
