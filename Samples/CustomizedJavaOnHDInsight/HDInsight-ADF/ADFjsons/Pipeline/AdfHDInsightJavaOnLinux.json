@@ -1,0 +1,44 @@
+{
+    "name": "AdfHDInsightJava",
+    "properties": {
+        "description": "Submit a generic command",
+        "activities": [
+            {
+                "type": "HDInsightMapReduce",
+                "typeProperties": {
+                    "className": "com.adf.jobonhdi.JobOnHdiLauncher",
+                    "jarFilePath": "adflibs/com.adf.adfjobonhdi.jar",
+                    "jarLinkedService": "StorageLinkedService",
+                    "arguments": [
+                        "--files",
+                        "wasb://adflibs@***.blob.core.windows.net/com.adf.appsample.jar,wasb://adflibs@***.blob.core.windows.net/com.adf.dependedlibsample.jar",
+                        "--command",
+                        "java -cp com.adf.appsample.jar:com.adf.dependedlibsample.jar com.adf.appsample.AdfApp"
+                    ]
+                },
+                "outputs": [
+                    {
+                        "name": "output"
+                    }
+                ],
+                "policy": {
+                    "timeout": "00:30:00",
+                    "concurrency": 1,
+                    "retry": 1
+                },
+                "scheduler": {
+                    "frequency": "Day",
+                    "interval": 1,
+                    "style": "StartOfInterval"
+                },
+                "name": "HDInsight Job Launcher",
+                "description": "Submits a general HDInsight Job",
+                "linkedServiceName": "HDInsightLinkedService"
+            }
+        ],
+        "start": "2010-12-29T00:00:00Z",
+        "end": "2010-12-30T00:00:00Z",
+        "isPaused": false,
+        "pipelineMode": "Scheduled"
+    }
+}
