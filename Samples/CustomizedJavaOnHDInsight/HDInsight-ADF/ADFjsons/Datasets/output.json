@@ -1,0 +1,22 @@
+{
+    "name": "output",
+    "properties": {
+        "published": false,
+        "type": "AzureBlob",
+        "linkedServiceName": "StorageLinkedService",
+        "typeProperties": {
+            "folderPath": "output",
+            "format": {
+                "type": "TextFormat",
+                "columnDelimiter": "\t"
+            }
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1,
+            "style": "StartOfInterval"
+        },
+        "external": false,
+        "policy": {}
+    }
+}
