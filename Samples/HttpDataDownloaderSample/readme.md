@@ -38,12 +38,12 @@ Given each time splice, the custom activity (DataDownloader.cs) will download da
 
 1. Via Visual Studio, create a .NET class library project and include DataDownloader.cs
 2. Install NuGet dependencies:
-   * `Install-Package Microsoft.Azure.Management.DataFactories –Pre`
-   * `Install-Package Microsoft.DataFactories.Runtime –Pre`
-   * `Install-Package Azure.Storage`
+    - Install-Package Microsoft.Azure.Management.DataFactories
+    - Install-Package Azure.Storage
 3. Build the DLL and name it according to what is defined in pipeline json (ie. DataDownloaderActivity.dll)
 4. Zip the contents of bin/debug or bin/release and upload it to blob storage to the container/path defined in pipeline json (ie. <container>/package/DataDownloaderActivity.zip)
 
+For detailed information about custom activities in general and step-by-step instructions to create a custom activity, see [Use custom activities in an Azure Data Factory pipeline](https://azure.microsoft.com/documentation/articles/data-factory-use-custom-activities/).
 
 ### Pipeline
 
