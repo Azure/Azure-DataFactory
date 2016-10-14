@@ -14,7 +14,7 @@ Follow these steps in order to apply the sample to your project:
 
 2. Create a subclass of `CrossAppDomainDotNetActivity<MyDotNetActivityContext>` (e.g., `MyDotNetActivity`).
 
-3. Override `PreExecute()` to pull necessary info from the linked services, datasets, and/or activities and create a new instance of MyDotNetActivityContext.
+3. Override `PreExecute()` to pull necessary info from the linked services, datasets, and/or activities and create a new instance of `MyDotNetActivityContext`.
 
 4. Override `Execute()` to implement your activity logic based on the context object.  This executes in a separate app domain and can reference any assembly versions.
 
