@@ -34,7 +34,7 @@ New feature added:
 5.  Added support to Hive query and operations on Hive table. Please include the following option in your adf
         "--files",
         "/usr/hdp/current/spark-client/conf/hive-site.xml",
-6.  Support ì--packagesî option
+6.  Support ‚Äú--packages‚Äù option
 7.  Added 5 scala samples with sbt configuration and Adf pipiline json to simulate different scenarios
         a. read from csv, filter out the header, define schema, create data frame, selected interested columns, save the result in blob with parquet format
         b. read data, save them into Hive table
