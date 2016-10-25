@@ -1,0 +1,43 @@
+{
+    "name": "AdfHDInsightRServer",
+    "properties": {
+        "description": "Submit an R command",
+        "activities": [
+            {
+                "type": "HDInsightMapReduce",
+                "typeProperties": {
+                    "className": "com.adf.jobonhdi.JobOnHdiLauncher",
+                    "jarFilePath": "adflibs/com.adf.adfjobonhdi.jar",
+                    "jarLinkedService": "StorageLinkedService",
+                    "arguments": [
+                        "--files",
+                        "wasbs:///example/rdata/",
+                        "--command",
+                        "env -i R CMD BATCH --no-save --no-restore \"--args output.plot='/plot.png'\" rdata/airline.r /dev/stdout"
+                    ]
+                },
+                "outputs": [
+                    {
+                        "name": "MachineLearningOutput"
+                    }
+                ],
+                "policy": {
+                    "timeout": "00:30:00",
+                    "concurrency": 1,
+                    "retry": 1
+                },
+                "scheduler": {
+                    "frequency": "Day",
+                    "interval": 1
+                },
+                "name": "HDInsight Job Launcher",
+                "description": "Submits a general HDInsight Job",
+                "linkedServiceName": "HDInsightLinkedService"
+            }
+        ],
+        "start": "2016-09-28T00:00:00Z",
+        "end": "2016-09-29T00:00:00Z",
+        "isPaused": false,
+        "pipelineMode": "Scheduled"
+    }
+}
