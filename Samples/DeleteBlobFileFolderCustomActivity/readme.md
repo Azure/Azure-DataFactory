@@ -12,3 +12,5 @@ Customers have a requirement wherein they want to delete the files from the sour
 ### Custom Activity
 
 Provide a list of Azure Blob datasets to be deleted as a comma sepearted list in the 'inputToDelete' extended property in your pipeline json. The custom .Net activity will retrieve the dataset folderpath and filename property. In case folderpath is only specified, it will delete all the contents of the blob folder.
+
+Note: ADF custom .Net activity cannot reference higher version of storage lib directly. So, please refer to the workaround here: https://github.com/Azure/Azure-DataFactory/tree/master/Samples/CrossAppDomainDotNetActivitySample
