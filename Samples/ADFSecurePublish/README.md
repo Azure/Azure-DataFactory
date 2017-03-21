@@ -59,7 +59,7 @@ Most of these settings will only need to be set once, however if you wish to add
 Go to   
 Tools -> Options -> Data Factory -> Secure Publish -> Click the ellipsis for Subscriptions  
 Click add to add a new subscription  
-![Alt text](ReadmeResources/NewSub.PNG)  
+![Alt text](ReadmeResources/NewSub.png)  
 
 In the FriendlyName field, enter a name that you will use to select your subscription in the Subscription dropdown.  
 And enter the subscription ID in the Id field. Next time you launch secure publish you will see your subscription in the Subscription dropdown.  
@@ -68,7 +68,7 @@ And enter the subscription ID in the Id field. Next time you launch secure publi
 Each environment is tied to a Key Vault and optionally a deployment configuration file. You can configure a new environment by going to:  
 Tools -> Options -> Data Factory -> Secure Publish -> Click the ellipsis for Environment Settings  
 Click add to add a new environment:  
-![Alt text](ReadmeResources/NewEnv.PNG)  
+![Alt text](ReadmeResources/NewEnv.png)  
 
 In the Name field, add a name you will use to identify the environment.  
 In the KeyVaultName field, add the name of the Key Vault you wish to associate with the environment.  
@@ -83,7 +83,7 @@ These tokens can be placed anywhere in your pipelines, tables, linked services o
 
 # How to do a Secure Publish
 Right click on the ADF project in Solution Explorer to open the project context menu and click on the first menu item called Secrue Publish. This will open the following form:  
-![Alt text](ReadmeResources/Form.PNG)  
+![Alt text](ReadmeResources/Form.png)  
 
 Select the subscription which your data factory resides in. Next select the environment you want to deploy to and the data factory. Hit publish to trigger the deployment and keep an eye on the output window to see the status of the deployment.  
 The deployment process performs the following tasks in sequence:  
@@ -93,5 +93,5 @@ Identifies any custom activity packages and uploads them to Azure.
 Deploys Linked Services to the selected data factory, followed by tables and pipelines.  
 
 The output window updates in real time, so when the deployment is complete, you will be notified.  
-![Alt text](ReadmeResources/PublishCompleted.PNG)  
+![Alt text](ReadmeResources/PublishCompleted.png)  
 
