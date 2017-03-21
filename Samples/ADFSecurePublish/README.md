@@ -42,7 +42,7 @@ Any subscription which you wish to deploy a Data Factory must be associated with
 The settings required for Secure Publish can be configured by going to
 
 Tools -> Options -> Data Factory -> Secure Publish  
-![Alt text](ReadmeResources/UserSettings.PNG)  
+![Alt text](ReadmeResources/UserSettings.png)  
 
 Here is a description of each setting:
 *   ADF AAD Client ID - This is the client ID of an Azure Active Directory application which has been associated with the subscription which has data factories that we want to publish to.
