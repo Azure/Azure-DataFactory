@@ -1,0 +1,46 @@
+﻿{
+  "id": "http://datafactories.schema.management.azure.com/schemas/2015-09-01/Microsoft.DataFactory.Pipeline.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Microsoft.Azure.Management.DataFactories.Models.Pipeline",
+  "description": "A pipeline defines activities.",
+  "type": "object",
+  "required": [
+    "name",
+    "properties"
+  ],
+  "properties": {
+    "name": {
+      "description": "Name of the pipeline.",
+      "type": "string",
+      "maxLength": 260,
+      "pattern": "^[A-Za-z0-9_][^<>*#.%&:\\\\+?/]*$"
+    },
+    "properties": {
+      "description": "Pipeline properties.",
+      "$ref": "#/definitions/pipelineProperties"
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "pipelineProperties": {
+      "title": "Microsoft.Azure.Management.DataFactories.Models.PipelineProperties",
+      "description": "Pipeline properties.",
+      "type": "object",
+      "required": [
+        "activities"
+      ],
+      "properties": {
+        "activities": {
+          "description": "Activities that belong to the pipeline.",
+          "type": "array",
+          "items": {
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
