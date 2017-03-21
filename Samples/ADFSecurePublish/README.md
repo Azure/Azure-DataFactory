@@ -1,4 +1,4 @@
-#Introduction
+# Introduction
 The Visual Studio Azure Data Factory project template is very useful for creating and maintaining ADF projects. The project template comes with a publish context menu item which allows you to publish the Data Factory directly to Azure.    
 Inside linked Services and deployment configuration files we specify sensitive data such as connection strings to data bases and blob storage keys. In order to use the in built publish command these secrets must be in plain text.  
 ![Alt text](ReadmeResources/LinkedServiceWithSecret.PNG)  
@@ -10,17 +10,17 @@ ADF secure publish adds a new context item to the ADF project template allowing 
 ![Alt text](ReadmeResources/ContextMenuItem.jpg?raw=true "Secure Publish context menu item")  
 
 
-#Getting Started
+# Getting Started
 The ADF Secure publish Visual studio Extension can be installed from: VSExtension\SecurePublishMenuCommand.vsix
 
-#Prerequisites
+# Prerequisites
 Cert based authentication is used to access Key Vault so a certificate will need to be previously associated with your target Key Vault and any user using ADF Secure Publish will need to have this cert installed on their local machine.
 Instructions for associating a certificate with KeyVault can be found here: https://azure.microsoft.com/en-us/documentation/articles/key-vault-use-from-web-application/.
 The thumbprint of the certificate also needs to be configured in the user settings. Instructions on what user settings need to be configured is described below.
   
 Any subscription which you wish to deploy a Data Factory must be associated with an AAD client ID. This client ID will be configured with the Secure Publish user settings. Instructions on how to create a new AAD client ID and associate target subscriptions are described next.  
 
-#How to create a new AAD client ID to associate with a subscription
+# How to create a new AAD client ID to associate with a subscription
 1.  Open up PowerShell
 2.  Log in to Azure by typing in the cmd: 
     Login-AzureRmAccount
@@ -38,7 +38,7 @@ Any subscription which you wish to deploy a Data Factory must be associated with
     $azureAdApplication.ApplicationId.Guid
 8.  Add the secret corresponding to the KeyVaultCertClientId variable (generated above in step 4) to the KeyVault and assign the identifier SecurePublishAdfClientSecret to it.
 
-#Configuring Secure Publish user settings
+# Configuring Secure Publish user settings
 The settings required for Secure Publish can be configured by going to
 
 Tools -> Options -> Data Factory -> Secure Publish  
@@ -55,7 +55,7 @@ Here is a description of each setting:
 
 Most of these settings will only need to be set once, however if you wish to add a new subscription or a new environment then you will need to update these settings.
 
-#How to add a new Subscription
+# How to add a new Subscription
 Go to   
 Tools -> Options -> Data Factory -> Secure Publish -> Click the ellipsis for Subscriptions  
 Click add to add a new subscription  
@@ -64,7 +64,7 @@ Click add to add a new subscription
 In the FriendlyName field, enter a name that you will use to select your subscription in the Subscription dropdown.  
 And enter the subscription ID in the Id field. Next time you launch secure publish you will see your subscription in the Subscription dropdown.  
 
-#How to add a new environment
+# How to add a new environment
 Each environment is tied to a Key Vault and optionally a deployment configuration file. You can configure a new environment by going to:  
 Tools -> Options -> Data Factory -> Secure Publish -> Click the ellipsis for Environment Settings  
 Click add to add a new environment:  
@@ -74,14 +74,14 @@ In the Name field, add a name you will use to identify the environment.
 In the KeyVaultName field, add the name of the Key Vault you wish to associate with the environment.  
 If you wish to associate a deployment config then enter the name of the file in the DeploymentConfig field. If you do not have a deployment config, you can leave this field blank.
 
-#How to reference Key Vault secrets in your ADF project
+# How to reference Key Vault secrets in your ADF project
 Once the Key Vault that you wish to target has been associated with an environment, you will add your secrets and reference them in your ADF files.  
 You can add and view secrets directly through the Azure Key Vault UI: https://ms.portal.azure.com/#blade/HubsExtension/Resources/resourceType/Microsoft.KeyVault%2Fvaults  
 Once your secrets are added, you reference them in your ADF files by using the following token:  
-“<KeyVault:identifier>” where the identifier corresponds to the name of your Key Vault secret.  
+"<KeyVault:identifier>" where the identifier corresponds to the name of your Key Vault secret.  
 These tokens can be placed anywhere in your pipelines, tables, linked services or deployment configs and they will be resolved at deployment time.  
 
-#How to do a Secure Publish
+# How to do a Secure Publish
 Right click on the ADF project in Solution Explorer to open the project context menu and click on the first menu item called Secrue Publish. This will open the following form:  
 ![Alt text](ReadmeResources/Form.PNG)  
 
