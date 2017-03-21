@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecurePublishForm", "Secure
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecurePublishFormTests", "SecurePublishFormTests\SecurePublishFormTests.csproj", "{C66739A4-1196-4EF0-8EA7-3086F11BAD0A}"
 EndProject
+Project("{FF286327-C783-4F7A-AB73-9BCBAD0D4460}") = "NuGetPackage", "NuGetPackage\NuGetPackage.nuproj", "{72D0CE19-6B36-4A1F-80FB-62642ADF7459}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{C66739A4-1196-4EF0-8EA7-3086F11BAD0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C66739A4-1196-4EF0-8EA7-3086F11BAD0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C66739A4-1196-4EF0-8EA7-3086F11BAD0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72D0CE19-6B36-4A1F-80FB-62642ADF7459}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72D0CE19-6B36-4A1F-80FB-62642ADF7459}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72D0CE19-6B36-4A1F-80FB-62642ADF7459}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72D0CE19-6B36-4A1F-80FB-62642ADF7459}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
