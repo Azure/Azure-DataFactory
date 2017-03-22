@@ -126,6 +126,8 @@ namespace Microsoft.ADF.Deployment.AdfKeyVaultDeployment
         {
             var authContext = new AuthenticationContext(authority);
             ClientCredential clientCred = new ClientCredential(keyVaultClientId, keyVaultSecret);
+
+            // Note: An exception here can indicate that the local cert has become corrupted. Please first try and install it again.
             AuthenticationResult result = await authContext.AcquireTokenAsync(resource, clientCred);
 
             if (result == null)
