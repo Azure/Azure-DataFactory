@@ -59,6 +59,12 @@ namespace Microsoft.ADF.Deployment.AdfKeyVaultDeployment
 
             List<AdfFileInfo> validFiles = allFiles.Where(x => x.IsValid).ToList();
 
+            if (!validFiles.Any())
+            {
+                logger.Write($"No valid ADF files found in '{outputFolder}'", "Red");
+                return false;
+            }
+
             logger.Write($"{validFiles.Count} file{(validFiles.Count == 1 ? string.Empty : "s")} retreived");
             logger.Write(string.Empty);
             logger.Write($"Begin deploying ADF resources to '{dataFactoryName}'", "Black");
