@@ -8,11 +8,11 @@ This package comes with a base class which you inherit instead of implementing I
 
 # How to use:
 1. Inherit from the abstract base class called CustomActivityBase. 
-2. Implement the method RunActivity. This method calls the execute method internally. The arguments for this method are exposed as public properties on the base class: 
-    LinkedServices
-    Datasets
-    Activity
-    Logger
+2. Implement the method RunActivity. This method calls the execute method internally. The arguments for this method are exposed as public properties on the base class:   
+    LinkedServices  
+    Datasets  
+    Activity  
+    Logger  
 3. Add the CustomActivity attribute to the RunActivity method and specify the relative location from the custom activity project to the pipeline file and the name of the actviity you wish to target. Optionally the name of the deployment config file to use e.g.:
 [CustomActivity(ActivityName = "KickOffSproc", PipelineLocation = @"..\DataFactoryApp\PipelineBlobSample.json", DeployConfig = "Dev.json")] 
 4. Run the custom activity as if it were a unit test.
