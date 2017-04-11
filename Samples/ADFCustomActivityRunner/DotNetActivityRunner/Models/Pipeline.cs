@@ -2,9 +2,9 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class Pipeline
+    internal class Pipeline
     {
         [JsonProperty("properties")]
-        public PipelineProperties Properties { get; internal set; }
+        internal PipelineProperties Properties { get; set; }
     }
 }

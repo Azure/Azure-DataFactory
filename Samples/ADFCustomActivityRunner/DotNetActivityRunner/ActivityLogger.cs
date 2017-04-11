@@ -4,9 +4,9 @@ using System.Diagnostics;
 
 namespace Microsoft.ADF.DotNetActivityRunner
 {
-    public class ActivityLogger : IActivityLogger
+    internal class ActivityLogger : IActivityLogger
     {
-        public ActivityLogger()
+        internal ActivityLogger()
         {
             Trace.AutoFlush = true;
         }

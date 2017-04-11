@@ -3,22 +3,22 @@ using System.Collections.Generic;
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class Activity
+    internal class Activity
     {
         [JsonProperty("name")]
-        public string Name { get; internal set; }
+        internal string Name { get; set; }
 
         [JsonProperty("inputs")]
-        public List<ActivityInput> Inputs { get; internal set; }
+        internal List<ActivityInput> Inputs { get; set; }
 
         [JsonProperty("outputs")]
-        public List<ActivityOutput> Outputs { get; internal set; }
+        internal List<ActivityOutput> Outputs { get; set; }
 
         [JsonProperty("linkedServiceName")]
-        public string LinkedServiceName { get; internal set; }
+        internal string LinkedServiceName { get; set; }
 
         [JsonProperty("typeProperties")]
-        public DotNetActivityTypeProperties DotNetActivityTypeProperties { get; internal set; }
+        internal DotNetActivityTypeProperties DotNetActivityTypeProperties { get; set; }
 
 
     }

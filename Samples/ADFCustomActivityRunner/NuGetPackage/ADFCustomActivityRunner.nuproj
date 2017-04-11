@@ -19,7 +19,7 @@
   <Import Project="$(NuProjPath)\NuProj.props" Condition="Exists('$(NuProjPath)\NuProj.props')" />
   <PropertyGroup Label="Configuration">
     <Id>ADFCustomActivityRunner</Id>
-    <Version>1.0.4</Version>
+    <Version>1.0.4.3</Version>
     <Title>ADF Custom Activity Runner</Title>
     <Authors>daosul</Authors>
     <Owners>daosul</Owners>
@@ -33,6 +33,7 @@
     </LicenseUrl>
     <Copyright>Copyright © Microsoft</Copyright>
     <Tags>ADF Azure Data Factory DotNetActivity Custom Activities</Tags>
+    <EmbedSourceFiles>true</EmbedSourceFiles>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="Readme.txt" />
