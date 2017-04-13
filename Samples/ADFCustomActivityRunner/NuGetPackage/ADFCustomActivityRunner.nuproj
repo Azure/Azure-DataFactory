@@ -19,7 +19,7 @@
   <Import Project="$(NuProjPath)\NuProj.props" Condition="Exists('$(NuProjPath)\NuProj.props')" />
   <PropertyGroup Label="Configuration">
     <Id>ADFCustomActivityRunner</Id>
-    <Version>1.0.4.3</Version>
+    <Version>1.0.4.4</Version>
     <Title>ADF Custom Activity Runner</Title>
     <Authors>daosul</Authors>
     <Owners>daosul</Owners>

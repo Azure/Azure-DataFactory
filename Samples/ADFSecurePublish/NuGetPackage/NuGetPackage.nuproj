@@ -19,7 +19,7 @@
   <Import Project="$(NuProjPath)\NuProj.props" Condition="Exists('$(NuProjPath)\NuProj.props')" />
   <PropertyGroup Label="Configuration">
     <Id>ADFSecurePublish</Id>
-    <Version>1.0.1</Version>
+    <Version>1.0.1.1</Version>
     <Title>ADFSecurePublish</Title>
     <Authors>daosul</Authors>
     <Owners>daosul</Owners>
