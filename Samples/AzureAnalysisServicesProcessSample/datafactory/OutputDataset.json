@@ -1,0 +1,15 @@
+﻿{
+  "name": "dummy-after-tabular-processing-test",W
+  "properties": {
+    "published": false,
+    "type": "AzureSqlTable",
+    "linkedServiceName": "<AZURE_SQL_DATABASE_LINKED_SERVICE_NAME>",
+    "typeProperties": {
+      "tableName": ""
+    },
+    "availability": {
+      "frequency": "Hour",
+      "interval": 1
+    }
+  }
+}
