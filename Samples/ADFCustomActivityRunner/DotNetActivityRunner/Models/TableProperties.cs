@@ -2,15 +2,15 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class TableProperties
+    internal class TableProperties
     {
         [JsonProperty("linkedServiceName")]
-        public string LinkedServiceName { get; internal set; }
+        internal string LinkedServiceName { get; set; }
 
         [JsonProperty("type")]
-        public string Type { get; internal set; }
+        internal string Type { get; set; }
 
         [JsonProperty("typeProperties")]
-        public TableTypeProperties TypeProperties { get; internal set; }
+        internal TableTypeProperties TypeProperties { get; set; }
     }
 }

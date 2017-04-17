@@ -1,6 +1,6 @@
 ﻿namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class ActivityInput : ActivityData
+    internal class ActivityInput : ActivityData
     {
     }
 }

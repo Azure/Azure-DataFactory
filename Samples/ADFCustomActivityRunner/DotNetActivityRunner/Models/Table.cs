@@ -2,10 +2,10 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class Table
+    internal class Table
     {
         [JsonProperty("properties")]
-        public TableProperties Properties { get; internal set; }
+        internal TableProperties Properties { get; set; }
 
     }
 }

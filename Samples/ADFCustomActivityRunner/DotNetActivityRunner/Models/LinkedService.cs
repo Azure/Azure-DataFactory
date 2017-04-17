@@ -1,11 +1,11 @@
 ﻿using Newtonsoft.Json;
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
-{ 
-    public class LinkedService
+{
+    internal class LinkedService
     {
         [JsonProperty("name")]
-        public string Name { get; internal set; }
+        internal string Name { get; set; }
 
         public override int GetHashCode()
         {

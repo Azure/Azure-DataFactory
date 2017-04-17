@@ -2,9 +2,9 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class AzureSqlDatabaseLinkedService : LinkedService
+    internal class AzureSqlDatabaseLinkedService : LinkedService
     {
         [JsonProperty("properties")]
-        public StorageServiceProperties Properties { get; internal set; }
+        internal StorageServiceProperties Properties { get; set; }
     }
 }

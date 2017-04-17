@@ -2,9 +2,9 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class ActivityData
+    internal class ActivityData
     {
         [JsonProperty("name")]
-        public string Name { get; internal set; }
+        internal string Name { get; set; }
     }
 }

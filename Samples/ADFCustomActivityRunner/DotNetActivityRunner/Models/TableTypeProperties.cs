@@ -2,15 +2,15 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class TableTypeProperties
+    internal class TableTypeProperties
     {
         [JsonProperty("folderPath")]
-        public string FolderPath { get; internal set; }
+        internal string FolderPath { get; set; }
 
         [JsonProperty("fileName")]
-        public string FileName { get; internal set; }
+        internal string FileName { get; set; }
         
         [JsonProperty("tableName")]
-        public string TableName { get; internal set; }
+        internal string TableName { get; set; }
     }
 }

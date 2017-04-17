@@ -7,9 +7,9 @@ using Newtonsoft.Json;
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class DotNetActivityTypeProperties
+    internal class DotNetActivityTypeProperties
     {
         [JsonProperty("extendedProperties")]
-        public Dictionary<string, string> ExtendedProperties { get; internal set; }
+        internal Dictionary<string, string> ExtendedProperties { get; set; }
     }
 }

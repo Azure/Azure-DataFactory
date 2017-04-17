@@ -2,9 +2,9 @@
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class StorageServiceTypeProperties
+    internal class StorageServiceTypeProperties
     {
         [JsonProperty("connectionString")]
-        public string ConnectionString { get; internal set; }
+        internal string ConnectionString { get; set; }
     }
 }

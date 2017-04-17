@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace Microsoft.ADF.DotNetActivityRunner.Models
 {
-    public class PipelineProperties
+    internal class PipelineProperties
     {
         [JsonProperty("activities")]
-        public List<Activity> Activities { get; set; }
+        internal List<Activity> Activities { get; set; }
     }
 }
