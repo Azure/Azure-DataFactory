@@ -1,11 +1,14 @@
 ﻿namespace AzureAnalysisServicesProcessSample
 {
     using Microsoft.AnalysisServices.Tabular;
+    using Microsoft.AnalysisServices
     using Microsoft.Azure.Management.DataFactories.Models;
     using Microsoft.Azure.Management.DataFactories.Runtime;
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    
+
 
     /// <summary>
     /// Custom activity to process a Tabular model.
