@@ -1,13 +1,16 @@
 ﻿namespace AzureAnalysisServicesProcessSample
 {
     using Microsoft.AnalysisServices.Tabular;
-    using Microsoft.AnalysisServices
+    using Microsoft.AnalysisServices.AdomdClient;
     using Microsoft.Azure.Management.DataFactories.Models;
     using Microsoft.Azure.Management.DataFactories.Runtime;
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    
+    using Microsoft.WindowsAzure.Storage;
+    using Microsoft.WindowsAzure.Storage.Blob;
+    using System.IO;
+
 
 
     /// <summary>
@@ -20,33 +23,59 @@
         /// </summary>
         const string TABULAR_DATABASE_NAME_PARAMETER_NAME = "TabularDatabaseName";
         const string AZUREAS_CONNECTION_STRING_PARAMETER_NAME = "AzureASConnectionString";
-
+        const string ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME = "AdvancedASProcessingScriptPath";
 
         internal override ProcessAzureASContext PreExecute(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
             ValidateParameters(linkedServices, datasets, activity, logger);
 
-            return CreateContext(linkedServices, activity, logger);
+            return CreateContext(linkedServices, datasets, activity, logger);
         }
 
         public override IDictionary<string, string> Execute(ProcessAzureASContext context, IActivityLogger logger)
         {
             logger.Write("Starting ProcessAzureASActivity");
 
-            try
+
+            if (string.IsNullOrEmpty(context.AdvancedASProcessingScriptPath))
             {
-                Model tabularModel = GetTabularModel(context.AzureASConnectionString, context.TabularDatabaseName);
+                logger.Write("No custom TMSL script specified, process perform full process of the database");
+                try
+                {
+                    Model tabularModel = GetTabularModel(context.AzureASConnectionString, context.TabularDatabaseName);
 
-                ProcessTabularModel(tabularModel, logger);
+                    ProcessTabularModel(tabularModel, logger);
 
-                logger.Write("Finalizing ProcessAzureASActivity");
+                    logger.Write("Finalizing ProcessAzureASActivity");
+                }
+                catch (Exception ex)
+                {
+                    logger.Write(ex.Message);
+                    throw;
+                }
             }
-            catch (Exception ex)
+            else
             {
-                logger.Write(ex.Message);
-                throw;
-            }
+                logger.Write("Custom TMSL script specified, perform action defined in TMSL script");
+                try
+                {
+                    using (AdomdConnection asConn = new AdomdConnection(context.AzureASConnectionString))
+                    {
+                        asConn.Open();
+                        AdomdCommand asCmd = asConn.CreateCommand();
+                        asCmd.CommandText = ReadBlob(context.BlobStorageConnectionString, context.AdvancedASProcessingScriptPath);
+                        asCmd.ExecuteNonQuery();
+                        logger.Write("Azure AS was successfully processed");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.Write(ex.Message);
+                    throw;
+                }
 
+            }
+            
             return new Dictionary<string, string>();
         }
 
@@ -107,24 +136,80 @@
             DotNetActivity dotNetActivity = (DotNetActivity)activity.TypeProperties;
 
             // Ensure required parameters are included
-            if (!dotNetActivity.ExtendedProperties.ContainsKey(TABULAR_DATABASE_NAME_PARAMETER_NAME)) throw new ArgumentException(TABULAR_DATABASE_NAME_PARAMETER_NAME);
+            if (!dotNetActivity.ExtendedProperties.ContainsKey(ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME)) {
+                if (!dotNetActivity.ExtendedProperties.ContainsKey(TABULAR_DATABASE_NAME_PARAMETER_NAME)) throw new ArgumentException(TABULAR_DATABASE_NAME_PARAMETER_NAME);
+            }
             if (!dotNetActivity.ExtendedProperties.ContainsKey(AZUREAS_CONNECTION_STRING_PARAMETER_NAME)) throw new ArgumentException(AZUREAS_CONNECTION_STRING_PARAMETER_NAME);
 
             logger.Write("Parameters validated");
         }
 
-        private ProcessAzureASContext CreateContext(IEnumerable<LinkedService> linkedServices, Activity activity, IActivityLogger logger)
+        private ProcessAzureASContext CreateContext(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
             DotNetActivity dotNetActivity = (DotNetActivity)activity.TypeProperties;
 
             var tabularDatabaseName = dotNetActivity.ExtendedProperties[TABULAR_DATABASE_NAME_PARAMETER_NAME];
             var aasConnectionString = dotNetActivity.ExtendedProperties[AZUREAS_CONNECTION_STRING_PARAMETER_NAME];
+            var advASProcessingScriptPath="";
+            if (dotNetActivity.ExtendedProperties.ContainsKey(ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME))
+            {
+                advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
+            }
+
+            //get Azure Storage Linked Service Connection String from output data set. We use this to access the TMSL script for AS processing
+            AzureStorageLinkedService inputLinkedService;
+            Dataset inputDataset = datasets.Single(dataset => dataset.Name == activity.Inputs.Single().Name);
+
+            AzureBlobDataset inputTypeProperties;
+            inputTypeProperties = inputDataset.Properties.TypeProperties as AzureBlobDataset;
+
+            // get the  Azure Storate linked service from linkedServices object            
+            inputLinkedService = linkedServices.First(
+                linkedService =>
+                linkedService.Name ==
+                inputDataset.Properties.LinkedServiceName).Properties.TypeProperties
+                as AzureStorageLinkedService;
+
+            // get the connection string in the linked service
+            string blobconnectionString = inputLinkedService.ConnectionString;
 
             return new ProcessAzureASContext
             {
                 TabularDatabaseName = tabularDatabaseName,
-                AzureASConnectionString = aasConnectionString
+                AzureASConnectionString = aasConnectionString,
+                AdvancedASProcessingScriptPath= advASProcessingScriptPath,
+                BlobStorageConnectionString= blobconnectionString
             };
+        }
+
+        private string ReadBlob(string blobConnectionString, string blobPath)
+        {
+            string path = blobPath;
+            string[] pathArr = path.Split('\\');
+            string container = pathArr.First().ToString();
+            pathArr.ToString();
+            string filepath = "";
+            for (int i = 1; i < pathArr.Length - 1; i++)
+            {
+                filepath = filepath + pathArr[i].ToString() + "\\";
+            }
+            filepath = filepath + pathArr.Last().ToString();
+
+            CloudStorageAccount inputStorageAccount = CloudStorageAccount.Parse(blobConnectionString);
+            CloudBlobClient inputClient = inputStorageAccount.CreateCloudBlobClient();
+            CloudBlobContainer inputContainer = inputClient.GetContainerReference(container);
+            CloudBlockBlob blockBlob = inputContainer.GetBlockBlobReference(filepath);
+
+            string CmdStr;
+
+            using (var memoryStream = new MemoryStream())
+            {
+                blockBlob.DownloadToStream(memoryStream);
+                memoryStream.Position = 0;
+                StreamReader CmdReader = new StreamReader(memoryStream);
+                CmdStr = CmdReader.ReadToEnd();
+            }
+            return CmdStr;
         }
     }
 }

@@ -34,6 +34,10 @@
       <HintPath>packages\Hyak.Common.1.0.2\lib\net45\Hyak.Common.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.AnalysisServices.AdomdClient, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>dlls\Microsoft.AnalysisServices.AdomdClient.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.AnalysisServices.Core, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>dlls\Microsoft.AnalysisServices.Core.DLL</HintPath>
@@ -102,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CrossAppDomainDotNetActivity.cs" />
+    <None Include="datafactory\Pipeline_customTMSL.json" />
     <None Include="datafactory\OutputDataset.json" />
     <Compile Include="ICrossAppDomainDotNetActivity.cs" />
     <Compile Include="ProcessAzureASActivity.cs" />
@@ -110,7 +115,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="datafactory\InputDataset.json" />
-    <None Include="datafactory\Pipeline.json" />
+    <None Include="datafactory\Pipeline_fullprocess.json" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
