@@ -1,8 +1,9 @@
 # Introduction
 A very common action at the end of an ETL process is to reprocess a tabular model. To do so in Data Factory a Custom Activity is needed.
-This example implements a Custom Activity capable of reprocess a model in Azure Analysis Services. 
+This example implements a Custom Activity capable of reprocess a model or execute a custom processing script (for example, merge partitions) in Azure Analysis Services. 
 
-This sample will reprocess the entire model, but it would be easy to improve it to allow partial processing, specifing which tables or even which partitions to process.
+If user specifies AdvancedASProcessingScriptPath in extendedProperties of DotNetActivity, the sample will process the database based on the TMSL script definition.
+If AdvancedASProcessingScriptPath is not specified, the sample by default does a full process of specified database. 
 
 
 # Considerations
@@ -15,5 +16,6 @@ Most parameters are common to all Custom Activities, but there are two extended 
 
 - AzureASConnectionString: Connection String of the Azure AS instance.
 - TabularDatabaseName: Name of the database in the tabular model to be processed.
+- AdvancedASProcessingScriptPath: [Optional] The path to TMSL script for custom process. 
 
 
