@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|AnyCPU">
+      <Configuration>Debug</Configuration>
+      <Platform>AnyCPU</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|AnyCPU">
+      <Configuration>Release</Configuration>
+      <Platform>AnyCPU</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>bb5b7de2-2a1a-4837-80c1-11c4693c28ec</ProjectGuid>
+  </PropertyGroup>
+  <PropertyGroup>
+    <NuProjPath Condition=" '$(NuProjPath)' == '' ">$(MSBuildExtensionsPath)\NuProj\</NuProjPath>
+  </PropertyGroup>
+  <Import Project="$(NuProjPath)\NuProj.props" Condition="Exists('$(NuProjPath)\NuProj.props')" />
+  <PropertyGroup Label="Configuration">
+    <Id>ADFCustomActivityRunner</Id>
+    <Version>1.0.4.4</Version>
+    <Title>ADF Custom Activity Runner</Title>
+    <Authors>daosul</Authors>
+    <Owners>daosul</Owners>
+    <Summary>Allows you to step into and debug Azure Data Factory (ADF) custom DotNetActivity activities using the information configured in your pipeline.</Summary>
+    <Description>This package provides an attribute that you can apply to your DotNetActivity. You specify the location of the pipeline which your custom activity is run from and the name of the activity in the pipeline. The activity is then de-serialized into an object which you can use to easily debug your custom activity in the context of the pipeline it is found in. This package comes with a base class which you inherit instead of  implementing IDotNetActivity. This abstract bass class is called CustomActivityBase, it implements IDotNetActivity and has a number of methods that simplify getting information from the ADF Json files. How to use: 1. Inherit from the abstract bass class called CustomActivityBase. 2. Implement the method RunActivity. This method calls the execute method internally. The arguments for this method are exposed as public properties on the base class: LinkedServices, Datasets, Activity, and Logger. 3. Add the CustomActivity attribute to the RunActivity method and specify the relative location from the custom activity project to the pipeline file and the name of the actviity you wish to target. Optionally the name of the deployment config file to use e.g. [CustomActivity(ActivityName = "KickOffSproc", PipelineLocation = @"..\DataFactoryApp\PipelineBlobSample.json", DeployConfig = "Dev.json")] 4. Run the custom activity as if it were a unit test.</Description>
+    <ReleaseNotes>
+    </ReleaseNotes>
+    <ProjectUrl>
+    </ProjectUrl>
+    <LicenseUrl>
+    </LicenseUrl>
+    <Copyright>Copyright © Microsoft</Copyright>
+    <Tags>ADF Azure Data Factory DotNetActivity Custom Activities</Tags>
+    <EmbedSourceFiles>true</EmbedSourceFiles>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CustomActivityRunner\CustomActivityRunner.csproj" />
+  </ItemGroup>
+  <Import Project="$(NuProjPath)\NuProj.targets" />
+</Project>

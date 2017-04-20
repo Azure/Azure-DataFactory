@@ -1,0 +1,38 @@
+{
+        "type": "DotNetActivity",
+        "typeProperties": {
+          "assemblyName": "ODSPADFCustomActivity.dll",
+          "entryPoint": "ODSPADFCustomActivity.DeleteFromBlobActivity",
+          "packageLinkedService": "LS_AzureBlobStorageLinkedService",
+          "packageFile": "odspstoragecontainer/ODSPADFCustomActivity.zip",
+          "extendedProperties": {
+            "InputToDelete": "<Comma separated List of datasets to delete>"
+          }
+        },
+        "inputs": [
+          {
+            "name": "<Input Dataset 1>"
+          },
+          {
+            "name": "<Input Dataset 2>"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "<Output Dataset 1>"
+          }
+        ],
+        "policy": {
+          "timeout": "01:00:00",
+          "concurrency": 1,
+          "longRetry": 10,
+          "longRetryInterval": "01:00:00"
+        },
+        "scheduler": {
+          "frequency": "Day",
+          "interval": 1,
+          "offset": "03:00:00"
+        },
+        "name": "DeleteFromBlob",
+        "linkedServiceName": "<Azure Batch Linked Service Name>"
+      }

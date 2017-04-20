@@ -1,0 +1,110 @@
+1. Command Line Options for DBGEN
+
+DBGEN's output is controlled by a combination of command line options
+and environment variables. Command line options are assumed to be single
+letter flags preceded by a minus sign. They may be followed by an
+optional argument.
+
+option  argument    default     action
+------  --------    -------     ------
+-h                              Display a usage summary
+
+-f      none                    Force. Existing data files will be
+                                overwritten.
+
+-F      none        yes         Flat file output.
+
+-D      none                    Direct database load. ld_XXXX() routines
+                                must be defined in load_stub.c
+
+-s      <scale>     1           Scale of the database population. Scale
+                                1.0 represents ~1 GB of data
+
+-T      <table>                 Generate the data for a particular table
+                                ONLY. Arguments: p -- part/partuspp, 
+                                c -- customer, s -- supplier, 
+                                o -- orders/lineitem, n -- nation, r -- region,
+                                l -- code (same as n and r),
+                                O -- orders, L -- lineitem, P -- part, 
+                                S -- partsupp
+
+-O      d                       Generate SQL for delete function 
+                                instead of key ranges
+
+-O      f                       Allow over-ride of default output file 
+                                names
+
+-O      h                       Generate headers in flat ascii files.
+                                hd_XXX routines must be defined in 
+                                load_stub.c
+
+-O      m                       Flat files generate fixed length records
+
+-O      r                       Generate key ranges for the UF2 update 
+                                function
+
+-O      v                       Verify data set without generating it.
+
+-r      <percentage>     10     Scale each udpate file to the given 
+                                percentage (expressed in basis points)
+                                of the data set
+
+-v      none                    Verbose. Progress messages are 
+                                displayed as data is generated.
+
+-n      <name>                  Use database <name> for in-line load
+
+-C      <children>              Use <children> separate processes to 
+                                generate data
+
+-S      <n>                     Generate the <n>th part of a multi-part load
+                                or update set
+
+-U      <updates>               Create a specified number of data sets
+                                in flat files for the update/delete 
+                                functions
+
+-i      <n>                     Split the inserted rows in an refresh pair 
+                between <n> files
+
+-d      <n>                     Split the deleted rows in an refresh pair
+                between <n> files
+
+2. DBGEN limitations and compliant usage
+
+DBGEN is meant to be a robust population generator for use with the 
+TPC-H benchmark. It is hoped that DBGEN will make it easier 
+to experiment with and become proficient in the execution of TPC decision 
+support benchmarks.  As a result, it includes a number of command line 
+options which are not, strictly speaking, necessary to generate a compliant 
+data set for a TPC-D run. In addition, some command line options will accept 
+arguments which result in the generation of NON-COMPLIANT data sets. Options 
+which should be used with care include:
+
+-s -- scale factor. TPC-H runs are only compliant when run against SF's 
+      of 1, 10, 100, 300, 1000, 3000, 10000, 30000, 100000
+-r -- refresh percentage. TPC-H runs are only compliant when run with 
+      -r 10, the default.
+
+3. Sample DBGEN executions
+
+DBGEN has been built to allow as much flexibility as possible, but is
+fundementally intended to generate two things: a database population 
+against which the queries in TPC-H can be run, and the updates 
+that are used during the update functions in TPC-H. Here are 
+some sample uses of DBGEN.
+
+  1. To generate the database population for the qualification database
+  dbgen -s 1
+  2. To generate the lineitem table only, for a scale factor 10 database,
+     and over-write any existing flat files:
+  dbgen -s 10 -f -T L
+  4. To geterate a 100GB data set in 1GB pieces, generate only the part and 
+     partsupplier tables, and include some progress reports along the way:
+  dbgen -s 100 -S 1 -C 100 -T p -v (to generate the first 1GB file)
+  dbgen -s 100 -S 2 -C 100 -T p -v (to generate the second 1GB file)
+        (and so on, incrementing the argument to -S each time)
+  5. To generate the update files needed for a 4 stream run of the throughput
+     test at 100 GB, using an existing set of seed files from an 8 process 
+     load:
+  dbgen -s 100 -U 4 -C 8
