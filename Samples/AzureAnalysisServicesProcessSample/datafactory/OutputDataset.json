@@ -1,11 +1,12 @@
 ﻿{
-  "name": "dummy-after-tabular-processing-test",W
+  "name": "dummy-after-tabular-processing-test",
   "properties": {
     "published": false,
-    "type": "AzureSqlTable",
-    "linkedServiceName": "<AZURE_SQL_DATABASE_LINKED_SERVICE_NAME>",
+    "type": "AzureBlob",
+    "linkedServiceName": "<AZURE_STORAGE_LINKED_SERVICE_NAME>",
     "typeProperties": {
-      "tableName": ""
+      "fileName": "<dummyfilename>",
+      "folderPath": "<dummyfoldername>"
     },
     "availability": {
       "frequency": "Hour",
