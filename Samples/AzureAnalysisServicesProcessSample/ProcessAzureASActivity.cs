@@ -156,22 +156,24 @@
                 advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
             }
 
-            //get Azure Storage Linked Service Connection String from output data set. We use this to access the TMSL script for AS processing
-            AzureStorageLinkedService inputLinkedService;
-            Dataset inputDataset = datasets.Single(dataset => dataset.Name == activity.Inputs.Single().Name);
+            //Get Azure Storage Linked Service Connection String from the dummy output dataset,
+            //AS processing does not produce output dataset, so we use this to access the TMSL script for AS processing
+          
+            AzureStorageLinkedService outputLinkedService;
+            Dataset outputDataset = datasets.Single(dataset => dataset.Name == activity.Outputs.Single().Name);
 
-            AzureBlobDataset inputTypeProperties;
-            inputTypeProperties = inputDataset.Properties.TypeProperties as AzureBlobDataset;
+            AzureBlobDataset outputTypeProperties;
+            outputTypeProperties = outputDataset.Properties.TypeProperties as AzureBlobDataset;
 
             // get the  Azure Storate linked service from linkedServices object            
-            inputLinkedService = linkedServices.First(
+            outputLinkedService = linkedServices.First(
                 linkedService =>
                 linkedService.Name ==
-                inputDataset.Properties.LinkedServiceName).Properties.TypeProperties
+                outputDataset.Properties.LinkedServiceName).Properties.TypeProperties
                 as AzureStorageLinkedService;
 
             // get the connection string in the linked service
-            string blobconnectionString = inputLinkedService.ConnectionString;
+            string blobconnectionString = outputLinkedService.ConnectionString;
 
             return new ProcessAzureASContext
             {

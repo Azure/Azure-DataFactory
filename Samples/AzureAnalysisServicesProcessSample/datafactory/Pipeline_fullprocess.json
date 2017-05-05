@@ -12,8 +12,7 @@
           "packageFile": "<ZIP_FILE_INSIDE_AZURE_STORAGE>",
           "extendedProperties": {
             "AzureASConnectionString": "Data Source=asazure://<LOCATION>.asazure.windows.net/<NAME>;User ID=<USER_ID>;Password=<PASSWORD>;Persist Security Info=True;Impersonation Level=Impersonate",
-            "TabularDatabaseName": "<DATABASE_NAME>",
-            "AdvancedASProcessingScriptPath": "container\\virtualdirectory\\filename"
+            "TabularDatabaseName": "<DATABASE_NAME>"
 
           }
         },
