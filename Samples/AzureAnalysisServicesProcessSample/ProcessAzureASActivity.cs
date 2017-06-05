@@ -10,6 +10,8 @@
     using Microsoft.WindowsAzure.Storage;
     using Microsoft.WindowsAzure.Storage.Blob;
     using System.IO;
+    using Microsoft.IdentityModel.Clients.ActiveDirectory;
+    using System.Globalization;
 
 
 
@@ -24,6 +26,10 @@
         const string TABULAR_DATABASE_NAME_PARAMETER_NAME = "TabularDatabaseName";
         const string AZUREAS_CONNECTION_STRING_PARAMETER_NAME = "AzureASConnectionString";
         const string ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME = "AdvancedASProcessingScriptPath";
+        const string AZUREAD_AUTHORITY_PARAMETER_NAME = "AzureADAuthority";
+        const string AZUREAD_RESOURCE_PARAMETER_NAME = "AzureADResource";
+        const string AZUREAD_CLIENTID_PARAMETER_NAME = "AzureADClientId";
+        const string AZUREAD_CLIENTSECRET_PARAMETER_NAME = "AzureADClientSecret";
 
         internal override ProcessAzureASContext PreExecute(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
@@ -156,6 +162,11 @@
                 advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
             }
 
+            if (dotNetActivity.ExtendedProperties.ContainsKey(AZUREAD_AUTHORITY_PARAMETER_NAME))
+            {
+                aasConnectionString = GetAzureADToken(dotNetActivity, aasConnectionString);
+            }
+
             //Get Azure Storage Linked Service Connection String from the dummy output dataset,
             //AS processing does not produce output dataset, so we use this to access the TMSL script for AS processing
           
@@ -182,6 +193,22 @@
                 AdvancedASProcessingScriptPath= advASProcessingScriptPath,
                 BlobStorageConnectionString= blobconnectionString
             };
+        }
+
+        private static string GetAzureADToken(DotNetActivity dotNetActivity, string aasConnectionString)
+        {
+            var authority = dotNetActivity.ExtendedProperties[AZUREAD_AUTHORITY_PARAMETER_NAME];
+            var resource = dotNetActivity.ExtendedProperties[AZUREAD_RESOURCE_PARAMETER_NAME];
+            var clientId = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTID_PARAMETER_NAME];
+            var clientSecret = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTSECRET_PARAMETER_NAME];
+
+            AuthenticationContext authContext = new AuthenticationContext(authority);
+            ClientCredential cc = new ClientCredential(clientId, clientSecret);
+            var task = authContext.AcquireTokenAsync(resource, cc);
+            task.Wait();
+            AuthenticationResult token = task.Result;
+            aasConnectionString = string.Format(CultureInfo.InvariantCulture, aasConnectionString, token.AccessToken);
+            return aasConnectionString;
         }
 
         private string ReadBlob(string blobConnectionString, string blobPath)
