@@ -18,4 +18,11 @@ Most parameters are common to all Custom Activities, but there are two extended 
 - TabularDatabaseName: Name of the database in the tabular model to be processed.
 - AdvancedASProcessingScriptPath: [Optional] The path to TMSL script for custom process. 
 
+# Analysis Services Client Libraries
+This sample uses Analysis Services AMO and ADOMD version 14.0.1.209. It is suggested that you always check below link for latest client libraries: 
 
+[Client libraries for connecting to Azure Analysis Services](https://docs.microsoft.com/en-us/azure/analysis-services/analysis-services-data-providers)
+
+The Custom Activity of ADF runs against Azure Batch. If you would like to install the latest MSOLAP native OLEDB provider, consider deploying it as an application package per below document: 
+
+[Deploy applications to compute nodes with Batch application packages](https://docs.microsoft.com/en-us/azure/batch/batch-application-packages)
