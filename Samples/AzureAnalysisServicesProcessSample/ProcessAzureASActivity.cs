@@ -133,7 +133,6 @@
             if (logger == null) throw new ArgumentNullException("logger");
 
             // Verify datasets
-            if (!activity.Inputs.Any()) throw new ArgumentException("At least one input dataset is required");
             if (activity.Outputs.Count != 1) throw new ArgumentException("Only one output datasets is required, as a dummy");
 
             foreach (LinkedService ls in linkedServices)
