@@ -22,6 +22,7 @@ Most parameters are common to all Custom Activities, but there are extended prop
 - AzureASConnectionString: Connection String of the Azure AS instance.
 - TabularDatabaseName: Name of the database in the tabular model to be processed.
 - AdvancedASProcessingScriptPath: [Optional] The path to TMSL script for custom process. 
+  Multiple TMSL scripts can be specified, concatenated by semicolon, e.g. "container1/script1.tmsl;container1/folder/script2.tmsl"
 
 # Service principal authentication
 Instead of an Azure AD User, you may wish to use a service principal (also known as Application Registration).

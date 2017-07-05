@@ -68,10 +68,14 @@
                     using (AdomdConnection asConn = new AdomdConnection(context.AzureASConnectionString))
                     {
                         asConn.Open();
-                        AdomdCommand asCmd = asConn.CreateCommand();
-                        asCmd.CommandText = ReadBlob(context.BlobStorageConnectionString, context.AdvancedASProcessingScriptPath);
-                        asCmd.ExecuteNonQuery();
-                        logger.Write("Azure AS was successfully processed");
+                        foreach (string scriptPath in context.AdvancedASProcessingScriptPath.Split(';'))
+                        {
+                            string commandText = ReadBlob(context.BlobStorageConnectionString, scriptPath);
+                            AdomdCommand asCmd = asConn.CreateCommand();
+                            asCmd.CommandText = commandText;
+                            asCmd.ExecuteNonQuery();
+                            logger.Write("Azure AS was successfully processed");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -213,18 +217,15 @@
             return aasConnectionString;
         }
 
-        private string ReadBlob(string blobConnectionString, string blobPath)
+        private static string ReadBlob(string blobConnectionString, string blobPath)
         {
-            string path = blobPath;
-            string[] pathArr = path.Split('\\');
-            string container = pathArr.First().ToString();
-            pathArr.ToString();
-            string filepath = "";
-            for (int i = 1; i < pathArr.Length - 1; i++)
+            string[] pathArr = blobPath.Split("/".ToCharArray(), 2);
+            if (pathArr.Count() < 2)
             {
-                filepath = filepath + pathArr[i].ToString() + "\\";
+                throw new ArgumentException("Missing container name", ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME);
             }
-            filepath = filepath + pathArr.Last().ToString();
+            string container = pathArr.First();
+            string filepath = pathArr.Last();
 
             CloudStorageAccount inputStorageAccount = CloudStorageAccount.Parse(blobConnectionString);
             CloudBlobClient inputClient = inputStorageAccount.CreateCloudBlobClient();
