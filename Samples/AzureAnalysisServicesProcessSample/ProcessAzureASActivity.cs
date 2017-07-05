@@ -92,6 +92,9 @@
 
             var tabularDatabase = analysisServicesServer.Databases.FindByName(tabularDatabaseName);
 
+            if (tabularDatabase == null) {
+                throw new ArgumentException("Database not found", tabularDatabaseName);
+            }
             return tabularDatabase.Model;
         }
 
