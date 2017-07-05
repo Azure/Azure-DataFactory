@@ -16,7 +16,7 @@
             "AzureADAuthority": "https://login.windows.net/<TENANT_ID>",
             "AzureADResource": "https://<LOCATION>.asazure.windows.net",
             "AzureADClientId": "<CLIENT_ID>",
-            "AzureADClientSecret": "<CLIENT_SECRET>"
+            "AzureADClientSecretPath": "<CLIENT_SECRET_FILE_INSIDE_AZURE_STORAGE>"
           }
         },
         "inputs": [

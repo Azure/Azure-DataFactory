@@ -29,7 +29,7 @@
         const string AZUREAD_AUTHORITY_PARAMETER_NAME = "AzureADAuthority";
         const string AZUREAD_RESOURCE_PARAMETER_NAME = "AzureADResource";
         const string AZUREAD_CLIENTID_PARAMETER_NAME = "AzureADClientId";
-        const string AZUREAD_CLIENTSECRET_PARAMETER_NAME = "AzureADClientSecret";
+        const string AZUREAD_CLIENTSECRETPATH_PARAMETER_NAME = "AzureADClientSecretPath";
 
         internal override ProcessAzureASContext PreExecute(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
@@ -170,7 +170,7 @@
 
             if (dotNetActivity.ExtendedProperties.ContainsKey(AZUREAD_AUTHORITY_PARAMETER_NAME))
             {
-                aasConnectionString = GetAzureADToken(dotNetActivity, aasConnectionString);
+                aasConnectionString = GetAzureADToken(blobconnectionString, dotNetActivity, aasConnectionString);
             }
 
             //Get Azure Storage Linked Service Connection String from the dummy output dataset,
@@ -201,12 +201,14 @@
             };
         }
 
-        private static string GetAzureADToken(DotNetActivity dotNetActivity, string aasConnectionString)
+        private static string GetAzureADToken(string blobConnectionString, DotNetActivity dotNetActivity, string aasConnectionString)
         {
-            var authority = dotNetActivity.ExtendedProperties[AZUREAD_AUTHORITY_PARAMETER_NAME];
-            var resource = dotNetActivity.ExtendedProperties[AZUREAD_RESOURCE_PARAMETER_NAME];
-            var clientId = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTID_PARAMETER_NAME];
-            var clientSecret = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTSECRET_PARAMETER_NAME];
+            string authority = dotNetActivity.ExtendedProperties[AZUREAD_AUTHORITY_PARAMETER_NAME];
+            string resource = dotNetActivity.ExtendedProperties[AZUREAD_RESOURCE_PARAMETER_NAME];
+            string clientId = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTID_PARAMETER_NAME];
+            string clientSecretPath = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTSECRETPATH_PARAMETER_NAME];
+
+            string clientSecret = ReadBlob(blobConnectionString, clientSecretPath);
 
             AuthenticationContext authContext = new AuthenticationContext(authority);
             ClientCredential cc = new ClientCredential(clientId, clientSecret);

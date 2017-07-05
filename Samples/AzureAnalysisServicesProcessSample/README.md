@@ -33,5 +33,5 @@ Use the following extended properties of the Custom Activity to allow it to retr
 - AzureADAuthority: Azure AD authority.
 - AzureADResource: Azure AD resource (token scope).
 - AzureADClientId: Your service account Client ID. Also known as Application ID.
-- AzureADClientSecret: Your service account Client Secret. Also known as API Access Key.
+- AzureADClientSecretPath: Path to a text file in the linked Azure Storage account, containing your service account Client Secret (also known as API Access Key).
 
