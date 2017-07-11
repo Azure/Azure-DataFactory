@@ -158,21 +158,6 @@
 
         private ProcessAzureASContext CreateContext(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
-            DotNetActivity dotNetActivity = (DotNetActivity)activity.TypeProperties;
-
-            var tabularDatabaseName = dotNetActivity.ExtendedProperties[TABULAR_DATABASE_NAME_PARAMETER_NAME];
-            var aasConnectionString = dotNetActivity.ExtendedProperties[AZUREAS_CONNECTION_STRING_PARAMETER_NAME];
-            var advASProcessingScriptPath="";
-            if (dotNetActivity.ExtendedProperties.ContainsKey(ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME))
-            {
-                advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
-            }
-
-            if (dotNetActivity.ExtendedProperties.ContainsKey(AZUREAD_AUTHORITY_PARAMETER_NAME))
-            {
-                aasConnectionString = GetAzureADToken(blobconnectionString, dotNetActivity, aasConnectionString);
-            }
-
             //Get Azure Storage Linked Service Connection String from the dummy output dataset,
             //AS processing does not produce output dataset, so we use this to access the TMSL script for AS processing
           
@@ -191,6 +176,21 @@
 
             // get the connection string in the linked service
             string blobconnectionString = outputLinkedService.ConnectionString;
+
+            DotNetActivity dotNetActivity = (DotNetActivity)activity.TypeProperties;
+
+            var tabularDatabaseName = dotNetActivity.ExtendedProperties[TABULAR_DATABASE_NAME_PARAMETER_NAME];
+            var aasConnectionString = dotNetActivity.ExtendedProperties[AZUREAS_CONNECTION_STRING_PARAMETER_NAME];
+            var advASProcessingScriptPath="";
+            if (dotNetActivity.ExtendedProperties.ContainsKey(ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME))
+            {
+                advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
+            }
+
+            if (dotNetActivity.ExtendedProperties.ContainsKey(AZUREAD_AUTHORITY_PARAMETER_NAME))
+            {
+                aasConnectionString = GetAzureADToken(blobconnectionString, dotNetActivity, aasConnectionString);
+            }
 
             return new ProcessAzureASContext
             {
