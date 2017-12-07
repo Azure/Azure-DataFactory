@@ -1,0 +1,19 @@
+{
+    "properties": {
+      "type": "AzureBatch",
+      "typeProperties": {
+        "accountName": "...",
+        "accessKey": {
+          "type": "SecureString",
+          "value": "..."
+        },
+        "batchUri": "https://....eastus.batch.azure.com",
+        "poolName": "...",
+        "linkedServiceName": {
+          "referenceName": "BatchStorageLinkedService",
+          "type": "LinkedServiceReference"
+        }
+      }
+    },
+    "name": "AzureBatchLinkedService"
+  }
