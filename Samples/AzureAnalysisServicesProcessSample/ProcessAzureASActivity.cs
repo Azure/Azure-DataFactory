@@ -29,7 +29,7 @@
         const string AZUREAD_AUTHORITY_PARAMETER_NAME = "AzureADAuthority";
         const string AZUREAD_RESOURCE_PARAMETER_NAME = "AzureADResource";
         const string AZUREAD_CLIENTID_PARAMETER_NAME = "AzureADClientId";
-        const string AZUREAD_CLIENTSECRET_PARAMETER_NAME = "AzureADClientSecret";
+        const string AZUREAD_CLIENTSECRETPATH_PARAMETER_NAME = "AzureADClientSecretPath";
 
         internal override ProcessAzureASContext PreExecute(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
@@ -68,10 +68,14 @@
                     using (AdomdConnection asConn = new AdomdConnection(context.AzureASConnectionString))
                     {
                         asConn.Open();
-                        AdomdCommand asCmd = asConn.CreateCommand();
-                        asCmd.CommandText = ReadBlob(context.BlobStorageConnectionString, context.AdvancedASProcessingScriptPath);
-                        asCmd.ExecuteNonQuery();
-                        logger.Write("Azure AS was successfully processed");
+                        foreach (string scriptPath in context.AdvancedASProcessingScriptPath.Split(';'))
+                        {
+                            string commandText = ReadBlob(context.BlobStorageConnectionString, scriptPath);
+                            AdomdCommand asCmd = asConn.CreateCommand();
+                            asCmd.CommandText = commandText;
+                            asCmd.ExecuteNonQuery();
+                            logger.Write("Azure AS was successfully processed");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -92,6 +96,9 @@
 
             var tabularDatabase = analysisServicesServer.Databases.FindByName(tabularDatabaseName);
 
+            if (tabularDatabase == null) {
+                throw new ArgumentException("Database not found", tabularDatabaseName);
+            }
             return tabularDatabase.Model;
         }
 
@@ -133,7 +140,6 @@
             if (logger == null) throw new ArgumentNullException("logger");
 
             // Verify datasets
-            if (!activity.Inputs.Any()) throw new ArgumentException("At least one input dataset is required");
             if (activity.Outputs.Count != 1) throw new ArgumentException("Only one output datasets is required, as a dummy");
 
             foreach (LinkedService ls in linkedServices)
@@ -152,21 +158,6 @@
 
         private ProcessAzureASContext CreateContext(IEnumerable<LinkedService> linkedServices, IEnumerable<Dataset> datasets, Activity activity, IActivityLogger logger)
         {
-            DotNetActivity dotNetActivity = (DotNetActivity)activity.TypeProperties;
-
-            var tabularDatabaseName = dotNetActivity.ExtendedProperties[TABULAR_DATABASE_NAME_PARAMETER_NAME];
-            var aasConnectionString = dotNetActivity.ExtendedProperties[AZUREAS_CONNECTION_STRING_PARAMETER_NAME];
-            var advASProcessingScriptPath="";
-            if (dotNetActivity.ExtendedProperties.ContainsKey(ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME))
-            {
-                advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
-            }
-
-            if (dotNetActivity.ExtendedProperties.ContainsKey(AZUREAD_AUTHORITY_PARAMETER_NAME))
-            {
-                aasConnectionString = GetAzureADToken(dotNetActivity, aasConnectionString);
-            }
-
             //Get Azure Storage Linked Service Connection String from the dummy output dataset,
             //AS processing does not produce output dataset, so we use this to access the TMSL script for AS processing
           
@@ -186,6 +177,21 @@
             // get the connection string in the linked service
             string blobconnectionString = outputLinkedService.ConnectionString;
 
+            DotNetActivity dotNetActivity = (DotNetActivity)activity.TypeProperties;
+
+            var tabularDatabaseName = dotNetActivity.ExtendedProperties[TABULAR_DATABASE_NAME_PARAMETER_NAME];
+            var aasConnectionString = dotNetActivity.ExtendedProperties[AZUREAS_CONNECTION_STRING_PARAMETER_NAME];
+            var advASProcessingScriptPath="";
+            if (dotNetActivity.ExtendedProperties.ContainsKey(ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME))
+            {
+                advASProcessingScriptPath = dotNetActivity.ExtendedProperties[ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME];
+            }
+
+            if (dotNetActivity.ExtendedProperties.ContainsKey(AZUREAD_AUTHORITY_PARAMETER_NAME))
+            {
+                aasConnectionString = GetAzureADToken(blobconnectionString, dotNetActivity, aasConnectionString);
+            }
+
             return new ProcessAzureASContext
             {
                 TabularDatabaseName = tabularDatabaseName,
@@ -195,12 +201,14 @@
             };
         }
 
-        private static string GetAzureADToken(DotNetActivity dotNetActivity, string aasConnectionString)
+        private static string GetAzureADToken(string blobConnectionString, DotNetActivity dotNetActivity, string aasConnectionString)
         {
-            var authority = dotNetActivity.ExtendedProperties[AZUREAD_AUTHORITY_PARAMETER_NAME];
-            var resource = dotNetActivity.ExtendedProperties[AZUREAD_RESOURCE_PARAMETER_NAME];
-            var clientId = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTID_PARAMETER_NAME];
-            var clientSecret = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTSECRET_PARAMETER_NAME];
+            string authority = dotNetActivity.ExtendedProperties[AZUREAD_AUTHORITY_PARAMETER_NAME];
+            string resource = dotNetActivity.ExtendedProperties[AZUREAD_RESOURCE_PARAMETER_NAME];
+            string clientId = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTID_PARAMETER_NAME];
+            string clientSecretPath = dotNetActivity.ExtendedProperties[AZUREAD_CLIENTSECRETPATH_PARAMETER_NAME];
+
+            string clientSecret = ReadBlob(blobConnectionString, clientSecretPath);
 
             AuthenticationContext authContext = new AuthenticationContext(authority);
             ClientCredential cc = new ClientCredential(clientId, clientSecret);
@@ -211,18 +219,15 @@
             return aasConnectionString;
         }
 
-        private string ReadBlob(string blobConnectionString, string blobPath)
+        private static string ReadBlob(string blobConnectionString, string blobPath)
         {
-            string path = blobPath;
-            string[] pathArr = path.Split('\\');
-            string container = pathArr.First().ToString();
-            pathArr.ToString();
-            string filepath = "";
-            for (int i = 1; i < pathArr.Length - 1; i++)
+            string[] pathArr = blobPath.Split("/".ToCharArray(), 2);
+            if (pathArr.Count() < 2)
             {
-                filepath = filepath + pathArr[i].ToString() + "\\";
+                throw new ArgumentException("Missing container name", ADV_AS_PROCESS_SCRIPT_PATH_PARAMETER_NAME);
             }
-            filepath = filepath + pathArr.Last().ToString();
+            string container = pathArr.First();
+            string filepath = pathArr.Last();
 
             CloudStorageAccount inputStorageAccount = CloudStorageAccount.Parse(blobConnectionString);
             CloudBlobClient inputClient = inputStorageAccount.CreateCloudBlobClient();
