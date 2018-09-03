@@ -1,0 +1,231 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name",
+			"defaultValue": "liliuMadridTestGit"
+		},
+		"AzureBlobSource_properties_typeProperties_fileName": {
+			"type": "string",
+			"defaultValue": "@dataset().file"
+		},
+		"AzureBlobSource_properties_typeProperties_folderPath": {
+			"type": "string",
+			"defaultValue": "@dataset().folder"
+		},
+		"AzureBlobSink_properties_typeProperties_fileName": {
+			"type": "string",
+			"defaultValue": ""
+		},
+		"AzureBlobSink_properties_typeProperties_folderPath": {
+			"type": "string",
+			"defaultValue": "@dataset().folder"
+		},
+		"AzureBlobSource_properties_linkedServiceName": {
+			"type": "string",
+			"metadata": {
+				"linkedServiceType": "AzureBlobStorage"
+			}
+		},
+		"AzureBlobSink_properties_linkedServiceName": {
+			"type": "string",
+			"metadata": {
+				"linkedServiceType": "AzureBlobStorage"
+			}
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/ForeachFilePartitionCopy')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Copying a large number of files between file-based storages template",
+				"activities": [
+					{
+						"name": "GetPartitionList",
+						"description": "get item list",
+						"type": "GetMetadata",
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "AzureBlobSource",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": {
+										"value": "@pipeline().parameters.sourceFolder",
+										"type": "Expression"
+									},
+									"file": " "
+								}
+							},
+							"fieldList": [
+								"childItems"
+							]
+						}
+					},
+					{
+						"name": "ForEachPartition",
+						"description": "copy for each item",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetPartitionList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetPartitionList').output.childItems",
+								"type": "Expression"
+							},
+							"batchCount": 10,
+							"activities": [
+								{
+									"name": "CopyOnePartition",
+									"description": "Do the copy",
+									"type": "Copy",
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [
+										{
+											"name": "Source",
+											"value": "@{item().name}/"
+										},
+										{
+											"name": "Destination",
+											"value": "@{item().name}/"
+										}
+									],
+									"typeProperties": {
+										"source": {
+											"type": "BlobSource",
+											"recursive": true
+										},
+										"sink": {
+											"type": "BlobSink"
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "AzureBlobSource",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.sourceFolder",
+													"type": "Expression"
+												},
+												"file": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "AzureBlobSink",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.sinkFolder",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"sourceFolder": {
+						"type": "String"
+					},
+					"sinkFolder": {
+						"type": "String"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/AzureBlobSource')]",
+				"[concat(variables('factoryId'), '/datasets/AzureBlobSink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobSource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobSource_properties_linkedServiceName')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folder": {
+						"type": "String"
+					},
+					"file": {
+						"type": "String"
+					}
+				},
+				"type": "AzureBlob",
+				"typeProperties": {
+					"fileName": {
+						"value": "[parameters('AzureBlobSource_properties_typeProperties_fileName')]",
+						"type": "Expression"
+					},
+					"folderPath": {
+						"value": "[parameters('AzureBlobSource_properties_typeProperties_folderPath')]",
+						"type": "Expression"
+					}
+				}
+			}
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobSink_properties_linkedServiceName')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folder": {
+						"type": "String"
+					}
+				},
+				"type": "AzureBlob",
+				"typeProperties": {
+					"fileName": "[parameters('AzureBlobSink_properties_typeProperties_fileName')]",
+					"folderPath": {
+						"value": "[parameters('AzureBlobSink_properties_typeProperties_folderPath')]",
+						"type": "Expression"
+					}
+				}
+			}
+		}
+	]
+}
