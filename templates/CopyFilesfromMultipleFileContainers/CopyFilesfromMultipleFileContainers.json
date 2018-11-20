@@ -4,52 +4,41 @@
 	"parameters": {
 		"factoryName": {
 			"type": "string",
-			"metadata": "Data Factory Name",
-			"defaultValue": "liliuMadridTestGit"
+			"metadata": "Data Factory Name"
 		},
-		"AzureBlobSource_properties_typeProperties_fileName": {
-			"type": "string",
-			"defaultValue": "@dataset().file"
+		"DataSourceConnection": {
+			"type": "string"
 		},
-		"AzureBlobSource_properties_typeProperties_folderPath": {
-			"type": "string",
-			"defaultValue": "@dataset().folder"
+		"DataDestinationConnection": {
+			"type": "string"
 		},
-		"AzureBlobSink_properties_typeProperties_fileName": {
-			"type": "string",
-			"defaultValue": ""
-		},
-		"AzureBlobSink_properties_typeProperties_folderPath": {
-			"type": "string",
-			"defaultValue": "@dataset().folder"
-		},
-		"AzureBlobSource_properties_linkedServiceName": {
-			"type": "string",
-			"metadata": {
-				"linkedServiceType": "AzureBlobStorage"
-			}
-		},
-		"AzureBlobSink_properties_linkedServiceName": {
-			"type": "string",
-			"metadata": {
-				"linkedServiceType": "AzureBlobStorage"
-			}
-		}
+        "sourceFolderPath_parameter": {
+            "type": "object"
+        },
+        "sourceFileName_parameter": {
+            "type": "object"
+        },
+        "sourceS3BucketName_parameter": {
+            "type": "object"
+        },
+        "sourceS3Key_parameter": {
+            "type": "object"
+        }
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/ForeachFilePartitionCopy')]",
+			"name": "[concat(parameters('factoryName'), '/CopyFilesfromMultipleContainers')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "Copying a large number of files between file-based storages template",
+				"description": "Copy all files across multiple containers or buckets from one file-based storage store to another",
 				"activities": [
 					{
-						"name": "GetPartitionList",
-						"description": "get item list",
+						"name": "EnumerateContainersList",
+						"description": "Scan the file path on your source storage store and get the container list.",
 						"type": "GetMetadata",
 						"policy": {
 							"timeout": "7.00:00:00",
@@ -60,11 +49,11 @@
 						},
 						"typeProperties": {
 							"dataset": {
-								"referenceName": "AzureBlobSource",
+								"referenceName": "SourceFileStore",
 								"type": "DatasetReference",
 								"parameters": {
 									"folder": {
-										"value": "@pipeline().parameters.sourceFolder",
+										"value": "@pipeline().parameters.SourceFilePath",
 										"type": "Expression"
 									},
 									"file": " "
@@ -76,12 +65,12 @@
 						}
 					},
 					{
-						"name": "ForEachPartition",
-						"description": "copy for each item",
+						"name": "ForEachContainer",
+						"description": "Get the container list from Metadata activity and then iterates each of them to Copy activity.",
 						"type": "ForEach",
 						"dependsOn": [
 							{
-								"activity": "GetPartitionList",
+								"activity": "EnumerateContainersList",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -89,14 +78,14 @@
 						],
 						"typeProperties": {
 							"items": {
-								"value": "@activity('GetPartitionList').output.childItems",
+								"value": "@activity('EnumerateContainersList').output.childItems",
 								"type": "Expression"
 							},
-							"batchCount": 10,
+							"batchCount": 4,
 							"activities": [
 								{
-									"name": "CopyOnePartition",
-									"description": "Do the copy",
+									"name": "CopyOneContainer",
+									"description": "Copy each container from source storage store to destination store.",
 									"type": "Copy",
 									"policy": {
 										"timeout": "7.00:00:00",
@@ -108,11 +97,11 @@
 									"userProperties": [
 										{
 											"name": "Source",
-											"value": "@{item().name}/"
+											"value": "@concat(pipeline().parameters.SourceFilePath,'/',item().name)"
 										},
 										{
 											"name": "Destination",
-											"value": "@{item().name}/"
+											"value": "@concat(pipeline().parameters.DestinationFilePath,'/',item().name)"
 										}
 									],
 									"typeProperties": {
@@ -121,22 +110,19 @@
 											"recursive": true
 										},
 										"sink": {
-											"type": "BlobSink"
+											"type": "BlobSink",
+											"copyBehavior": "PreserveHierarchy"
 										},
 										"enableStaging": false,
 										"dataIntegrationUnits": 0
 									},
 									"inputs": [
 										{
-											"referenceName": "AzureBlobSource",
+											"referenceName": "SourceFileStore",
 											"type": "DatasetReference",
 											"parameters": {
 												"folder": {
-													"value": "@pipeline().parameters.sourceFolder",
-													"type": "Expression"
-												},
-												"file": {
-													"value": "@item().name",
+													"value": "@concat(pipeline().parameters.SourceFilePath,'/',item().name)",
 													"type": "Expression"
 												}
 											}
@@ -144,11 +130,11 @@
 									],
 									"outputs": [
 										{
-											"referenceName": "AzureBlobSink",
+											"referenceName": "SinkFileStore",
 											"type": "DatasetReference",
 											"parameters": {
 												"folder": {
-													"value": "@pipeline().parameters.sinkFolder",
+													"value": "@concat(pipeline().parameters.DestinationFilePath,'/',item().name)",
 													"type": "Expression"
 												}
 											}
@@ -160,56 +146,53 @@
 					}
 				],
 				"parameters": {
-					"sourceFolder": {
-						"type": "String"
+					"SourceFilePath": {
+						"type": "String",
+						"defaultValue": "/"
 					},
-					"sinkFolder": {
-						"type": "String"
+					"DestinationFilePath": {
+						"type": "String",
+						"defaultValue": "/"
 					}
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/AzureBlobSource')]",
-				"[concat(variables('factoryId'), '/datasets/AzureBlobSink')]"
+				"[concat(variables('factoryId'), '/datasets/SourceFileStore')]",
+				"[concat(variables('factoryId'), '/datasets/SinkFileStore')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureBlobSource')]",
+			"name": "[concat(parameters('factoryName'), '/SourceFileStore')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
+				"description": "You can input the information to connect to your data source store.",
 				"linkedServiceName": {
-					"referenceName": "[parameters('AzureBlobSource_properties_linkedServiceName')]",
+					"referenceName": "[parameters('DataSourceConnection')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
 					"folder": {
 						"type": "String"
-					},
-					"file": {
-						"type": "String"
 					}
 				},
 				"type": "AzureBlob",
 				"typeProperties": {
-					"fileName": {
-						"value": "[parameters('AzureBlobSource_properties_typeProperties_fileName')]",
-						"type": "Expression"
-					},
-					"folderPath": {
-						"value": "[parameters('AzureBlobSource_properties_typeProperties_folderPath')]",
-						"type": "Expression"
-					}
+                    "key": "[parameters('sourceS3Key_parameter')]",
+                    "bucketName": "[parameters('sourceS3BucketName_parameter')]",
+					"fileName": "[parameters('sourceFileName_parameter')]",
+					"folderPath": "[parameters('sourceFolderPath_parameter')]"
 				}
 			}
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureBlobSink')]",
+			"name": "[concat(parameters('factoryName'), '/SinkFileStore')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
+				"description": "You can input the information to connect to your data destination store.",
 				"linkedServiceName": {
-					"referenceName": "[parameters('AzureBlobSink_properties_linkedServiceName')]",
+					"referenceName": "[parameters('DataDestinationConnection')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -219,9 +202,9 @@
 				},
 				"type": "AzureBlob",
 				"typeProperties": {
-					"fileName": "[parameters('AzureBlobSink_properties_typeProperties_fileName')]",
+					"fileName": "",
 					"folderPath": {
-						"value": "[parameters('AzureBlobSink_properties_typeProperties_folderPath')]",
+						"value": "@dataset().folder",
 						"type": "Expression"
 					}
 				}

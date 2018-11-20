@@ -1,0 +1,195 @@
+{
+    "name": "DeltaCopyfromDB_using_ControlTable",
+    "description": "Copy new or updated rows only from database using external control table to store high-watermark. \n\nThis template requires the schema of database MUST containing timestamp column or incrementing key to identify the new or updated data, so that ADF can use query to filter the changes from database and then copy them to the destination store. ",
+    "image": "data:image/png;base64,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",
+    "requires": {
+        "linkedservices": {
+            "ExternalControlTableConnection": {
+                "supportTypes": [
+                    "SqlServer",
+                    "AzureSqlDatabase"
+                ]
+            },
+            "DataSourceConnection": {
+                "supportTypes": [
+                    "SqlServer",
+                    "AzureSqlDatabase",
+                    "Odbc",
+                    "Oracle",
+                    "Db2",
+                    "MySql",
+                    "Teradata",
+                    "MongoDb",
+                    "Netezza"
+                ],
+                "parameterSets": [
+                    {
+                        "types": [
+                            "SqlServer",
+                            "AzureSqlDatabase"
+                        ],
+                        "parameters": {
+                            "sqlReaderQuery_parameter": {
+                                "value": "select * from @{pipeline().parameters.Data_Source_Table_Name} where @{pipeline().parameters.Data_Source_WaterMarkColumn} > '@{activity('LookupLastWaterMark').output.firstRow.WatermarkValue}' and @{pipeline().parameters.Data_Source_WaterMarkColumn} <= '@{activity('LookupCurrentWaterMark').output.firstRow.NewWatermarkValue}'",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "Odbc",
+                            "MySql",
+                            "Teradata",
+                            "Netezza"
+                        ],
+                        "parameters": {
+                            "OdbcReaderQuery_parameter": {
+                                "value": "select * from @{pipeline().parameters.Data_Source_Table_Name} where @{pipeline().parameters.Data_Source_WaterMarkColumn} > '@{activity('LookupLastWaterMark').output.firstRow.WatermarkValue}' and @{pipeline().parameters.Data_Source_WaterMarkColumn} <= '@{activity('LookupCurrentWaterMark').output.firstRow.NewWatermarkValue}'",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "Oracle"
+                        ],
+                        "parameters": {
+                            "OracleReaderQuery_parameter": {
+                                "value": "select * from @{pipeline().parameters.Data_Source_Table_Name} where @{pipeline().parameters.Data_Source_WaterMarkColumn} > '@{activity('LookupLastWaterMark').output.firstRow.WatermarkValue}' and @{pipeline().parameters.Data_Source_WaterMarkColumn} <= '@{activity('LookupCurrentWaterMark').output.firstRow.NewWatermarkValue}'",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "Db2"
+                        ],
+                        "parameters": {
+                            "OdbcReaderQuery_parameter": {
+                                "value": "select * from @{pipeline().parameters.Data_Source_Table_Name} where @{pipeline().parameters.Data_Source_WaterMarkColumn} > '@{activity('LookupLastWaterMark').output.firstRow.WatermarkValue}' and @{pipeline().parameters.Data_Source_WaterMarkColumn} <= '@{activity('LookupCurrentWaterMark').output.firstRow.NewWatermarkValue}'",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ]
+            },
+            "DataDestinationConnection": {
+                "supportTypes": [
+                    "AzureBlobStorage",
+                    "AzureDataLakeStore",
+                    "AzureBlobFS",
+                    "FileServer",
+                    "AzureSqlDW"
+                ],
+                "parameterSets": [
+                    {
+                        "types": [
+                            "AzureBlobStorage",
+                            "AzureDataLakeStore",
+                            "AzureBlobFS",
+                            "FileServer"
+                        ],
+                        "parameters": {
+                            "enableStaging_parameter": false,
+                            "copyactivity_output_parameter": {
+                                "FolderPath": {
+                                    "value": "@pipeline().parameters.Data_Destination_Folder_Path",
+                                    "type": "Expression"
+                                }
+                            },
+                            "DataDestination_parameter_paramter": {
+                                "FolderPath": {
+                                    "type": "String"
+                                }
+                            },
+                            "DataDestination_typeproperties_paramter": {
+                                "format": {
+                                    "type": "TextFormat",
+                                    "treatEmptyAsNull": true
+                                },
+                                "fileName": {
+                                    "value": "@CONCAT('DeltaCopyfromDB_using_ControlTable-', pipeline().RunId, '.txt')",
+                                    "type": "Expression"
+                                },
+                                "folderPath": {
+                                    "value": "@dataset().FolderPath",
+                                    "type": "Expression"
+                                }
+                            },
+                            "pipeline_parameter": {
+                                "Data_Source_Table_Name": {
+                                    "type": "String"
+                                },
+                                "Data_Source_WaterMarkColumn": {
+                                    "type": "String"
+                                },
+                                "Data_Destination_Folder_Path": {
+                                    "type": "String"
+                                },
+                                "Control_Table_Table_Name": {
+                                    "type": "String"
+                                },
+                                "Control_Table_Column_Name": {
+                                    "type": "String"
+                                }								
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "AzureSqlDW"
+                        ],
+                        "parameters": {
+                            "allowPolyBase_parameter": true,
+                            "writeBatchSize_parameter": 10000,
+                            "polyBaseSettings_parameter": {
+                                "rejectValue": 0,
+                                "rejectType": "value",
+                                "useTypeDefault": true
+                            },
+                            "enableStaging_parameter": true,
+                            "stagingSettings_parameter": {
+                                "path": "adf_solution_template/DeltaCopyfromDB_using_ControlTable"
+                            },
+                            "copyactivity_output_parameter": {
+                                "tableName": {
+                                    "value": "@pipeline().parameters.Data_Destination_Table_Name",
+                                    "type": "Expression"
+                                }
+                            },
+                            "DataDestination_parameter_paramter": {
+                                "tableName": {
+                                    "type": "String"
+                                }
+                            },
+                            "DataDestination_typeproperties_paramter": {
+                                "tableName": {
+                                    "value": "@dataset().tableName",
+                                    "type": "Expression"
+                                }
+                            },
+                            "pipeline_parameter": {
+                                "Data_Source_Table_Name": {
+                                    "type": "String"
+                                },
+                                "Data_Source_WaterMarkColumn": {
+                                    "type": "String"
+                                },
+                                "Data_Destination_Table_Name": {
+                                    "type": "String"
+                                },
+                                "Control_Table_Table_Name": {
+                                    "type": "String"
+                                },
+                                "Control_Table_Column_Name": {
+                                    "type": "String"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "documentation": ""
+}
