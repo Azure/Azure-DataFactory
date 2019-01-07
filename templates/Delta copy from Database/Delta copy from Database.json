@@ -1,0 +1,256 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory Name"
+        },
+        "ExternalControlTableConnection": {
+            "type": "string"
+        },
+		"DataSourceConnection": {
+            "type": "string"
+        },
+        "DataDestinationConnection": {
+            "type": "string"
+        },
+        "allowPolyBase_parameter": {
+            "type": "bool"
+        },
+        "writeBatchSize_parameter": {
+            "type": "int"
+        },
+        "polyBaseSettings_parameter": {
+            "type": "object"
+        },
+        "enableStaging_parameter": {
+            "type": "bool"
+        },
+        "stagingSettings_parameter": {
+            "type": "object"
+        },
+        "copyactivity_output_parameter": {
+            "type": "object"
+        },
+        "DataDestination_parameter_paramter": {
+            "type": "object"
+        },
+        "DataDestination_typeproperties_paramter": {
+            "type": "object"
+        },
+        "pipeline_parameter": {
+            "type": "object"
+        },
+        "sqlReaderQuery_parameter": {
+            "type": "object"
+        },
+        "OdbcReaderQuery_parameter": {
+            "type": "object"
+        },
+        "OracleReaderQuery_parameter": {
+            "type": "object"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/DeltaCopyfromDB_using_ControlTable')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2017-09-01-preview",
+            "properties": {
+                "description": "Copy new or updated rows only from database using external control table",
+                "activities": [
+                    {
+                        "name": "LookupLastWaterMark",
+						"description": "Retrieve  the last high-watermark value stored in external control table",
+                        "type": "Lookup",
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30
+                        },
+                        "typeProperties": {
+                            "source": {
+                                "type": "SqlSource",
+                                "sqlReaderQuery": {
+                                    "value": "select @{pipeline().parameters.Control_Table_Column_Name} as WatermarkValue from @{pipeline().parameters.Control_Table_Table_Name}",
+                                    "type": "Expression"
+                                }
+                            },
+                            "dataset": {
+                                "referenceName": "External_ControlTable",
+                                "type": "DatasetReference"
+                            }
+                        }
+                    },
+                    {
+                        "name": "LookupCurrentWaterMark",
+						"description": "Retrieve  the current maximum value in watermark column of source data store",
+                        "type": "Lookup",
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30
+                        },
+                        "typeProperties": {
+                            "source": {
+                                "type": "SqlSource",
+                                "sqlReaderQuery": {
+                                    "value": "@concat('select MAX(',pipeline().parameters.Data_Source_WaterMarkColumn, ') as NewWatermarkValue from ',pipeline().parameters.Data_Source_Table_Name)",
+                                    "type": "Expression"
+                                }
+                            },
+                            "dataset": {
+                                "referenceName": "DataSource",
+                                "type": "DatasetReference"
+                            }
+                        }
+                    },
+                    {
+                        "name": "DeltaCopyfromDB",
+                        "description": "Copy activity to use query to filter the delta data by > last high-watermark and <= current high-watermark from source database, and then only copy the changes to the destination store.",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "LookupCurrentWaterMark",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            },
+                            {
+                                "activity": "LookupLastWaterMark",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30
+                        },
+                        "typeProperties": {
+                            "source": {
+                                "type": "SqlSource",
+                                "sqlReaderQuery": "[parameters('sqlReaderQuery_parameter')]",
+								"query":"[parameters('OdbcReaderQuery_parameter')]",
+								"oracleReaderQuery":"[parameters('OracleReaderQuery_parameter')]"
+                            },
+                            "sink": {
+                                "type": "BlobSink",
+                                "allowPolyBase": "[parameters('allowPolyBase_parameter')]",
+                                "writeBatchSize": "[parameters('writeBatchSize_parameter')]",
+                                "polyBaseSettings": "[parameters('polyBaseSettings_parameter')]"
+                            },
+                            "enableStaging": "[parameters('enableStaging_parameter')]",
+                            "stagingSettings": "[parameters('stagingSettings_parameter')]",
+                            "dataIntegrationUnits": 0
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DataSource",
+                                "type": "DatasetReference"
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DataDestination",
+                                "type": "DatasetReference",
+                                "parameters": "[parameters('copyactivity_output_parameter')]"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "UpdateWaterMark",
+                        "description": "Stored procedure activity to store the new high-watermark value into external control table for delta data loading. ",
+                        "type": "SqlServerStoredProcedure",
+                        "dependsOn": [
+                            {
+                                "activity": "DeltaCopyfromDB",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30
+                        },
+                        "typeProperties": {
+                            "storedProcedureParameters": {
+                                "LastModifyDate": {
+                                    "value": {
+                                        "value": "@activity('LookupCurrentWaterMark').output.firstRow.NewWatermarkValue",
+                                        "type": "Expression"
+                                    },
+                                    "type": "datetime"
+                                }
+                            }
+                        },
+                        "linkedServiceName": {
+                            "referenceName": "[parameters('ExternalControlTableConnection')]",
+                            "type": "LinkedServiceReference"
+                        }
+                    }
+                ],
+                "parameters": "[parameters('pipeline_parameter')]"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/External_ControlTable')]",
+                "[concat(variables('factoryId'), '/datasets/DataSource')]",
+                "[concat(variables('factoryId'), '/datasets/DataDestination')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DataSource')]",			
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2017-09-01-preview",
+            "properties": {
+				"description": "Connection to your source data store.",
+                "linkedServiceName": {
+                    "referenceName": "[parameters('DataSourceConnection')]",
+                    "type": "LinkedServiceReference"
+                },
+                "type": "SqlServerTable",
+                "typeProperties": {
+                    "tableName": "DataSourceTable"
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DataDestination')]",			
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2017-09-01-preview",
+            "properties": {
+				"description": "Connection to your destination data store.",
+                "linkedServiceName": {
+                    "referenceName": "[parameters('DataDestinationConnection')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": "[parameters('DataDestination_parameter_paramter')]",
+                "type": "AzureBlob",
+                "typeProperties": "[parameters('DataDestination_typeproperties_paramter')]"
+            }
+        },
+		{
+            "name": "[concat(parameters('factoryName'), '/External_ControlTable')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2017-09-01-preview",
+            "properties": {
+                "description": "External control table to store high water mark value.",
+                "linkedServiceName": {
+                    "referenceName": "[parameters('ExternalControlTableConnection')]",
+                    "type": "LinkedServiceReference"
+                },
+                "type": "SqlServerTable",
+                "typeProperties": {
+                    "tableName": "watermarktable"
+                }
+            }
+        }
+    ]
+}

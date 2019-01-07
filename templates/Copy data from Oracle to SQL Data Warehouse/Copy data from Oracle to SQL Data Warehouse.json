@@ -1,0 +1,103 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"DataSourceConnection": {
+			"type": "string"
+		},
+		"DataDestinationConnection": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyData_from_Oracle_to_SQLDataWarehouse')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"description": "Copy data from Oracle server to SQL Data Warehouse.\n\n\nYou can also go to \"Copy Data Tool\" to get the pipeline for more connectors and scenarios.",
+				"activities": [
+					{
+						"name": "Oracle_to_SQLDataWarehouse",
+						"description": "Copy data from Oracle server to SQL Data Warehouse",
+						"type": "Copy",
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"source": {
+								"type": "OracleSource"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowPolyBase": true,
+								"writeBatchSize": 10000,
+								"polyBaseSettings": {
+									"rejectValue": 0,
+									"rejectType": "value",
+									"useTypeDefault": true
+								}
+							},
+							"enableStaging": true,
+							"enableSkipIncompatibleRow": false,
+							"dataIntegrationUnits": 0
+						},
+						"inputs": [
+							{
+								"referenceName": "DataSourceStore",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DataDestinationStore",
+								"type": "DatasetReference"
+							}
+						]
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DataSourceStore')]",
+				"[concat(variables('factoryId'), '/datasets/DataDestinationStore')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataSourceStore')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"description": "Connection to your Oracle server.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('DataSourceConnection')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "OracleTable"
+			}
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataDestinationStore')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"description": "Connection to your SQL Data Warehouse.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('DataDestinationConnection')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "AzureSqlDWTable"
+			}
+		}
+	]
+}
