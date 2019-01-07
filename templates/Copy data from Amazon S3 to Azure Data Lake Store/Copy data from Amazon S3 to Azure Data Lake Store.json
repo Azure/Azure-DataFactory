@@ -1,0 +1,96 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"DataSourceConnection": {
+			"type": "string"
+		},
+		"DataDestinationConnection": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyData_from_Amazon_S3_to_AzureDataLakeStorage')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"description": "Copy data from Amazon S3 to Azure Data Lake Storage.\n\nYou can also go to \"Copy Data Tool\" to get the pipeline for more connectors and scenarios.",
+				"activities": [
+					{
+						"name": "AmazonS3_to_Azure",
+						"description": "Copy data from Amazon S3 to Azure Data Lake Storage.",
+						"type": "Copy",
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"source": {
+								"type": "FileSystemSource",
+								"recursive": true
+							},
+							"sink": {
+								"type": "AzureBlobFSSink"
+							},
+							"enableStaging": false,
+							"dataIntegrationUnits": 0
+						},
+						"inputs": [
+							{
+								"referenceName": "DataSourceStore",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DataDestinationStore",
+								"type": "DatasetReference"
+							}
+						]
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DataSourceStore')]",
+				"[concat(variables('factoryId'), '/datasets/DataDestinationStore')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataSourceStore')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"description": "Connection your Amazon S3 store.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('DataSourceConnection')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "AmazonS3Object"
+			}
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataDestinationStore')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"description": "Connection to your Azure Data Lake Store.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('DataDestinationConnection')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "AzureBlobFSFile"
+			}
+		}
+	]
+}

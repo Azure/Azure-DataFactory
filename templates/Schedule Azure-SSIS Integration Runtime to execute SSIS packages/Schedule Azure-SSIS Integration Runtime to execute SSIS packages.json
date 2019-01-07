@@ -1,0 +1,87 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/ScheduleAzure-SSISIntegrationRuntime')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2017-09-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Start Azure-SSIS IR",
+						"description": "Invoke the webhook created in Azure Automation runbook to start Azure-SSIS IR.",
+						"type": "WebActivity",
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"url": "",
+							"method": "POST"
+						}
+					},
+					{
+						"name": "Execute SSIS Package",
+						"description": "Run a SSIS package by Execute SSIS Package Activity.",
+						"type": "ExecuteSSISPackage",
+						"dependsOn": [
+							{
+								"activity": "Start Azure-SSIS IR",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"loggingLevel": "Basic"
+						}
+					},
+					{
+						"name": "Stop Azure-SSIS IR",
+						"description": "Invoke the webhook created in Azure Automation runbook to stop Azure-SSIS IR.",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Execute SSIS Package",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"url": "",
+							"method": "POST"
+						}
+					}
+				]
+			}
+		}
+	]
+}

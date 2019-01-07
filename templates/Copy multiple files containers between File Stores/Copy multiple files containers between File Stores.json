@@ -6,10 +6,10 @@
 			"type": "string",
 			"metadata": "Data Factory Name"
 		},
-		"DataSourceConnection": {
+		"Source Data Connection": {
 			"type": "string"
 		},
-		"DataDestinationConnection": {
+		"Destination Data Connection": {
 			"type": "string"
 		},
         "sourceFolderPath_parameter": {
@@ -166,9 +166,9 @@
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "You can input the information to connect to your data source store.",
+				"description": "Connection to your source data store.",
 				"linkedServiceName": {
-					"referenceName": "[parameters('DataSourceConnection')]",
+					"referenceName": "[parameters('Source Data Connection')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -190,9 +190,9 @@
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "You can input the information to connect to your data destination store.",
+				"description": "Connection to your destination data store.",
 				"linkedServiceName": {
-					"referenceName": "[parameters('DataDestinationConnection')]",
+					"referenceName": "[parameters('Destination Data Connection')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {

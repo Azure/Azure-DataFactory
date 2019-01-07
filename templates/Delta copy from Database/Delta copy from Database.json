@@ -88,7 +88,7 @@
                     },
                     {
                         "name": "LookupCurrentWaterMark",
-						"description": "Retrieve  the current maximum value in watermark column of data source store",
+						"description": "Retrieve  the current maximum value in watermark column of source data store",
                         "type": "Lookup",
                         "policy": {
                             "timeout": "7.00:00:00",
@@ -165,7 +165,7 @@
                     },
                     {
                         "name": "UpdateWaterMark",
-                        "description": "Stored procedure activity to store the new high-watermark value into external control table for delta data loading next time. ",
+                        "description": "Stored procedure activity to store the new high-watermark value into external control table for delta data loading. ",
                         "type": "SqlServerStoredProcedure",
                         "dependsOn": [
                             {
@@ -210,7 +210,7 @@
             "type": "Microsoft.DataFactory/factories/datasets",
             "apiVersion": "2017-09-01-preview",
             "properties": {
-				"description": "You can input the information to connect to your data source store.",
+				"description": "Connection to your source data store.",
                 "linkedServiceName": {
                     "referenceName": "[parameters('DataSourceConnection')]",
                     "type": "LinkedServiceReference"
@@ -226,7 +226,7 @@
             "type": "Microsoft.DataFactory/factories/datasets",
             "apiVersion": "2017-09-01-preview",
             "properties": {
-				"description": "You can input the information to connect to your data destination store.",
+				"description": "Connection to your destination data store.",
                 "linkedServiceName": {
                     "referenceName": "[parameters('DataDestinationConnection')]",
                     "type": "LinkedServiceReference"
@@ -241,7 +241,7 @@
             "type": "Microsoft.DataFactory/factories/datasets",
             "apiVersion": "2017-09-01-preview",
             "properties": {
-                "description": "This external control table is used to store the high water mark value from last data loading",
+                "description": "External control table to store high water mark value.",
                 "linkedServiceName": {
                     "referenceName": "[parameters('ExternalControlTableConnection')]",
                     "type": "LinkedServiceReference"
