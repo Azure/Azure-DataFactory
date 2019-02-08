@@ -1,9 +1,16 @@
-param([String]$resourcegroupname="dffunctionssample")
+param([String]$resourcegroupname="dffunctionssample", [String] $uniqueresourcenameprefix = "")
 
-if ($resourcegroupname.Length -gt 17)
+if ( [String]::IsNullOrWhiteSpace($uniqueresourcenameprefix))
 {
-    echo "Please provide a resource group name with 17 or less characters."
-    exit
+    #Change this to a fixed value to override existing resources instaed of creating new ones on each deployment, for example:
+    #$uniqueresourcenameprefix = "e1064086576241d39"
+    $uniqueresourcenameprefix =  [System.Guid]::NewGuid().ToString("N").Substring(0,17)
+}
+
+if ($uniqueresourcenameprefix.Length -gt 17)
+{
+    "Truncating uniqueresourcenameprefix to 17 characters."
+    $uniqueresourcenameprefix = $uniqueresourcenameprefix.Substring(0,17)
 }
 
 echo "Creating resource group with name " $resourcegroupname
@@ -12,20 +19,24 @@ New-AzResourceGroup -Name $resourcegroupname -Location "West US"
 
 echo "Deploying app resources"
 
-$FunctionApp_Name = $resourcegroupname + "app"
-$StorageAccount_Name = $resourcegroupname + "storage"
-$DataFactory_Name = $resourcegroupname + "factory"
+$FunctionApp_Name = $uniqueresourcenameprefix + "app"
+$StorageAccount_Name = $uniqueresourcenameprefix + "storage"
+$DataFactory_Name = $uniqueresourcenameprefix + "factory"
+
+$TemplateParameters = @{
+    FunctionApp_Name = $FunctionApp_Name;
+    StorageAccount_Name = $StorageAccount_Name;
+    DataFactory_Name = $DataFactory_Name
+}
 
 $output = (New-AzResourceGroupDeployment `
     -ResourceGroupName $resourcegroupname `
     -TemplateFile ./deploy.json `
     -Mode Incremental `
-    -FunctionApp_Name $FunctionApp_Name `
-    -StorageAccount_Name $StorageAccount_Name `
-    -DataFactory_Name $DataFactory_Name)
+    -TemplateParameterObject $TemplateParameters)
 
 if ($output.ProvisioningState -ne "Succeeded") { 
-    echo "Deploying app resources failed."
+    echo "Deploying app resources failed with message: "
     $output
     exit 
 }
