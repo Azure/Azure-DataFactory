@@ -10,7 +10,7 @@ This samples illustrates an Azure Data Factory pipeline that will iterate throug
 1. The Function downloads the file
 1. The contents of the file is extracted to local storage using Adam Hathcock's [SharpCompress library](https://github.com/adamhathcock/sharpcompress)
 1. The file is uploaded to the file share
-1. The Function returns a list of the urls of the files that have been created to the Data Factory
+1. The Function returns a list of the urls of the files that have been created, to the Data Factory
 
 ## Running and debugging
 
@@ -21,26 +21,26 @@ You will need Git, an Azure Subscription, Powershell and the [Az Powershell Modu
 ### Deployment
 
 1. Clone this git repository to your machine with git.
-1. Navigate to the folder `{rep location}\Azure-DataFactory\Samples\UntarAzureFilesWithAzureFunction\env`
+1. Navigate to the folder `{repository location}\Azure-DataFactory\Samples\UntarAzureFilesWithAzureFunction\env`
 1. Login to Azure by running `Connect-AzAccount`
-1. Select you desired subscription using `Select-AzContext '{subscription name}'`
+1. Select your desired subscription using `Select-AzContext '{subscription name}'`
 1. Run the following command in powershell: `deploy.ps1`. You can specify the resource group to use using the -resourcegroupname parameter. A random prefix is automatically generated for all resources to ensure unique names. To prevent new resources from being  created on each run, you can override this prefix with a fixed value by specifying the uniqueresourcenameprefix parameter. Example: `deploy.ps1 -resourcegroupname 'dffunctionssample' -uniqueresourcenameprefix 'e1064086576241d39'`
 
 The deployment script will do the following:
 
-1. Create all the resources you need in the specified resource group. These include a function app, storage account and data factory.
-1. Deployed a pre-existing function app package to the created Function app. You can override this by deploying the app in the /src directory using the  Azure Functions Core Tools or Visual Studio to the Function app that the script generates.
+1. Create all the resources you need in the specified resource group. These include a function app, storage account, and data factory.
+1. Deployed a pre-existing function app package to the created Function app. You can override this by deploying the app in the `\src` directory using the  Azure Functions Core Tools or Visual Studio, to the Function app that the script generates.
 1. Upload the tar files in the env directory to the newly created storage account.
 1. Create a ample pipeline and connected services in the created Data Factory.
 
 ### Running the sample
 
 1. Open the Azure portal and navigate to the newly created Resource Group.
-1. The resource group will contain the Azure Function App, a Storage Account and a Data Factory. 
+1. The resource group will contain the Azure Function App, a Storage Account and a Data Factory.
 1. Open the Storage account in a new window.
 1. Click on _Files_.
 1. Click on the _filedrop_ share.
-1. You should see two tar files in here. You can click the _connect_ button for instrucitons on mounting the fielshare on your local machine.
+1. You should see two tar files in here. You can click the _connect_ button for instructions to mount the file share on your local machine.
 1. In your previous window, open the Data Factory, and click _Author and Monitor_.
 1. Click the _Author_ button in the left menu, and select the _UntarPipeline_ pipeline.
 1. Click the _Debug_ button.
