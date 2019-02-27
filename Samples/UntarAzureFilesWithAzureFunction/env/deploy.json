@@ -1,0 +1,280 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "FunctionApp_Name": {
+            "type": "string",
+            "defaultValue": "dffunctionssampleapp"
+        },
+        "StorageAccount_Name": {
+            "type": "string",
+            "defaultValue": "dffunctionssamplestorage"
+
+        },
+        "DataFactory_Name": {
+            "type": "string",
+            "defaultValue": "dffunctionssamplesfactory"
+        }
+    },
+    "variables": {
+        "FunctionApp_ServicePlan_Name": "[concat(parameters('FunctionApp_Name'),'_ServicePlan')]",
+        "FileshareName": "filedrop"
+    },
+    "resources": [{
+        "type": "Microsoft.Web/serverfarms",
+        "name": "[variables('FunctionApp_ServicePlan_Name')]",
+        "apiVersion": "2015-04-01",
+        "location": "[resourceGroup().location]",
+        "properties": {
+            "name": "[variables('FunctionApp_ServicePlan_Name')]",
+            "computeMode": "Dynamic",
+            "sku": "Dynamic"
+            },
+        "dependsOn": []
+    },
+    {
+        "type": "Microsoft.Web/sites",
+        "name":"[parameters('FunctionApp_Name')]",
+        "location": "[resourceGroup().location]",
+        "kind": "functionapp",
+        "apiVersion": "2016-08-01",
+        "properties": {
+            "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionApp_ServicePlan_Name'))]",
+            "siteConfig":{
+                "appSettings": [
+                    {
+                      "name": "AzureWebJobsDashboard",
+                      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('StorageAccount_Name'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name')),'2018-07-01').keys[0].value)]"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage",
+                      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('StorageAccount_Name'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name')),'2018-07-01').keys[0].value)]"
+                    },
+                    {
+                      "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('StorageAccount_Name'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name')),'2018-07-01').keys[0].value)]"
+                    },
+                    {
+                        "name": "AzureWebJobsSecretStorageType",
+                        "value": "files"
+                    },
+                    {
+                      "name": "WEBSITE_CONTENTSHARE",
+                      "value": "[toLower(parameters('FunctionApp_Name'))]"
+                    },
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~2"
+                    },
+                    {
+                        "name": "FUNCTIONS_WORKER_RUNTIME",
+                        "value": "dotnet"
+                    },
+                    {
+                      "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                      "value": "6.5.0"
+                    },
+                    {
+                      "name": "ConfigurationStorageAccount",
+                      "value": "[parameters('StorageAccount_Name')]"
+                    },
+                    {
+                      "name": "ConfigurationStorageAccountKey",
+                      "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name')),'2018-07-01').keys[0].value]"
+                    },
+                    {
+                        "name": "WEBSITE_RUN_FROM_PACKAGE",
+                        "value": "https://github.com/hannesne/Snippets/blob/master/DeploymentArtifacts/ExtractFunction.zip?raw=true"                      
+                    },
+                    {
+                        "name": "FileStorageConnectionString",
+                        "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('StorageAccount_Name'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name')),'2018-07-01').keys[0].value)]"
+                    },
+                    {
+                        "name": "SourceFileShareName",
+                        "value": "[variables('FileshareName')]"
+                    }
+                    
+                ]
+            }
+        },
+        "dependsOn": [
+            "[resourceId('Microsoft.Web/serverfarms', variables('FunctionApp_ServicePlan_Name'))]",
+            "[resourceId('Microsoft.Storage/storageAccounts',parameters('StorageAccount_Name'))]"
+        ]
+    },
+    {
+        "type": "Microsoft.Storage/storageAccounts",
+        "sku": {
+            "name": "Standard_LRS",
+            "tier": "Standard"
+        },
+        "kind": "StorageV2",
+        "name": "[parameters('StorageAccount_Name')]",
+        "apiVersion": "2018-07-01",
+        "location": "[resourceGroup().location]",
+        "properties": {
+        },
+        "dependsOn": []
+    },
+    {
+        "name": "[parameters('DataFactory_Name')]",
+        "type": "Microsoft.DataFactory/factories",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2018-06-01",
+        "resources": [
+        {
+            "name": "[concat(parameters('DataFactory_Name'), '/UntarPipeline')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "GetFileshareMetadata",
+                        "type": "GetMetadata",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "FileShareDataset",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "fieldList": [
+                                "childItems"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "ForEachCompressedFile",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "GetFileshareMetadata",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('GetFileshareMetadata').output.childItems",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "DecompressFunction",
+                                    "type": "AzureFunctionActivity",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "functionName": "DecompressFile",
+                                        "method": "POST",
+                                        "headers": {},
+                                        "body": {
+                                            "value": "@concat('{\"fileName\":\"',item().Name,'\"}')",
+                                            "type": "Expression"
+                                        }
+                                    },
+                                    "linkedServiceName": {
+                                        "referenceName": "AzureFunctionService",
+                                        "type": "LinkedServiceReference"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "annotations": []
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name'))]",
+                "[concat(resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name')), '/datasets/FileShareDataset')]",
+                "[concat(resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name')), '/linkedServices/AzureFunctionService')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('DataFactory_Name'), '/FileShareDataset')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "FileShareService",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "FileShare",
+                "mode":"Complete"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name'))]",
+                "[concat(resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name')), '/linkedServices/FileShareService')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('DataFactory_Name'), '/FileShareService')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "annotations": [],
+                "type": "FileServer",
+                "typeProperties": {
+                    "host": "[concat('\\\\',parameters('StorageAccount_Name'),'.file.core.windows.net\\',variables('FileshareName'))]",
+                    "userId": "[concat('AZURE\\',parameters('StorageAccount_Name'))]",
+                    "password": {
+                        "type": "SecureString",
+                        "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name')),'2018-07-01').keys[0].value]"
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name'))]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('DataFactory_Name'), '/AzureFunctionService')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "annotations": [],
+                "type": "AzureFunction",
+                "typeProperties": {
+                    "functionAppUrl": "[concat('https://',parameters('FunctionApp_Name'),'.azurewebsites.net')]",
+                    "functionKey": {
+                        "type": "SecureString",
+                        "value": "[listsecrets(concat(resourceId('Microsoft.Web/sites/', parameters('FunctionApp_Name')),'/functions/DecompressFile/'),'2015-08-01').key]"
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/', parameters('DataFactory_Name'))]"
+            ]   
+        }
+    ],
+    "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/',  parameters('StorageAccount_Name'))]",
+        "[resourceId('Microsoft.Web/sites/', parameters('FunctionApp_Name'))]"
+    ]}
+],
+"outputs": {
+    "storageAccountName": {
+        "type": "string",
+        "value": "[parameters('StorageAccount_Name')]"
+    }
+}
+}
