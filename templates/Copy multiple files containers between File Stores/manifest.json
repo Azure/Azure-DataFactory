@@ -60,6 +60,6 @@
             }
         }
     },
-    "documentation": "https://docs.microsoft.com/en-us/azure/data-factory/",
+    "documentation": "https://go.microsoft.com/fwlink/?linkid=2060025",
     "categories": ["copy"]
 }
