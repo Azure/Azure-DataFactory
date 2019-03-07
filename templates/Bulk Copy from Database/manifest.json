@@ -56,7 +56,7 @@
                                     "type": "Expression"
                                 },
                                 "FileName": {
-                                    "value": "@concat('Patition_',item().PatitionID,'_',item().SourceTableName)",
+                                    "value": "@concat('Partition_',item().PartitionID,'_',item().SourceTableName)",
                                     "type": "Expression"
                                 }
                             },
@@ -86,7 +86,7 @@
                                 "Control_Table_Name": {
                                     "type": "String"
                                 },
-                                "Control_Table_Schema_PatitionID": {
+                                "Control_Table_Schema_PartitionID": {
                                     "type": "String"
                                 },
                                 "Control_Table_Schema_SourceTableName": {
@@ -139,7 +139,7 @@
                                 "Control_Table_Name": {
                                     "type": "String"
                                 },
-                                "Control_Table_Schema_PatitionID": {
+                                "Control_Table_Schema_PartitionID": {
                                     "type": "String"
                                 },
                                 "Control_Table_Schema_SourceTableName": {
@@ -156,5 +156,5 @@
         }
     },
     "categories": ["copy"],
-    "documentation": "https://docs.microsoft.com/en-us/azure/data-factory/"
+    "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023"
 }

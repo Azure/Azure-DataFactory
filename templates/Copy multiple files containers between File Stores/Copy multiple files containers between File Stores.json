@@ -55,8 +55,7 @@
 									"folder": {
 										"value": "@pipeline().parameters.SourceFilePath",
 										"type": "Expression"
-									},
-									"file": " "
+									}
 								}
 							},
 							"fieldList": [

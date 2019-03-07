@@ -1,0 +1,610 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory Name"
+        },
+        "Source Blob Connection": {
+            "type": "string"
+        },
+        "CADOutput_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "CADOutput_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "CurrencyDatasetCAD_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": "Currency_CAD.txt"
+        },
+        "CurrencyDatasetCAD_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "CurrencyDatasetUSD_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": "Currency_USD.txt"
+        },
+        "CurrencyDatasetUSD_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "TaxiDemoDayStatsSink_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "TaxiDemoDayStatsSink_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "TaxiDemoTotalByPaymentType_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "TaxiDemoTotalByPaymentType_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "TaxiDemoVendorStatsSink_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "TaxiDemoVendorStatsSink_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "USDOutput_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "USDOutput_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "movie_dataflow_sink_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "movie_dataflow_sink_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "movie_dataflow_source_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": "movies.csv"
+        },
+        "movie_dataflow_source_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "taxi_trip_data_input_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": "trip_data_1.csv"
+        },
+        "taxi_trip_data_input_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        },
+        "taxi_trip_fare_input_properties_typeProperties_fileName": {
+            "type": "string",
+            "defaultValue": "trip_fare_1.csv"
+        },
+        "taxi_trip_fare_input_properties_typeProperties_folderPath": {
+            "type": "string",
+            "defaultValue": "demo"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/MovieDemoPipeline')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "ExecuteMovieDemoDataFlow",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "MovieDemo",
+                                "type": "DataFlowReference"
+                            }
+                        }
+                    }
+                ],
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/dataflows/MovieDemo')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TaxiDemo')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "TaxiDemoDataflow",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "TaxiDemo",
+                                "type": "DataFlowReference"
+                            }
+                        }
+                    }
+                ],
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/dataflows/TaxiDemo')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/CADOutput')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('CADOutput_properties_typeProperties_fileName')]",
+                        "container": "[parameters('CADOutput_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/CurrencyDatasetCAD')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('CurrencyDatasetCAD_properties_typeProperties_fileName')]",
+                        "container": "[parameters('CurrencyDatasetCAD_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": "\t",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/CurrencyDatasetUSD')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('CurrencyDatasetUSD_properties_typeProperties_fileName')]",
+                        "container": "[parameters('CurrencyDatasetUSD_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": "\t",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TaxiDemoDayStatsSink')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('TaxiDemoDayStatsSink_properties_typeProperties_fileName')]",
+                        "container": "[parameters('TaxiDemoDayStatsSink_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": true
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TaxiDemoTotalByPaymentType')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('TaxiDemoTotalByPaymentType_properties_typeProperties_fileName')]",
+                        "container": "[parameters('TaxiDemoTotalByPaymentType_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TaxiDemoVendorStatsSink')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('TaxiDemoVendorStatsSink_properties_typeProperties_fileName')]",
+                        "container": "[parameters('TaxiDemoVendorStatsSink_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/USDOutput')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('USDOutput_properties_typeProperties_fileName')]",
+                        "container": "[parameters('USDOutput_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/movie_dataflow_sink')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('movie_dataflow_sink_properties_typeProperties_fileName')]",
+                        "container": "[parameters('movie_dataflow_sink_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": false
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/movie_dataflow_source')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('movie_dataflow_source_properties_typeProperties_fileName')]",
+                        "container": "[parameters('movie_dataflow_source_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": true
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/taxi_trip_data_input')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('taxi_trip_data_input_properties_typeProperties_fileName')]",
+                        "container": "[parameters('taxi_trip_data_input_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": true
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/taxi_trip_fare_input')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Source Blob Connection')]",
+                    "type": "LinkedServiceReference",
+                    "parameters": {}
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": "[parameters('taxi_trip_fare_input_properties_typeProperties_fileName')]",
+                        "container": "[parameters('taxi_trip_fare_input_properties_typeProperties_folderPath')]"
+                    },
+                    "columnDelimiter": ",",
+                    "firstRowAsHeader": true
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Currency Converter')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "CurrencyDatasetUSD",
+                                "type": "DatasetReference"
+                            },
+                            "name": "USDCurrency",
+                            "script": "source(output(\n\t\tPreviousConversionRate as double,\n\t\tCountry as string,\n\t\tDateTime1 as string,\n\t\tCurrentConversionRate as double\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false) ~> USDCurrency"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "CurrencyDatasetCAD",
+                                "type": "DatasetReference"
+                            },
+                            "name": "CADSource",
+                            "script": "source(output(\n\t\tPreviousConversionRate as double,\n\t\tCountry as string,\n\t\tDateTime1 as string,\n\t\tCurrentConversionRate as double\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> CADSource"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "USDOutput",
+                                "type": "DatasetReference"
+                            },
+                            "name": "USDSink",
+                            "script": "ConditionalSplit1@USD sink(saveMode:'overwrite' ) ~> USDSink"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "CADOutput",
+                                "type": "DatasetReference"
+                            },
+                            "name": "CADSink",
+                            "script": "ConditionalSplit1@CAD sink(saveMode:'overwrite' ) ~> CADSink"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "Union",
+                            "description": "The Union combines 2 streams together",
+                            "script": "/* The Union combines 2 streams together */\nUSDCurrency, CADSource union(byName: true) ~> Union"
+                        },
+                        {
+                            "name": "NewCurrencyColumn",
+                            "description": "Create a new calculated column from currency rate",
+                            "script": "/* Create a new calculated column from currency rate */\n Union derive(NewCurrencyRate = round(CurrentConversionRate*1.25)) ~> NewCurrencyColumn"
+                        },
+                        {
+                            "name": "ConditionalSplit1",
+                            "description": "Split the data on state to create 2 streams",
+                            "script": "/* Split the data on state to create 2 streams */\nNewCurrencyColumn split(Country == 'USD',\nCountry == 'CAD',\ndisjoint: false\n) ~> ConditionalSplit1@(USD, CAD)"
+                        }
+                    ]
+                },
+                "description": "Sample demo data flow to convert currencies"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/CurrencyDatasetUSD')]",
+                "[concat(variables('factoryId'), '/datasets/CurrencyDatasetCAD')]",
+                "[concat(variables('factoryId'), '/datasets/USDOutput')]",
+                "[concat(variables('factoryId'), '/datasets/CADOutput')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/MovieDemo')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "movie_dataflow_source",
+                                "type": "DatasetReference"
+                            },
+                            "name": "Movies",
+                            "script": "source(output(\n\t\tmovieId as string,\n\t\ttitle as string,\n\t\tgenres as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> Movies"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "movie_dataflow_sink",
+                                "type": "DatasetReference"
+                            },
+                            "name": "Output",
+                            "script": "MoviesYear sink(saveMode:'overwrite' ) ~> Output"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "MoviesYear",
+                            "script": " Movies derive(year = toInteger(trim(right(title, 6), '()')),\n\t\ttitle = toString(left(title, length(title)-6))) ~> MoviesYear"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/movie_dataflow_source')]",
+                "[concat(variables('factoryId'), '/datasets/movie_dataflow_sink')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TaxiDemo')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "taxi_trip_data_input",
+                                "type": "DatasetReference"
+                            },
+                            "name": "TripData",
+                            "script": "source(output(\n\t\tmedallion as string,\n\t\thack_license as string,\n\t\tvendor_id as string,\n\t\trate_code as string,\n\t\tstore_and_fwd_flag as string,\n\t\tpickup_datetime as string,\n\t\tdropoff_datetime as string,\n\t\tpassenger_count as short,\n\t\ttrip_time_in_secs as long,\n\t\ttrip_distance as double,\n\t\tpickup_longitude as double,\n\t\tpickup_latitude as double,\n\t\tdropoff_longitude as double,\n\t\tdropoff_latitude as double\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false) ~> TripData"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "taxi_trip_fare_input",
+                                "type": "DatasetReference"
+                            },
+                            "name": "TripFare",
+                            "script": "source(output(\n\t\tmedallion as string,\n\t\t{ hack_license} as string,\n\t\t{ vendor_id} as string,\n\t\t{ pickup_datetime} as string,\n\t\t{ payment_type} as string,\n\t\t{ fare_amount} as double,\n\t\t{ surcharge} as double,\n\t\t{ mta_tax} as double,\n\t\t{ tip_amount} as double,\n\t\t{ tolls_amount} as double,\n\t\t{ total_amount} as double\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false) ~> TripFare"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "TaxiDemoVendorStatsSink",
+                                "type": "DatasetReference"
+                            },
+                            "name": "VendorStatsSink",
+                            "script": "AggregateVendorStats sink(saveMode:'overwrite' ) ~> VendorStatsSink"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "TaxiDemoDayStatsSink",
+                                "type": "DatasetReference"
+                            },
+                            "name": "DayStatsSink",
+                            "script": "AggregateDayStats sink(saveMode:'overwrite' ) ~> DayStatsSink"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "TaxiDemoTotalByPaymentType",
+                                "type": "DatasetReference"
+                            },
+                            "name": "TotalPaymentByPaymentType",
+                            "script": "AggregateByPaymentType sink(saveMode:'overwrite' ) ~> TotalPaymentByPaymentType"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "JoinMatchedData",
+                            "script": "TripData, TripFare join(hack_license == { hack_license} && \nTripData@medallion == TripFare@medallion && \nvendor_id == { vendor_id} && \npickup_datetime == { pickup_datetime},\n joinType:'inner') ~> JoinMatchedData"
+                        },
+                        {
+                            "name": "AggregateVendorStats",
+                            "script": "JoinMatchedData aggregate(\n\tgroupBy(vendor_id = vendor_id),\n\t passenger_count = round(sum(passenger_count), 2),\n\t\ttrip_time_in_secs = round(sum(trip_time_in_secs)/60, 2),\n\t\ttrip_distance = round(sum(trip_distance), 2),\n\t\tTotalTripFare = round(sum({ total_amount}), 2)) ~> AggregateVendorStats"
+                        },
+                        {
+                            "name": "AggregateDayStats",
+                            "script": "JoinMatchedData aggregate(\n\tgroupBy(DayOfTheWeek = dayOfWeek(toDate(pickup_datetime, 'yyyy-mm-dd hh:mm:ss'))),\n\t trip_distance = round(avg(trip_distance), 2),\n\t\tpassenger_count = round(avg(passenger_count), 2),\n\t\ttrip_time_in_secs = round(avg(trip_time_in_secs)/60, 2),\n\t\taverage_fare = round(avg({ total_amount}), 2)) ~> AggregateDayStats"
+                        },
+                        {
+                            "name": "AggregateByPaymentType",
+                            "script": "TripFare aggregate(\n\tgroupBy({ payment_type} = { payment_type}),\n\t each(match(type=='double'), concat($1, '_total') = round(sum ($1)))) ~> AggregateByPaymentType"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/taxi_trip_data_input')]",
+                "[concat(variables('factoryId'), '/datasets/taxi_trip_fare_input')]",
+                "[concat(variables('factoryId'), '/datasets/TaxiDemoVendorStatsSink')]",
+                "[concat(variables('factoryId'), '/datasets/TaxiDemoDayStatsSink')]",
+                "[concat(variables('factoryId'), '/datasets/TaxiDemoTotalByPaymentType')]"
+            ]
+        }
+    ]
+}

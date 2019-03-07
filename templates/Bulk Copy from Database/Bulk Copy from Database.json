@@ -72,7 +72,7 @@
                             "source": {
                                 "type": "SqlSource",
                                 "sqlReaderQuery": {
-                                    "value": "select @{pipeline().parameters.Control_Table_Schema_PatitionID} as PatitionID, @{pipeline().parameters.Control_Table_Schema_SourceTableName} as SourceTableName, @{pipeline().parameters.Control_Table_Schema_FilterQuery} as FilterQuery from @{pipeline().parameters.Control_Table_Name}",
+                                    "value": "select @{pipeline().parameters.Control_Table_Schema_PartitionID} as PartitionID, @{pipeline().parameters.Control_Table_Schema_SourceTableName} as SourceTableName, @{pipeline().parameters.Control_Table_Schema_FilterQuery} as FilterQuery from @{pipeline().parameters.Control_Table_Name}",
                                     "type": "Expression"
                                 }
                             },
