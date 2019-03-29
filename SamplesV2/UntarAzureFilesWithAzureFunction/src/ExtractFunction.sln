@@ -3,6 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.271
 MinimumVisualStudioVersion = 10.0.40219.1
+
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExtractFunction", "ExtractFunction\ExtractFunction.csproj", "{E12D4F37-1B4B-48EE-9A21-307E2B7DBDFD}"
 EndProject
 Global
