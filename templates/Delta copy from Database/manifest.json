@@ -197,5 +197,7 @@
         }
     },
     "documentation": "https://go.microsoft.com/fwlink/?linkid=2059735",
+    "annotations": ["Incremental copy","SQL Azure","Control Table"],
+    "services": ["Azure Data Factory", "SQL Azure"],
     "categories": ["copy"]
 }

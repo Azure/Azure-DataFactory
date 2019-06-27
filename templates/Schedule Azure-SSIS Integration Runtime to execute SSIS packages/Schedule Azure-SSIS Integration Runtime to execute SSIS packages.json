@@ -40,6 +40,9 @@
 						"typeProperties": {
 							"url": "[parameters('ssisIRStartUrl')]",
                             "method": "POST",
+                            "body": {
+                                "message": "Start my IR"
+                            },
                             "authentication": {
                                 "type": "MSI",
                                 "resource": "https://management.azure.com"
@@ -95,6 +98,9 @@
 						"typeProperties": {
 							"url": "[parameters('ssisIRStopUrl')]",
                             "method": "POST",
+                            "body": {
+                                "message": "Stop my IR"
+                            },
                             "authentication": {
                                 "type": "MSI",
                                 "resource": "https://management.azure.com"

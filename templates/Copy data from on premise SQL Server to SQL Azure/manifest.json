@@ -22,5 +22,7 @@
 		}
     },
     "categories": ["copy"],
+    "annotations": ["Copy","Data Movement","On premise","SQL Server","SQL Azure"],
+    "services": ["Azure Data Factory", "SQL Server", "SQL Azure"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-sql-server"
 }

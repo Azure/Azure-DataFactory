@@ -17,5 +17,7 @@
     "categories": [
         "transform"
     ],
+    "annotations": ["HDInsight","Transform","on-demand"],
+    "services": ["Azure Data Factory", "Azure HDInsight"],
     "documentation": "https://go.microsoft.com/fwlink/?linkid=2059870"
 }

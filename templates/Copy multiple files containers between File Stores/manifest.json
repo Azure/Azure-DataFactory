@@ -61,5 +61,7 @@
         }
     },
     "documentation": "https://go.microsoft.com/fwlink/?linkid=2060025",
+    "annotations": ["Copy","Data Movement","Amazon S3","Azure Blob Storage","Azure Data Lake Storage","ADLS","S3"],
+    "services": ["Azure Data Factory", "Amazon S3", "Azure Blob Storage", "Azure Data Lake Storage"],
     "categories": ["copy"]
 }

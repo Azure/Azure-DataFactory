@@ -9,7 +9,6 @@
 		"linkedservices": {
 			"LinkedService_for_Source_Dataset": {
 				"supportTypes": [
-                    "AmazonS3",
                     "AzureBlobStorage",
                     "AzureDataLakeStore",
                     "AzureBlobFS",
@@ -24,7 +23,6 @@
                             "AzureDataLakeStore",
                             "AzureBlobFS",
                             "FileServer",
-                            "AmazonS3",
                             "FtpServer",
                             "Sftp"
                         ],
@@ -40,5 +38,7 @@
 		}
 	},
     "documentation": "https://docs.microsoft.com/en-us/azure/data-factory/delete-activity",
+    "annotations": ["Delete","Azure Data Lake Storage","ADLS","Azure Blob Storage"],
+    "services": ["Azure Data Factory", "Azure Blob Storage", "Azure Data Lake Storage"],
     "categories": ["copy"]
 }

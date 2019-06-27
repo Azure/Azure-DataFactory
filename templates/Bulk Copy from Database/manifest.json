@@ -156,5 +156,7 @@
         }
     },
     "categories": ["copy"],
+    "annotations": ["Copy", "Data Movement", "Bulk Copy", "Database"],
+    "services": ["Azure Data Factory"],
     "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023"
 }

@@ -22,5 +22,7 @@
 		}
     },
     "categories": ["copy"],
+    "annotations": ["Copy","Data Movement","Amazon S3","ADLS","Azure Data Lake Storage","S3"],
+    "services": ["Azure Data Factory", "Amazon S3", "Azure Data Lake Storage"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-amazon-simple-storage-service"
 }

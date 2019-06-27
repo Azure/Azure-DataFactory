@@ -22,5 +22,7 @@
 		}
 	},
     "categories": ["copy"],
+    "annotations": ["Copy","Data Movement","HDFS","On premise","Azure Data Lake Storage","ADLS"],
+    "services": ["Azure Data Factory", "Azure Data Lake Storage", "HDFS"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-hdfs"
 }

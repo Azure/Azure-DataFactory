@@ -12,7 +12,45 @@
                 "supportTypes": [
                     "AzureSqlDW",
                     "AzureSqlDatabase",
-                    "SqlServer"
+                    "SqlServer",
+                    "AzureBlobStorage",
+                    "AzureBlobFS"
+                ],
+                "datasetTypeMap": [
+                    {
+                        "types": [
+                            "AzureBlobStorage",
+                            "AzureBlobFS"
+                        ],
+                        "datasets": {
+                            "DestinationStore": {
+                                "type": "Parquet",
+                                "copySinkType": "ParquetSink"
+                            }
+                        }
+                    }
+                ],
+                "parameterSets": [
+                    {
+                        "types": [
+                            "AzureBlobStorage"
+                        ],
+                        "parameters": {
+                            "DestinationStoreLocation": {
+                                "type": "AzureBlobStorageLocation"
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "AzureBlobFS"
+                        ],
+                        "parameters": {
+                            "DestinationStoreLocation": {
+                                "type": "AzureBlobFSLocation"
+                            }
+                        }
+                    }
                 ]
             },
             "SourceDataset": {
@@ -101,6 +139,16 @@
             }
         }
     },
-    "categories": ["transform", "dataflow"],
+    "categories": [
+        "transform",
+        "dataflow"
+    ],
+    "annotations": [
+        "Data Flow",
+        "Copy",
+        "Data Movement",
+        "Transform"
+    ],
+    "services": ["Azure Data Factory"],
     "documentation": ""
 }

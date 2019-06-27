@@ -27,5 +27,7 @@
 		}
 	},
     "categories": ["transform"],
+    "annotations": ["Azure Databricks","Databricks"],
+    "services": ["Azure Databricks", "Azure Data Factory"],
 	"documentation": "https://go.microsoft.com/fwlink/?linkid=2060026"
 }

@@ -22,5 +22,7 @@
 		}
 	},
     "categories": ["copy"],
+    "annotations": ["Copy","Data Movement","On premise","Oracle","SQL DW","SQL Data Warehouse"],
+    "services": ["Azure Data Factory", "Oracle", "SQL Data Warehouse"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-oracle"
 }

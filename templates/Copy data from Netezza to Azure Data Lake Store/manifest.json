@@ -23,5 +23,7 @@
 		}
 	},
     "categories": ["copy"],
+    "annotations": ["Copy","Data Movement","Netezza","ADLS","Azure Data Lake Storage","ADLS"],
+    "services": ["Azure Data Factory", "Netezza", "Azure Data Lake Storage"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-netezza"
 }

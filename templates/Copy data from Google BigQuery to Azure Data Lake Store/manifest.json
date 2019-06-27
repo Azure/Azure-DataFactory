@@ -22,5 +22,7 @@
 		}
     },
     "categories": ["copy"],
+    "annotations": ["Copy","Data Movement","Google Big Query","ADLS","Azure Data Lake Storage"],
+    "services": ["Azure Data Factory", "Google Big Query", "Azure Data Lake Storage"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-google-bigquery"
 }
