@@ -14,6 +14,9 @@ that you meet the following pre-requisites:
 -   **Azure Data Lake Storage Gen2 storage account**: If you don't have an ADLS
     Gen2 storage account, see the instructions in [Create an ADLS Gen2 storage
     account](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-quickstart-create-account).
+    
+-   **Azure SQL Datawarehoue account**: If you don't have a SQL DW account, see the instructions in [Create a SQL DW
+    account](https://docs.microsoft.com/en-us/azure/sql-data-warehouse/create-data-warehouse-portal).
 
 -   **S3 Browser**: Download the S3 browser [here](http://s3browser.com/).
 
