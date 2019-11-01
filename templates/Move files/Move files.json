@@ -295,10 +295,6 @@
 				},
 				"type": "AzureBlob",
 				"typeProperties": {
-					"format": {
-						"type": "TextFormat",
-						"treatEmptyAsNull": true
-					},
 					"fileName": {
 						"value": "@dataset().filename",
 						"type": "Expression"

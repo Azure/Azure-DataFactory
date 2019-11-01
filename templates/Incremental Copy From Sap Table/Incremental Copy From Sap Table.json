@@ -1,0 +1,311 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"SapTable": {
+			"type": "string"
+		},
+		"AdlsGen2": {
+			"type": "string"
+		},
+		"AzureBlobStorage": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyFromSAPTable')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyFromSAPTable",
+						"description": "Copy incremental data from SAP table to ADLS Gen2",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupLastCopiedDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SapTableSource",
+								"rfcTableOptions": {
+									"value": "@{concat(pipeline().parameters.SapTableDateColumn,' LE ',formatDateTime(adddays(pipeline().TriggerTime,-1),'yyyyMMdd'), ' AND ',pipeline().parameters.SapTableDateColumn,' GE ', formatDateTime(activity('LookupLastCopiedDate').output.firstRow.Prop_0, 'yyyyMMdd'))}",
+									"type": "Expression"
+								},
+								"customRfcReadTableFunctionModule": "",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureBlobFSSink"
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "SAPTableSource_Incremental",
+								"type": "DatasetReference",
+								"parameters": {
+									"SapTableName": {
+										"value": "@pipeline().parameters.SapTableName",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureDataLakeStorageGen2Sink",
+								"type": "DatasetReference",
+								"parameters": {
+									"ADLSGen2SinkPath": {
+										"value": "@pipeline().parameters.ADLSGen2SinkPath",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "LookupLastCopiedDate",
+						"description": "Copy incremental data from SAP table to ADLS Gen2",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSetting",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSetting"
+								}
+							},
+							"dataset": {
+								"referenceName": "AzureBlobDelimitedDataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"HighWatermarkBlobDirectory": {
+										"value": "@pipeline().parameters.HighWatermarkBlobDirectory",
+										"type": "Expression"
+									},
+									"HighWatermarkBlobName": {
+										"value": "@pipeline().parameters.HighWatermarkBlobName",
+										"type": "Expression"
+									},
+									"HighWatermarkBlobContainer": {
+										"value": "@pipeline().parameters.HighWatermarkBlobContainer",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					},
+					{
+						"name": "SetLastCopiedDate",
+						"description": "Store the last copied date into blob by calling Logic App",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "CopyFromSAPTable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": {
+								"value": "@pipeline().parameters.LogicAppURL",
+								"type": "Expression"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\"copiedDate\":\"@{pipeline().TriggerTime}\"",
+								"type": "Expression"
+							},
+							"linkedServices": [],
+							"datasets": []
+						}
+					}
+				],
+				"parameters": {
+					"HighWatermarkBlobDirectory": {
+						"type": "string"
+					},
+					"HighWatermarkBlobName": {
+						"type": "string"
+					},
+					"HighWatermarkBlobContainer": {
+						"type": "string"
+					},
+					"SapTableName": {
+						"type": "string"
+					},
+					"ADLSGen2SinkPath": {
+						"type": "string"
+					},
+					"LogicAppURL": {
+						"type": "string"
+					},
+					"SapTableDateColumn": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SAPTableSource_Incremental')]",
+				"[concat(variables('factoryId'), '/datasets/AzureDataLakeStorageGen2Sink')]",
+				"[concat(variables('factoryId'), '/datasets/AzureBlobDelimitedDataset')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SAPTableSource_Incremental')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SapTable')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SapTableName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SapTableResource",
+				"schema": [],
+				"typeProperties": {
+					"tableName": {
+						"value": "@dataset().SapTableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2Sink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "ADLS Gen2 sink",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AdlsGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"ADLSGen2SinkPath": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureBlobFSFile",
+				"typeProperties": {
+					"format": {
+						"type": "TextFormat",
+						"columnDelimiter": ",",
+						"rowDelimiter": "",
+						"nullValue": "\\N",
+						"treatEmptyAsNull": true,
+						"skipLineCount": 0,
+						"firstRowAsHeader": false
+					},
+					"fileName": "",
+					"folderPath": {
+						"value": "@dataset().ADLSGen2SinkPath",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobDelimitedDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"HighWatermarkBlobDirectory": {
+						"type": "string"
+					},
+					"HighWatermarkBlobName": {
+						"type": "string"
+					},
+					"HighWatermarkBlobContainer": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().HighWatermarkBlobName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().HighWatermarkBlobDirectory",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().HighWatermarkBlobContainer",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}

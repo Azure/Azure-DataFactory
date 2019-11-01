@@ -1,0 +1,243 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"AzureBlobStorage1": {
+			"type": "string"
+		},
+		"AzureSqlDatabase1": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LoadFacts2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Data Flow Fact Loader",
+						"description": "This is a data flow example of how to load facts into your fact table from a single sample Employee dimension. There is also an example of handling early-arriving facts.",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF-FactLoader",
+								"type": "DataFlowReference"
+							}
+						}
+					}
+				],
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF-FactLoader')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DF-FactLoader')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "This is a data flow example of how to load facts into your fact table from a single sample Employee dimension. There is also an example of handling early-arriving facts.",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "Facts",
+								"type": "DatasetReference"
+							},
+							"name": "Facts"
+						},
+						{
+							"dataset": {
+								"referenceName": "DimEmp",
+								"type": "DatasetReference"
+							},
+							"name": "DimEmployee"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "FactTable2",
+								"type": "DatasetReference"
+							},
+							"name": "writeFactTable"
+						}
+					],
+					"transformations": [
+						{
+							"name": "SetAttributes"
+						},
+						{
+							"name": "LookupDimEmployee"
+						},
+						{
+							"name": "DailyAggs"
+						},
+						{
+							"name": "OrigData"
+						},
+						{
+							"name": "JoinAllColumns"
+						},
+						{
+							"name": "CheckForEarlyFact"
+						}
+					],
+					"script": "\n\nsource(output(\n\t\temployeeID as string,\n\t\tHours as string,\n\t\tAmount as string,\n\t\tProjDate as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\twildcardPaths:['SampleData/Facts/today/*.csv']) ~> Facts\nsource(output(\n\t\tEmpID as integer,\n\t\tsurrogatekey as string,\n\t\tRegion as string,\n\t\tStatus as string,\n\t\tEmpFunction as string,\n\t\tLevel as string,\n\t\tRole as string,\n\t\tStartDate as date,\n\t\tEndDate as date,\n\t\tiscurrent as integer,\n\t\tprocesstime as timestamp\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> DimEmployee\nFacts derive(employeeID = toInteger(employeeID),\n\t\tiscurrent = 1,\n\t\tfacttimestamp = currentTimestamp()) ~> SetAttributes\nSetAttributes, DimEmployee lookup(employeeID == EmpID\n\t&& SetAttributes@iscurrent == DimEmployee@iscurrent,\n\tbroadcast: 'none')~> LookupDimEmployee\nCheckForEarlyFact aggregate(groupBy(ProjDate,\n\t\temployeeID),\n\tTotalHours = sum(toInteger(Hours)),\n\t\tTotalAmount = sum(toInteger(Amount))) ~> DailyAggs\nLookupDimEmployee select(mapColumn(\n\t\temployeeID,\n\t\tHours,\n\t\tAmount,\n\t\tProjDate,\n\t\tfacttimestamp,\n\t\tEmpID,\n\t\tsurrogatekey,\n\t\tRegion,\n\t\tStatus,\n\t\tEmpFunction,\n\t\tLevel,\n\t\tRole,\n\t\tStartDate,\n\t\tEndDate,\n\t\tiscurrent = DimEmployee@iscurrent,\n\t\tprocesstime\n\t)) ~> OrigData\nDailyAggs, OrigData join(DailyAggs@ProjDate == OrigData@ProjDate\n\t&& DailyAggs@employeeID == OrigData@employeeID,\n\tjoinType:'inner',\n\tbroadcast: 'none')~> JoinAllColumns\nLookupDimEmployee derive(employeeID = iif(isNull(employeeID),0,employeeID)) ~> CheckForEarlyFact\nJoinAllColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tbatchSize: 50,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tmapColumn(\n\t\tProjDate = OrigData@ProjDate,\n\t\temployeeID = OrigData@employeeID,\n\t\tTotalHours,\n\t\tTotalAmount,\n\t\tfacttimestamp,\n\t\tsurrogatekey,\n\t\tRegion,\n\t\tStatus,\n\t\tEmpFunction,\n\t\tLevel,\n\t\tRole,\n\t\tprocesstime\n\t),\n\tpartitionBy('roundRobin', 4)) ~> writeFactTable"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/Facts')]",
+				"[concat(variables('factoryId'), '/datasets/DimEmp')]",
+				"[concat(variables('factoryId'), '/datasets/FactTable2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Facts')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "employeeID",
+						"type": "String"
+					},
+					{
+						"name": "Hours",
+						"type": "String"
+					},
+					{
+						"name": "Amount",
+						"type": "String"
+					},
+					{
+						"name": "ProjDate",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DimEmp')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureSqlDatabase1')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "EmpID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "surrogatekey",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EmpFunction",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Level",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Role",
+						"type": "nvarchar"
+					},
+					{
+						"name": "StartDate",
+						"type": "date"
+					},
+					{
+						"name": "EndDate",
+						"type": "date"
+					},
+					{
+						"name": "iscurrent",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "processtime",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"tableName": "[[dbo].[DimEmp]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/FactTable2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureSqlDatabase1')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"tableName": "dbo.FactTable2"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

@@ -1,0 +1,298 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"ADLSGen2": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Wrangling Data Flow Taxi Demo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Joining and Aggregating New York City Taxi Data using Wrangling Data Flows",
+				"activities": [
+					{
+						"name": "Taxi Demo",
+						"description": "Joining and Aggregating New York City Taxi Data",
+						"type": "ExecuteWranglingDataflow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "TaxiDemo",
+								"type": "DataFlowReference"
+							},
+							"compute": {
+								"computeType": "General",
+								"coreCount": 8
+							}
+						}
+					}
+				],
+				"folder": {
+					"name": "Wrangling Data Flow Demos"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/TaxiDemo')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TaxiDemo')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "WranglingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"name": "TripData",
+							"script": "",
+							"dataset": {
+								"referenceName": "TripData",
+								"type": "DatasetReference"
+							},
+							"typeProperties": {
+								"readMode": null
+							}
+						},
+						{
+							"name": "TripFares",
+							"script": "",
+							"dataset": {
+								"referenceName": "TripFares",
+								"type": "DatasetReference"
+							},
+							"typeProperties": {
+								"readMode": null
+							}
+						}
+					],
+					"sinks": [
+						{
+							"name": "TaxiSink",
+							"dataset": {
+								"referenceName": "TaxiSink",
+								"type": "DatasetReference"
+							},
+							"script": ""
+						}
+					],
+					"script": "section Section1; shared #\"TripData\" = let AdfDoc = Web.Contents(\"https://perlovskybugbash.dfs.core.windows.net/sample-data/trip_data_1.csv?sv=2018-03-28&sig=cNY%2B7CJBqYHmMsGWrPEKWX68YW9I6Gl1%2FWm4rN5cr94%3D&spr=https&se=2019-10-23T23%3A44%3A43Z&srt=sco&ss=bf&sp=rwl\"), Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.None]), PromotedHeaders = Table.PromoteHeaders(Csv, [PromoteAllScalars = true]), TrimmedHeaders = Table.TransformColumnNames(PromotedHeaders, (columnName as text) as text => Text.Trim(columnName)) in TrimmedHeaders;shared #\"TripFares\" = let AdfDoc = Web.Contents(\"https://perlovskybugbash.dfs.core.windows.net/sample-data/taxi_fares.csv?sv=2018-03-28&sig=YSnHs6YwkEDamsQZ8sHroKMy35i942rqgPO%2Fomq9Nh0%3D&spr=https&se=2019-10-23T23%3A44%3A44Z&srt=sco&ss=bf&sp=rwl\"), Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.None]), PromotedHeaders = Table.PromoteHeaders(Csv, [PromoteAllScalars = true]), TrimmedHeaders = Table.TransformColumnNames(PromotedHeaders, (columnName as text) as text => Text.Trim(columnName)) in TrimmedHeaders;\r\nshared UserQuery = let\r\n  Source = TripData,\r\n  #\"Inner Join\" = Table.NestedJoin(Source, {\"medallion\", \"hack_license\", \"vendor_id\", \"pickup_datetime\"}, TripFares, {\"medallion\", \"hack_license\", \"vendor_id\", \"pickup_datetime\"}, \"TripFares\", JoinKind.Inner),\r\n  #\"Expanding Joined Tables\" = Table.ExpandTableColumn(#\"Inner Join\", \"TripFares\", {\"medallion\", \"hack_license\", \"vendor_id\", \"pickup_datetime\", \"payment_type\", \"fare_amount\", \"surcharge\", \"mta_tax\", \"tip_amount\", \"tolls_amount\", \"total_amount\"}, {\"TripFares.medallion\", \"TripFares.hack_license\", \"TripFares.vendor_id\", \"TripFares.pickup_datetime\", \"TripFares.payment_type\", \"TripFares.fare_amount\", \"TripFares.surcharge\", \"TripFares.mta_tax\", \"TripFares.tip_amount\", \"TripFares.tolls_amount\", \"TripFares.total_amount\"}),\r\n  #\"Converting to Decimal Types\" = Table.TransformColumnTypes(#\"Expanding Joined Tables\", {{\"TripFares.total_amount\", type number}, {\"passenger_count\", type number}, {\"trip_time_in_secs\", type number}, {\"trip_distance\", type number}}),\r\n  #\"Aggregating on Vendor ID\" = Table.Group(#\"Converting to Decimal Types\", {\"vendor_id\"}, {{\"total_passenger_count\", each List.Sum([passenger_count]), type number}, {\"total_trip_time_in_secs\", each List.Sum([trip_time_in_secs]), type number}, {\"total_trip_distance\", each List.Sum([trip_distance]), type number}, {\"total_trip_fare\", each List.Sum([TripFares.total_amount]), type number}})\r\nin\r\n  #\"Aggregating on Vendor ID\";"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/TripData')]",
+				"[concat(variables('factoryId'), '/datasets/TripFares')]",
+				"[concat(variables('factoryId'), '/datasets/TaxiSink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TripData')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "TaxiDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "trip_data_1.csv",
+						"fileSystem": "sample-data"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "medallion",
+						"type": "String"
+					},
+					{
+						"name": "hack_license",
+						"type": "String"
+					},
+					{
+						"name": "vendor_id",
+						"type": "String"
+					},
+					{
+						"name": "rate_code",
+						"type": "String"
+					},
+					{
+						"name": "store_and_fwd_flag",
+						"type": "String"
+					},
+					{
+						"name": "pickup_datetime",
+						"type": "String"
+					},
+					{
+						"name": "dropoff_datetime",
+						"type": "String"
+					},
+					{
+						"name": "passenger_count",
+						"type": "String"
+					},
+					{
+						"name": "trip_time_in_secs",
+						"type": "String"
+					},
+					{
+						"name": "trip_distance",
+						"type": "String"
+					},
+					{
+						"name": "pickup_longitude",
+						"type": "String"
+					},
+					{
+						"name": "pickup_latitude",
+						"type": "String"
+					},
+					{
+						"name": "dropoff_longitude",
+						"type": "String"
+					},
+					{
+						"name": "dropoff_latitude",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TripFares')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "TaxiDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "taxi_fares.csv",
+						"fileSystem": "sample-data"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "medallion",
+						"type": "String"
+					},
+					{
+						"name": "hack_license",
+						"type": "String"
+					},
+					{
+						"name": "vendor_id",
+						"type": "String"
+					},
+					{
+						"name": "pickup_datetime",
+						"type": "String"
+					},
+					{
+						"name": "payment_type",
+						"type": "String"
+					},
+					{
+						"name": "fare_amount",
+						"type": "String"
+					},
+					{
+						"name": "surcharge",
+						"type": "String"
+					},
+					{
+						"name": "mta_tax",
+						"type": "String"
+					},
+					{
+						"name": "tip_amount",
+						"type": "String"
+					},
+					{
+						"name": "tolls_amount",
+						"type": "String"
+					},
+					{
+						"name": "total_amount",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TaxiSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "TaxiDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "taxi-output",
+						"fileSystem": "sample-data"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}
