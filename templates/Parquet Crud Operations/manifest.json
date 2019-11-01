@@ -16,12 +16,13 @@
 			}
 		}
 	},
-	"author": "daperlov@microsoft.com",
 	"annotations": [
 		"Data Flow"
 	],
 	"services": [
 		"Azure Data Factory"
 	],
-	"categories": []
+	"categories": [
+		"dataflow"
+	]
 }

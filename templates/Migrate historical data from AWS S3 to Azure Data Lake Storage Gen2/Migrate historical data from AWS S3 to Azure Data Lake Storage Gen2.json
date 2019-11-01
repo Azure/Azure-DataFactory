@@ -1,0 +1,328 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"Azure_SQL_Database_Connection": {
+			"type": "string"
+		},
+		"AWS_S3_Connection": {
+			"type": "string"
+		},
+		"Azure_Storage_Connection": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/BulkCopyFromS3')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupPartitionList",
+						"description": "Lookup activity to retrieve the partition list which has not been copied to Azure Data Lake Storage Gen2 from an external control table.",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT PartitionPrefix FROM s3_partition_control_table WHERE SuccessOrFailure = 0"
+							},
+							"dataset": {
+								"referenceName": "External_Control_Table",
+								"type": "DatasetReference"
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachFolderList",
+						"description": "ForEach activity to get the partition list from the Lookup activity and iterates each partition to the TriggerCopy pipeline. You can set the batchCount to run multiple ADF copy jobs concurrently.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "LookupPartitionList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('LookupPartitionList').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 2,
+							"activities": [
+								{
+									"name": "TriggerCopy",
+									"description": "ExecutePipeline activity to execute TriggerCopy pipeline. The reason we create another pipeline to make each copy job copy a parition is because it will make you easy to rerun the failed copy job to reload that specific partition again from AWS S3. All other copy jobs loading other partitions will not be impacted.",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [
+										{
+											"name": "folder name",
+											"value": "@item().folder"
+										}
+									],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "CopyFolderPartitionFromS3",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"prefixStr": {
+												"value": "@item().PartitionPrefix",
+												"type": "Expression"
+											},
+											"AWS_S3_bucketName": {
+												"value": "@pipeline().parameters.AWS_S3_bucketName",
+												"type": "Expression"
+											},
+											"Azure_Storage_fileSystem": {
+												"value": "@pipeline().parameters.Azure_Storage_fileSystem",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"AWS_S3_bucketName": {
+						"type": "string",
+						"defaultValue": "/<Input your AWS S3 bucketName>"
+					},
+					"Azure_Storage_fileSystem": {
+						"type": "string",
+						"defaultValue": "/<Input your Azure Storage fileSystem name>"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/External_Control_Table')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyFolderPartitionFromS3')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/External_Control_Table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description":"You can input the connection to your external control table which is used to store the partition list for AWS S3.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('Azure_SQL_Database_Connection')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "s3_partition_control_table"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyFolderPartitionFromS3')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopySinglePartition",
+						"description": "Copy activity to copy each partition from AWS S3 to Azure Data Lake Storage Gen2.",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.05:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AmazonS3ReadSettings",
+									"recursive": true,
+									"prefix": {
+										"value": "@{pipeline().parameters.prefixStr}",
+										"type": "Expression"
+									}
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "AWS_S3_Source_Store",
+								"type": "DatasetReference",
+								"parameters": {
+									"AWS_S3_bucketName": {
+										"value": "@pipeline().parameters.AWS_S3_bucketName",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Azure_Storage_Destination_Store",
+								"type": "DatasetReference",
+								"parameters": {
+									"Azure_Storage_fileSystem": {
+										"value": "@pipeline().parameters.Azure_Storage_fileSystem",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "UpdatePartitionSuccess",
+						"description": "Connect to a stored procedure on the same Azure SQL database with the control table. The stored procedure is used to update the status of copying each parition in control table.",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "CopySinglePartition",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[sp_update_partition_success]",
+							"storedProcedureParameters": {
+								"PartPrefix": {
+									"value": {
+										"value": "@pipeline().parameters.prefixStr",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('Azure_SQL_Database_Connection')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"parameters": {
+					"prefixStr": {
+						"type": "string"
+					},
+					"AWS_S3_bucketName": {
+						"type": "string"
+					},
+					"Azure_Storage_fileSystem": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/AWS_S3_Source_Store')]",
+				"[concat(variables('factoryId'), '/datasets/Azure_Storage_Destination_Store')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AWS_S3_Source_Store')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description":"You can input the connection to your AWS S3 as the data source store.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AWS_S3_Connection')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"AWS_S3_bucketName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AmazonS3Location",
+						"bucketName": {
+							"value": "@dataset().AWS_S3_bucketName",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Azure_Storage_Destination_Store')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description":"You can input the connection to your Azure Data Lake Storage Gen2 as the data destination store.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('Azure_Storage_Connection')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Azure_Storage_fileSystem": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": {
+							"value": "@dataset().Azure_Storage_fileSystem",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

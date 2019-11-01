@@ -30,7 +30,7 @@
 			}
 		}
 	},
-    "documentation": "https://docs.microsoft.com/en-us/azure/data-factory/",
+    "documentation": "https://docs.microsoft.com/en-us/azure/data-factory/solution-template-move-files",
     "annotations": ["Copy","Data Movement","Azure Data Lake Storage","ADLS","Amazon S3","S3","Azure Blob Storage"],
     "services": ["Azure Data Factory", "Amazon S3", "Azure Blob Storage", "Azure Data Lake Storage"],
     "categories": ["copy"]

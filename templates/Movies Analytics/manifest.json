@@ -26,7 +26,6 @@
 		}
 	},
 	"documentation": "https://github.com/djpmsft/adf-ready-demo/blob/master/ADF_Lab_Instructions.md",
-	"author": "daperlov@microsoft.com",
 	"annotations": [
 		"Copy",
 		"Data Flow"
@@ -34,5 +33,7 @@
 	"services": [
 		"Azure Data Factory"
 	],
-	"categories": []
+	"categories": [
+		"dataflow"
+	]
 }

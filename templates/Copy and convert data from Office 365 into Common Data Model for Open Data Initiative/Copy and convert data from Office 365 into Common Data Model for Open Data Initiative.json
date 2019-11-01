@@ -1,0 +1,961 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"AzureDataLakeStorageGen2Account": {
+			"type": "string"
+		},
+		"HDInsightCluster": {
+			"type": "string"
+		},
+		"AzureADApplicantion": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyOffice365DataToCDM')]",
+			"description": "Copy Graph data from Office 365 and transform the json format to CDM",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyEventData",
+						"description": "Copy event data from Office 365",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "Office365Source",
+								"dateFilterColumn": "createdDateTime",
+								"startTime": {
+									"value": "@pipeline().parameters.DataStartTime",
+									"type": "Expression"
+								},
+								"endTime": {
+									"value": "@pipeline().parameters.DataEndTime",
+									"type": "Expression"
+								},
+								"userScopeFilterUri": "",
+								"outputColumns": [
+									{
+										"name": "id"
+									},
+									{
+										"name": "createdDateTime"
+									},
+									{
+										"name": "lastModifiedDateTime"
+									},
+									{
+										"name": "changeKey"
+									},
+									{
+										"name": "categories"
+									},
+									{
+										"name": "originalStartTimeZone"
+									},
+									{
+										"name": "originalEndTimeZone"
+									},
+									{
+										"name": "responseStatus"
+									},
+									{
+										"name": "iCalUId"
+									},
+									{
+										"name": "reminderMinutesBeforeStart"
+									},
+									{
+										"name": "isReminderOn"
+									},
+									{
+										"name": "hasAttachments"
+									},
+									{
+										"name": "subject"
+									},
+									{
+										"name": "body"
+									},
+									{
+										"name": "importance"
+									},
+									{
+										"name": "sensitivity"
+									},
+									{
+										"name": "start"
+									},
+									{
+										"name": "end"
+									},
+									{
+										"name": "location"
+									},
+									{
+										"name": "isAllDay"
+									},
+									{
+										"name": "isCancelled"
+									},
+									{
+										"name": "isOrganizer"
+									},
+									{
+										"name": "recurrence"
+									},
+									{
+										"name": "responseRequested"
+									},
+									{
+										"name": "showAs"
+									},
+									{
+										"name": "type"
+									},
+									{
+										"name": "attendees"
+									},
+									{
+										"name": "organizer"
+									},
+									{
+										"name": "webLink"
+									},
+									{
+										"name": "attachments"
+									},
+									{
+										"name": "bodyPreview"
+									},
+									{
+										"name": "locations"
+									},
+									{
+										"name": "onlineMeetingUrl"
+									},
+									{
+										"name": "originalStart"
+									},
+									{
+										"name": "seriesMasterId"
+									}
+								]
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Office365EventTable",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureDataLakeStorageGen2",
+								"type": "DatasetReference",
+								"parameters": {
+									"OfficeDataFileSystem": {
+										"value": "@pipeline().parameters.OfficeDataFileSystem",
+										"type": "Expression"
+									},
+									"DatasetPath": {
+										"value": "@pipeline().parameters.EventDatasetFolder",
+										"type": "Expression"
+									},
+									"PipelineID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "CopyManagerData",
+						"description": "Copy manager data from Office 365",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "Office365Source",
+								"userScopeFilterUri": "",
+								"outputColumns": [
+									{
+										"name": "accountEnabled"
+									},
+									{
+										"name": "ageGroup"
+									},
+									{
+										"name": "assignedLicenses"
+									},
+									{
+										"name": "assignedPlans"
+									},
+									{
+										"name": "businessPhones"
+									},
+									{
+										"name": "city"
+									},
+									{
+										"name": "companyName"
+									},
+									{
+										"name": "consentProvidedForMinor"
+									},
+									{
+										"name": "country"
+									},
+									{
+										"name": "createdDateTime"
+									},
+									{
+										"name": "department"
+									},
+									{
+										"name": "displayName"
+									},
+									{
+										"name": "givenName"
+									},
+									{
+										"name": "id"
+									},
+									{
+										"name": "imAddresses"
+									},
+									{
+										"name": "jobTitle"
+									},
+									{
+										"name": "legalAgeGroupClassification"
+									},
+									{
+										"name": "mail"
+									},
+									{
+										"name": "mailNickname"
+									},
+									{
+										"name": "mobilePhone"
+									},
+									{
+										"name": "officeLocation"
+									},
+									{
+										"name": "onPremisesImmutableId"
+									},
+									{
+										"name": "onPremisesLastSyncDateTime"
+									},
+									{
+										"name": "onPremisesSecurityIdentifier"
+									},
+									{
+										"name": "onPremisesSyncEnabled"
+									},
+									{
+										"name": "passwordPolicies"
+									},
+									{
+										"name": "postalCode"
+									},
+									{
+										"name": "preferredLanguage"
+									},
+									{
+										"name": "provisionedPlans"
+									},
+									{
+										"name": "proxyAddresses"
+									},
+									{
+										"name": "state"
+									},
+									{
+										"name": "streetAddress"
+									},
+									{
+										"name": "surname"
+									},
+									{
+										"name": "usageLocation"
+									},
+									{
+										"name": "userPrincipalName"
+									},
+									{
+										"name": "userType"
+									}
+								]
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Office365ManagerTable",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureDataLakeStorageGen2",
+								"type": "DatasetReference",
+								"parameters": {
+									"OfficeDataFileSystem": {
+										"value": "@pipeline().parameters.OfficeDataFileSystem",
+										"type": "Expression"
+									},
+									"DatasetPath": {
+										"value": "@pipeline().parameters.ManagerDatasetFolder",
+										"type": "Expression"
+									},
+									"PipelineID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "CopyMessageData",
+						"description": "Copy message data from Office 365",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "Office365Source",
+								"dateFilterColumn": "receivedDateTime",
+								"startTime": {
+									"value": "@pipeline().parameters.DataStartTime",
+									"type": "Expression"
+								},
+								"endTime": {
+									"value": "@pipeline().parameters.DataEndTime",
+									"type": "Expression"
+								},
+								"userScopeFilterUri": "",
+								"outputColumns": [
+									{
+										"name": "receivedDateTime"
+									},
+									{
+										"name": "sentDateTime"
+									},
+									{
+										"name": "hasAttachments"
+									},
+									{
+										"name": "internetMessageId"
+									},
+									{
+										"name": "subject"
+									},
+									{
+										"name": "importance"
+									},
+									{
+										"name": "parentFolderId"
+									},
+									{
+										"name": "sender"
+									},
+									{
+										"name": "from"
+									},
+									{
+										"name": "toRecipients"
+									},
+									{
+										"name": "ccRecipients"
+									},
+									{
+										"name": "bccRecipients"
+									},
+									{
+										"name": "replyTo"
+									},
+									{
+										"name": "conversationId"
+									},
+									{
+										"name": "uniqueBody"
+									},
+									{
+										"name": "isDeliveryReceiptRequested"
+									},
+									{
+										"name": "isReadReceiptRequested"
+									},
+									{
+										"name": "isRead"
+									},
+									{
+										"name": "isDraft"
+									},
+									{
+										"name": "webLink"
+									},
+									{
+										"name": "createdDateTime"
+									},
+									{
+										"name": "lastModifiedDateTime"
+									},
+									{
+										"name": "changeKey"
+									},
+									{
+										"name": "categories"
+									},
+									{
+										"name": "id"
+									},
+									{
+										"name": "attachments"
+									},
+									{
+										"name": "inferenceClassification"
+									},
+									{
+										"name": "flag"
+									},
+									{
+										"name": "body"
+									},
+									{
+										"name": "bodyPreview"
+									},
+									{
+										"name": "internetMessageHeaders"
+									}
+								]
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Office365MessageTable",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureDataLakeStorageGen2",
+								"type": "DatasetReference",
+								"parameters": {
+									"OfficeDataFileSystem": {
+										"value": "@pipeline().parameters.OfficeDataFileSystem",
+										"type": "Expression"
+									},
+									"DatasetPath": {
+										"value": "@pipeline().parameters.MessageDatasetFolder",
+										"type": "Expression"
+									},
+									"PipelineID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "CopyUserData",
+						"description": "Copy user data from Office 365",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "Office365Source",
+								"userScopeFilterUri": "",
+								"outputColumns": [
+									{
+										"name": "aboutMe"
+									},
+									{
+										"name": "accountEnabled"
+									},
+									{
+										"name": "ageGroup"
+									},
+									{
+										"name": "assignedLicenses"
+									},
+									{
+										"name": "assignedPlans"
+									},
+									{
+										"name": "birthday"
+									},
+									{
+										"name": "businessPhones"
+									},
+									{
+										"name": "city"
+									},
+									{
+										"name": "companyName"
+									},
+									{
+										"name": "consentProvidedForMinor"
+									},
+									{
+										"name": "country"
+									},
+									{
+										"name": "createdDateTime"
+									},
+									{
+										"name": "department"
+									},
+									{
+										"name": "displayName"
+									},
+									{
+										"name": "givenName"
+									},
+									{
+										"name": "hireDate"
+									},
+									{
+										"name": "id"
+									},
+									{
+										"name": "imAddresses"
+									},
+									{
+										"name": "interests"
+									},
+									{
+										"name": "jobTitle"
+									},
+									{
+										"name": "legalAgeGroupClassification"
+									},
+									{
+										"name": "mail"
+									},
+									{
+										"name": "mailNickname"
+									},
+									{
+										"name": "mobilePhone"
+									},
+									{
+										"name": "mySite"
+									},
+									{
+										"name": "officeLocation"
+									},
+									{
+										"name": "onPremisesImmutableId"
+									},
+									{
+										"name": "onPremisesLastSyncDateTime"
+									},
+									{
+										"name": "onPremisesSecurityIdentifier"
+									},
+									{
+										"name": "onPremisesSyncEnabled"
+									},
+									{
+										"name": "passwordPolicies"
+									},
+									{
+										"name": "pastProjects"
+									},
+									{
+										"name": "postalCode"
+									},
+									{
+										"name": "preferredLanguage"
+									},
+									{
+										"name": "preferredName"
+									},
+									{
+										"name": "provisionedPlans"
+									},
+									{
+										"name": "proxyAddresses"
+									},
+									{
+										"name": "responsibilities"
+									},
+									{
+										"name": "schools"
+									},
+									{
+										"name": "skills"
+									},
+									{
+										"name": "state"
+									},
+									{
+										"name": "streetAddress"
+									},
+									{
+										"name": "surname"
+									},
+									{
+										"name": "usageLocation"
+									},
+									{
+										"name": "userPrincipalName"
+									},
+									{
+										"name": "userType"
+									}
+								]
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Office365UserTable",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureDataLakeStorageGen2",
+								"type": "DatasetReference",
+								"parameters": {
+									"OfficeDataFileSystem": {
+										"value": "@pipeline().parameters.OfficeDataFileSystem",
+										"type": "Expression"
+									},
+									"DatasetPath": {
+										"value": "@pipeline().parameters.UserDatasetFolder",
+										"type": "Expression"
+									},
+									"PipelineID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "JsonToCdm",
+						"type": "HDInsightSpark",
+						"dependsOn": [
+							{
+								"activity": "CopyMessageData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "CopyUserData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "CopyManagerData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "CopyEventData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"rootPath": {
+								"value": "@pipeline().parameters.ScriptFileSystem",
+								"type": "Expression"
+							},
+							"entryFilePath": {
+								"value": "@pipeline().parameters.PyScriptName",
+								"type": "Expression"
+							},
+							"arguments": [
+								"@pipeline().parameters.OfficeDataFileSystem",
+								"@pipeline().parameters.StorageAccountName",
+								"@pipeline().parameters.AppID",
+								"@pipeline().parameters.AppKey",
+								"@pipeline().parameters.TenantId",
+								"@pipeline().parameters.CdmDataFileSystem",
+								"@pipeline().parameters.CdmModelName",
+								"@pipeline().RunId",
+								"@pipeline().parameters.EventDatasetFolder",
+								"@pipeline().parameters.ManagerDatasetFolder",
+								"@pipeline().parameters.MessageDatasetFolder",
+								"@pipeline().parameters.UserDatasetFolder"
+							],
+							"sparkJobLinkedService": {
+								"referenceName": "[parameters('AzureDataLakeStorageGen2Account')]",
+								"type": "LinkedServiceReference"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('HDInsightCluster')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"parameters": {
+					"OfficeDataFileSystem": {
+						"type": "string",
+						"defaultValue": "officeDataFileSystem"
+					},
+					"DataStartTime": {
+						"type": "string"
+					},
+					"DataEndTime": {
+						"type": "string"
+					},
+					"StorageAccountName": {
+						"type": "string"
+					},
+					"AppID": {
+						"type": "string"
+					},
+					"AppKey": {
+						"type": "string"
+					},
+					"TenantId": {
+						"type": "string"
+					},
+					"ScriptFileSystem": {
+						"type": "string",
+						"defaultValue": "scriptFileSystem"
+					},
+					"PyScriptName": {
+						"type": "string",
+						"defaultValue": "jsontocdm.py"
+					},
+					"CdmDataFileSystem": {
+						"type": "string",
+						"defaultValue": "cdmDataFileSystem"
+					},
+					"CdmModelName": {
+						"type": "string",
+						"defaultValue": "O365-data"
+					},
+					"MessageDatasetFolder": {
+						"type": "string",
+						"defaultValue": "message"
+					},
+					"EventDatasetFolder": {
+						"type": "string",
+						"defaultValue": "event"
+					},
+					"UserDatasetFolder": {
+						"type": "string",
+						"defaultValue": "user"
+					},
+					"ManagerDatasetFolder": {
+						"type": "string",
+						"defaultValue": "manager"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/Office365EventTable')]",
+				"[concat(variables('factoryId'), '/datasets/Office365ManagerTable')]",
+				"[concat(variables('factoryId'), '/datasets/Office365MessageTable')]",
+				"[concat(variables('factoryId'), '/datasets/Office365UserTable')]",
+				"[concat(variables('factoryId'), '/datasets/AzureDataLakeStorageGen2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Data storage for Copy and HDInsight",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureDataLakeStorageGen2Account')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"OfficeDataFileSystem": {
+						"type": "string"
+					},
+					"DatasetPath": {
+						"type": "string"
+					},
+					"PipelineID": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@concat(dataset().OfficeDataFileSystem,'/',dataset().PipelineID,'/',dataset().DatasetPath)",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Office365EventTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Office365 Event Table",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureADApplicantion')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Office365Table",
+				"schema": [],
+				"typeProperties": {
+					"tableName": "BasicDataSet_v0.Event_v1"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Office365ManagerTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Office365 Manager Table",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureADApplicantion')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Office365Table",
+				"schema": [],
+				"typeProperties": {
+					"tableName": "BasicDataSet_v0.Manager_v0"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Office365MessageTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Office365 Message Table",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureADApplicantion')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Office365Table",
+				"schema": [],
+				"typeProperties": {
+					"tableName": "BasicDataSet_v0.Message_v1"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Office365UserTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Office365 User Table",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureADApplicantion')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Office365Table",
+				"schema": [],
+				"typeProperties": {
+					"tableName": "BasicDataSet_v0.User_v1"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
