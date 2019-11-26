@@ -412,6 +412,10 @@
 						"fileSystem": {
 							"value": "@dataset().Azure_Storage_fileSystem",
 							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().Azure_Storage_fileSystem",
+							"type": "Expression"
 						}
 					}
 				}

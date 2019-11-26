@@ -9,10 +9,10 @@
 		"SapTable": {
 			"type": "string"
 		},
-		"AdlsGen2": {
+		"AzureBlobStorage_Sink": {
 			"type": "string"
 		},
-		"AzureBlobStorage": {
+		"AzureBlobStorage_Source": {
 			"type": "string"
 		}
 	},
@@ -28,7 +28,7 @@
 				"activities": [
 					{
 						"name": "CopyFromSAPTable",
-						"description": "Copy incremental data from SAP table to ADLS Gen2",
+						"description": "Copy incremental data from SAP table to AzureBlobStorage",
 						"type": "Copy",
 						"dependsOn": [
 							{
@@ -55,10 +55,18 @@
 								},
 								"customRfcReadTableFunctionModule": "",
 								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureBlobFSSink"
-							},
+							},							
+							"sink":{  
+                                "type":"DelimitedTextSink",
+                                "storeSettings":{  
+                                    "type":"AzureBlobStorageWriteSettings"
+                                },
+                                "formatSettings":{  
+                                    "type":"DelimitedTextWriteSettings",
+                                    "quoteAllText":true,
+                                    "fileExtension":".txt"
+                                }
+                            },
 							"enableStaging": false
 						},
 						"inputs": [
@@ -72,23 +80,27 @@
 									}
 								}
 							}
-						],
-						"outputs": [
-							{
-								"referenceName": "AzureDataLakeStorageGen2Sink",
-								"type": "DatasetReference",
-								"parameters": {
-									"ADLSGen2SinkPath": {
-										"value": "@pipeline().parameters.ADLSGen2SinkPath",
-										"type": "Expression"
-									}
-								}
-							}
-						]
+						],		
+						"outputs":[  
+                            {  
+                                "referenceName":"DelimitedTextSink",
+                                "type":"DatasetReference",
+                                "parameters":{  
+                                    "DelimitedTextSinkContainer":{  
+                                        "value":"@pipeline().parameters.DelimitedTextSinkContainer",
+                                        "type":"Expression"
+									},
+									"DelimitedTextSinkDirectory":{  
+                                        "value":"@pipeline().parameters.DelimitedTextSinkDirectory",
+                                        "type":"Expression"
+                                    }
+                                }
+                            }
+                        ]
 					},
 					{
 						"name": "LookupLastCopiedDate",
-						"description": "Copy incremental data from SAP table to ADLS Gen2",
+						"description": "Copy incremental data from SAP table to AzureBlobStorage",
 						"type": "Lookup",
 						"dependsOn": [],
 						"policy": {
@@ -181,9 +193,12 @@
 					"SapTableName": {
 						"type": "string"
 					},
-					"ADLSGen2SinkPath": {
-						"type": "string"
+					"DelimitedTextSinkContainer":{  
+                        "type":"string"
 					},
+					"DelimitedTextSinkDirectory":{  
+                        "type":"string"
+                    },
 					"LogicAppURL": {
 						"type": "string"
 					},
@@ -195,7 +210,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/SAPTableSource_Incremental')]",
-				"[concat(variables('factoryId'), '/datasets/AzureDataLakeStorageGen2Sink')]",
+				"[concat(variables('factoryId'), '/datasets/DelimitedTextSink')]",
 				"[concat(variables('factoryId'), '/datasets/AzureBlobDelimitedDataset')]"
 			]
 		},
@@ -226,38 +241,45 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2Sink')]",
+			"name": "[concat(parameters('factoryName'), '/DelimitedTextSink')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "ADLS Gen2 sink",
+				"description": "DelimitedText sink",
 				"linkedServiceName": {
-					"referenceName": "[parameters('AdlsGen2')]",
+					"referenceName": "[parameters('AzureBlobStorage_Sink')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
-					"ADLSGen2SinkPath": {
+					"DelimitedTextSinkContainer": {
+						"type": "string"
+					},
+					"DelimitedTextSinkDirectory": {
 						"type": "string"
 					}
 				},
 				"annotations": [],
-				"type": "AzureBlobFSFile",
-				"typeProperties": {
-					"format": {
-						"type": "TextFormat",
-						"columnDelimiter": ",",
-						"rowDelimiter": "",
-						"nullValue": "\\N",
-						"treatEmptyAsNull": true,
-						"skipLineCount": 0,
-						"firstRowAsHeader": false
-					},
-					"fileName": "",
-					"folderPath": {
-						"value": "@dataset().ADLSGen2SinkPath",
-						"type": "Expression"
-					}
-				}
+				"type": "DelimitedText",
+				"typeProperties":{  
+                    "location":{  
+                        "type":"AzureBlobStorageLocation",
+                        "container":{  
+                            "value":"@dataset().DelimitedTextSinkContainer",
+                            "type":"Expression"
+						},
+						"folderPath":{  
+                            "value":"@dataset().DelimitedTextSinkDirectory",
+                            "type":"Expression"
+						}
+                    },
+                    "columnDelimiter":",",
+                    "escapeChar":"\\",
+                    "nullValue":"\\N",
+                    "quoteChar":"\""
+                },
+                "schema":[  
+
+                ]
 			},
 			"dependsOn": []
 		},
@@ -267,7 +289,7 @@
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "[parameters('AzureBlobStorage')]",
+					"referenceName": "[parameters('AzureBlobStorage_Source')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
