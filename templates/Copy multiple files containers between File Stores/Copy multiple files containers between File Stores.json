@@ -1,213 +1,234 @@
-{
-	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-	"contentVersion": "1.0.0.0",
-	"parameters": {
-		"factoryName": {
-			"type": "string",
-			"metadata": "Data Factory Name"
-		},
-		"Source Data Connection": {
-			"type": "string"
-		},
-		"Destination Data Connection": {
-			"type": "string"
-		},
-        "sourceFolderPath_parameter": {
-            "type": "object"
+{  
+    "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion":"1.0.0.0",
+    "parameters":{  
+        "factoryName":{  
+            "type":"string",
+            "metadata":"Data Factory name"
         },
-        "sourceFileName_parameter": {
-            "type": "object"
+        "SourceStore_parameter":{  
+            "type":"object"
         },
-        "sourceS3BucketName_parameter": {
-            "type": "object"
+        "ReadSettings_parameter":{  
+            "type":"string"
         },
-        "sourceS3Key_parameter": {
-            "type": "object"
+        "WriteSettings_parameter":{  
+            "type":"string"
+        },
+        "CopyActivity_inputs_parameter":{  
+            "type":"object"
+        },
+        "CopyActivity_outputs_parameter":{  
+            "type":"object"
+        },
+        "DataSourceConnection":{  
+            "type":"string"
+        },
+        "DataDestinationConnection":{  
+            "type":"string"
+        },
+        "SourceStore_location_parameter":{  
+            "type":"object"
+        },
+        "SourceFileStore_parameter":{  
+            "type":"string"
+        },
+        "SinkFileStore_parameter":{  
+            "type":"string"
+        },
+        "DestinationStore_location_parameter":{  
+            "type":"object"
         }
-	},
-	"variables": {
-		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
-	},
-	"resources": [
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyFilesfromMultipleContainers')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Copy all files across multiple containers or buckets from one file-based storage store to another",
-				"activities": [
-					{
-						"name": "EnumerateContainersList",
-						"description": "Scan the file path on your source storage store and get the container list.",
-						"type": "GetMetadata",
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "SourceFileStore",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.SourceFilePath",
-										"type": "Expression"
-									}
-								}
-							},
-							"fieldList": [
-								"childItems"
-							]
-						}
-					},
-					{
-						"name": "ForEachContainer",
-						"description": "Get the container list from Metadata activity and then iterates each of them to Copy activity.",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "EnumerateContainersList",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('EnumerateContainersList').output.childItems",
-								"type": "Expression"
-							},
-							"batchCount": 4,
-							"activities": [
-								{
-									"name": "CopyOneContainer",
-									"description": "Copy each container from source storage store to destination store.",
-									"type": "Copy",
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [
-										{
-											"name": "Source",
-											"value": "@concat(pipeline().parameters.SourceFilePath,'/',item().name)"
-										},
-										{
-											"name": "Destination",
-											"value": "@concat(pipeline().parameters.DestinationFilePath,'/',item().name)"
-										}
-									],
-									"typeProperties": {
-										"source": {
-											"type": "BlobSource",
-											"recursive": true
-										},
-										"sink": {
-											"type": "BlobSink",
-											"copyBehavior": "PreserveHierarchy"
-										},
-										"enableStaging": false,
-										"dataIntegrationUnits": 0
-									},
-									"inputs": [
-										{
-											"referenceName": "SourceFileStore",
-											"type": "DatasetReference",
-											"parameters": {
-												"folder": {
-													"value": "@concat(pipeline().parameters.SourceFilePath,'/',item().name)",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "SinkFileStore",
-											"type": "DatasetReference",
-											"parameters": {
-												"folder": {
-													"value": "@concat(pipeline().parameters.DestinationFilePath,'/',item().name)",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"parameters": {
-					"SourceFilePath": {
-						"type": "String",
-						"defaultValue": "/"
-					},
-					"DestinationFilePath": {
-						"type": "String",
-						"defaultValue": "/"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/SourceFileStore')]",
-				"[concat(variables('factoryId'), '/datasets/SinkFileStore')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SourceFileStore')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Connection to your source data store.",
-				"linkedServiceName": {
-					"referenceName": "[parameters('Source Data Connection')]",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"folder": {
-						"type": "String"
-					}
-				},
-				"type": "AzureBlob",
-				"typeProperties": {
-                    "key": "[parameters('sourceS3Key_parameter')]",
-                    "bucketName": "[parameters('sourceS3BucketName_parameter')]",
-					"fileName": "[parameters('sourceFileName_parameter')]",
-					"folderPath": "[parameters('sourceFolderPath_parameter')]"
-				}
-			}
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SinkFileStore')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Connection to your destination data store.",
-				"linkedServiceName": {
-					"referenceName": "[parameters('Destination Data Connection')]",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"folder": {
-						"type": "String"
-					}
-				},
-				"type": "AzureBlob",
-				"typeProperties": {
-					"fileName": "",
-					"folderPath": {
-						"value": "@dataset().folder",
-						"type": "Expression"
-					}
-				}
-			}
-		}
-	]
+    },
+    "variables":{  
+        "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources":[  
+        {  
+            "name":"[concat(parameters('factoryName'), '/CopyFilesfromMultipleContainers')]",
+            "type":"Microsoft.DataFactory/factories/pipelines",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Scan the file path on your source storage store and get the container list.",
+                "activities":[  
+                    {  
+                        "name":"EnumerateContainersList",
+                        "type":"GetMetadata",
+                        "dependsOn":[  
+
+                        ],
+                        "policy":{  
+                            "timeout":"7.00:00:00",
+                            "retry":0,
+                            "retryIntervalInSeconds":30,
+                            "secureOutput":false,
+                            "secureInput":false
+                        },
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "dataset":{  
+                                "referenceName":"BinarySourceFileStore",
+                                "type":"DatasetReference",
+                                "parameters":"[parameters('SourceStore_parameter')]"
+                            },
+                            "fieldList":[  
+                                "childItems"
+                            ],
+                            "storeSettings":{  
+                                "type":"[parameters('ReadSettings_parameter')]",
+                                "recursive":true
+                            }
+                        }
+                    },
+                    {  
+                        "name":"ForEachContainer",
+                        "description":"Get the container list from Metadata activity and then iterates each of them to Copy activity.",
+                        "type":"ForEach",
+                        "dependsOn":[  
+                            {  
+                                "activity":"EnumerateContainersList",
+                                "dependencyConditions":[  
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "items":{  
+                                "value":"@activity('EnumerateContainersList').output.childItems",
+                                "type":"Expression"
+                            },
+                            "batchCount":4,
+                            "activities":[  
+                                {  
+                                    "name":"CopyOneContainer",
+                                    "description":"Copy each container from source storage store to destination store.",
+                                    "type":"Copy",
+                                    "dependsOn":[  
+
+                                    ],
+                                    "policy":{  
+                                        "timeout":"7.00:00:00",
+                                        "retry":0,
+                                        "retryIntervalInSeconds":30,
+                                        "secureOutput":false,
+                                        "secureInput":false
+                                    },
+                                    "userProperties":[  
+
+                                    ],
+                                    "typeProperties":{  
+                                        "source":{  
+                                            "type":"BinarySource",
+                                            "storeSettings":{  
+                                                "type":"[parameters('ReadSettings_parameter')]",
+                                                "recursive":true
+                                            }
+                                        },
+                                        "sink":{  
+                                            "type":"BinarySink",
+                                            "storeSettings":{  
+                                                "type":"[parameters('WriteSettings_parameter')]",
+                                                "copyBehavior":"PreserveHierarchy"
+                                            }
+                                        },
+                                        "enableStaging":false
+                                    },
+                                    "inputs":[  
+                                        {  
+                                            "referenceName":"BinarySourceFileStore",
+                                            "type":"DatasetReference",
+                                            "parameters":"[parameters('CopyActivity_inputs_parameter')]"
+                                        }
+                                    ],
+                                    "outputs":[  
+                                        {  
+                                            "referenceName":"BinarySinkFileStore",
+                                            "type":"DatasetReference",
+                                            "parameters":"[parameters('CopyActivity_outputs_parameter')]"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "parameters":{  
+                    "SourceFileFolder":{  
+                        "type":"string",
+                        "defaultValue":"sourcefolder"
+                    },
+                    "SourceFileDirectory":{  
+                        "type":"string",
+                        "defaultValue":"subfolder"
+                    },
+                    "DestinationFileFolder":{  
+                        "type":"string",
+                        "defaultValue":"destinationfolder"
+                    },
+                    "DestinationFileDirectory":{  
+                        "type":"string",
+                        "defaultValue":"subfolder"
+                    }
+                },
+                "annotations":[  
+
+                ]
+            },
+            "dependsOn":[  
+                "[concat(variables('factoryId'), '/datasets/BinarySourceFileStore')]",
+                "[concat(variables('factoryId'), '/datasets/BinarySinkFileStore')]"
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinarySourceFileStore')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Connection to your source data store.",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataSourceConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('SourceFileStore_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('SourceStore_location_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinarySinkFileStore')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Connection to your destination data store.",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataDestinationConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('SinkFileStore_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('DestinationStore_location_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        }
+    ]
 }
