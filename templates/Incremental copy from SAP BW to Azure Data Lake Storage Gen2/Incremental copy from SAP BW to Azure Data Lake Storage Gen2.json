@@ -1,286 +1,338 @@
-{
-	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-	"contentVersion": "1.0.0.0",
-	"parameters": {
-		"factoryName": {
-			"type": "string",
-			"metadata": "Data Factory Name"
+{  
+	"$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion":"1.0.0.0",
+	"parameters":{  
+		"factoryName":{  
+			"type":"string",
+			"metadata":"Data Factory Name"
 		},
-		"Azure Blob Storage Connection": {
-			"type": "string"
+		"Azure Blob Storage Connection":{  
+			"type":"string"
 		},
-		"SAP BW Open Hub Connection": {
-			"type": "string"
+		"SAP BW Open Hub Connection":{  
+			"type":"string"
 		},
-		"Azure Data Lake Storage Gen2 Connection": {
-			"type": "string"
+		"Azure Data Lake Storage Gen2 Connection":{  
+			"type":"string"
+		},
+		"storeSettings_parameter":{  
+			"type":"object"
 		}
 	},
-	"variables": {
-		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	"variables":{  
+		"factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
-	"resources": [
-		{
-			"name": "[concat(parameters('factoryName'), '/IncrementalCopyFromSAPBWOpenHub')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Copy incremental data from SAP BW Open Hub table to ADLS Gen2",
-				"activities": [
-					{
-						"name": "LookupLastRequestId",
-						"description": "Retrieve the last max copied request ID stored in blob",
-						"type": "Lookup",
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
+	"resources":[  
+		{  
+			"name":"[concat(parameters('factoryName'), '/IncrementalCopyFromSAPBWOpenHub')]",
+			"type":"Microsoft.DataFactory/factories/pipelines",
+			"apiVersion":"2018-06-01",
+			"properties":{  
+				"description":"Copy incremental data from SAP BW Open Hub table to ADLS Gen2",
+				"activities":[  
+					{  
+						"name":"LookupLastRequestId",
+						"description":"Retrieve the last max copied request ID stored in blob",
+						"type":"Lookup",
+						"policy":{  
+							"timeout":"7.00:00:00",
+							"retry":0,
+							"retryIntervalInSeconds":30,
+							"secureOutput":false,
+							"secureInput":false
 						},
-						"typeProperties": {
-							"source": {
-								"type": "BlobSource",
-								"recursive": false
+						"typeProperties":{  
+							"source":{  
+								"type":"DelimitedTextSource",
+								"storeSettings":{  
+									"type":"AzureBlobStorageReadSettings",
+									"recursive":true,
+									"wildcardFileName":"*"
+								},
+								"formatSettings":{  
+									"type":"DelimitedTextReadSettings"
+								}
 							},
-							"dataset": {
-								"referenceName": "AzureBlobDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"HighWatermarkBlobPath": {
-										"value": "@pipeline().parameters.HighWatermarkBlobPath",
-										"type": "Expression"
+							"dataset":{  
+								"referenceName":"DelimitedTextDataset",
+								"type":"DatasetReference",
+								"parameters":{  
+									"HighWatermarkBlobContainer":{  
+										"value":"@pipeline().parameters.HighWatermarkBlobContainer",
+										"type":"Expression"
 									},
-									"HighWatermarkBlobName": {
-										"value": "@pipeline().parameters.HighWatermarkBlobName",
-										"type": "Expression"
+									"HighWatermarkBlobDirectory":{  
+										"value":"@pipeline().parameters.HighWatermarkBlobDirectory",
+										"type":"Expression"
+									},
+									"HighWatermarkBlobName":{  
+										"value":"@pipeline().parameters.HighWatermarkBlobName",
+										"type":"Expression"
 									}
 								}
 							}
 						}
 					},
-					{
-						"name": "CopyFromSAPBWOpenHub",
-						"description": "Copy incremental data from SAP BW Open Hub table to ADLS Gen2",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "LookupLastRequestId",
-								"dependencyConditions": [
+					{  
+						"name":"CopyFromSAPBWOpenHub",
+						"description":"Copy incremental data from SAP BW Open Hub table to ADLS Gen2",
+						"type":"Copy",
+						"dependsOn":[  
+							{  
+								"activity":"LookupLastRequestId",
+								"dependencyConditions":[  
 									"Succeeded"
 								]
 							}
 						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
+						"policy":{  
+							"timeout":"7.00:00:00",
+							"retry":0,
+							"retryIntervalInSeconds":30,
+							"secureOutput":false,
+							"secureInput":false
 						},
-						"typeProperties": {
-							"source": {
-								"type": "SapOpenHubSource"
+						"typeProperties":{  
+							"source":{  
+								"type":"SapOpenHubSource",
+								"excludeLastRequest":true,
+								"baseRequestId":{  
+									"value":"@pipeline().parameters.BaseReqeustId",
+									"type":"Expression"
+								}
 							},
-							"sink": {
-								"type": "AzureBlobFSSink"
+							"sink":{  
+								"type":"DelimitedTextSink",
+								"storeSettings":{  
+									"type":"AzureBlobFSWriteSettings"
+								},
+								"formatSettings":{  
+									"type":"DelimitedTextWriteSettings",
+									"quoteAllText":true,
+									"fileExtension":".txt"
+								}
 							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 0
+							"enableStaging":false,
+							"dataIntegrationUnits":0
 						},
-						"inputs": [
-							{
-								"referenceName": "SAPOHDSource_Incremental",
-								"type": "DatasetReference",
-								"parameters": {
-									"BaseReqeustId": {
-										"value": "@activity('LookupLastRequestId').output.firstRow.Prop_0",
-										"type": "Expression"
+						"inputs":[  
+							{  
+								"referenceName":"SAPOHDSource_Incremental",
+								"type":"DatasetReference",
+								"parameters":{  
+									"BaseReqeustId":{  
+										"value":"@activity('LookupLastRequestId').output.firstRow.Prop_0",
+										"type":"Expression"
 									},
-									"SAPOpenHubDestinationName": {
-										"value": "@pipeline().parameters.SAPOpenHubDestinationName",
-										"type": "Expression"
+									"SAPOpenHubDestinationName":{  
+										"value":"@pipeline().parameters.SAPOpenHubDestinationName",
+										"type":"Expression"
 									}
 								}
 							}
 						],
-						"outputs": [
-							{
-								"referenceName": "AzureDataLakeStorageGen2Sink",
-								"type": "DatasetReference",
-								"parameters": {
-									"ADLSGen2SinkPath": {
-										"value": "@pipeline().parameters.ADLSGen2SinkPath",
-										"type": "Expression"
+						"outputs":[  
+							{  
+								"referenceName":"AzureDataLakeStorageGen2Sink",
+								"type":"DatasetReference",
+								"parameters":{  
+									"Data_Destination_Container":{  
+										"value":"@pipeline().parameters.Data_Destination_Container",
+										"type":"Expression"
+									},
+									"Data_Destination_Directory":{  
+										"value":"@pipeline().parameters.Data_Destination_Directory",
+										"type":"Expression"
 									}
 								}
 							}
 						]
 					},
-					{
-						"name": "SetMaxCopiedRequestId",
-						"description": "Store the latest max copied request ID into blob by calling Logic App",
-						"type": "WebActivity",
-						"dependsOn": [
-							{
-								"activity": "CopyFromSAPBWOpenHub",
-								"dependencyConditions": [
+					{  
+						"name":"SetMaxCopiedRequestId",
+						"description":"Store the latest max copied request ID into blob by calling Logic App",
+						"type":"WebActivity",
+						"dependsOn":[  
+							{  
+								"activity":"CopyFromSAPBWOpenHub",
+								"dependencyConditions":[  
 									"Succeeded"
 								]
 							}
 						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
+						"policy":{  
+							"timeout":"7.00:00:00",
+							"retry":0,
+							"retryIntervalInSeconds":30,
+							"secureOutput":false,
+							"secureInput":false
 						},
-						"typeProperties": {
-							"url": {
-								"value": "@pipeline().parameters.LogicAppURL",
-								"type": "Expression"
+						"typeProperties":{  
+							"url":{  
+								"value":"@pipeline().parameters.LogicAppURL",
+								"type":"Expression"
 							},
-							"method": "POST",
-							"headers": {
-								"Content-Type": "application/json"
+							"method":"POST",
+							"headers":{  
+								"Content-Type":"application/json"
 							},
-							"body": {
-								"value": "{\"sapOpenHubMaxRequestId\":\"@{activity('CopyFromSAPBWOpenHub').output.sapOpenHubMaxRequestId}\"}",
-								"type": "Expression"
-							}
+							"body":{  
+								"value":"{\"sapOpenHubMaxRequestId\":\"@{activity('CopyFromSAPBWOpenHub').output.sapOpenHubMaxRequestId}\"}",
+								"type":"Expression"
+							},
+							"linkedServices": [],
+							"datasets": []
 						}
 					}
 				],
-				"parameters": {
-					"SAPOpenHubDestinationName": {
-						"type": "String"
+				"parameters":{  
+					"SAPOpenHubDestinationName":{  
+						"type":"String"
 					},
-					"ADLSGen2SinkPath": {
-						"type": "String"
+					"Data_Destination_Container":{  
+						"type":"String"
 					},
-					"HighWatermarkBlobPath": {
-						"type": "String"
+					"Data_Destination_Directory":{  
+						"type":"String"
 					},
-					"HighWatermarkBlobName": {
-						"type": "String"
+					"HighWatermarkBlobContainer":{  
+						"type":"String"
 					},
-					"LogicAppURL": {
-						"type": "String"
+					"HighWatermarkBlobDirectory":{  
+						"type":"String"
+					},
+					"HighWatermarkBlobName":{  
+						"type":"String"
+					},
+					"LogicAppURL":{  
+						"type":"String"
+					},
+					"BaseReqeustId":{  
+						"type":"int"
 					}
 				}
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/AzureBlobDataset')]",
+			"dependsOn":[  
+				"[concat(variables('factoryId'), '/datasets/DelimitedTextDataset')]",
 				"[concat(variables('factoryId'), '/datasets/SAPOHDSource_Incremental')]",
 				"[concat(variables('factoryId'), '/datasets/AzureDataLakeStorageGen2Sink')]"
 			]
 		},
-		{
-			"name": "[concat(parameters('factoryName'), '/AzureBlobDataset')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Blob to store the max copied request ID from SAP BW Open Hub table as high watermark",
-				"linkedServiceName": {
-					"referenceName": "[parameters('Azure Blob Storage Connection')]",
-					"type": "LinkedServiceReference"
+		{  
+			"name":"[concat(parameters('factoryName'), '/DelimitedTextDataset')]",
+			"type":"Microsoft.DataFactory/factories/datasets",
+			"apiVersion":"2018-06-01",
+			"properties":{  
+				"description":"Blob to store the max copied request ID from SAP BW Open Hub table as high watermark",
+				"linkedServiceName":{  
+					"referenceName":"[parameters('Azure Blob Storage Connection')]",
+					"type":"LinkedServiceReference"
 				},
-				"parameters": {
-					"HighWatermarkBlobPath": {
-						"type": "String"
+				"parameters":{  
+					"HighWatermarkBlobContainer":{  
+						"type":"String"
 					},
-					"HighWatermarkBlobName": {
-						"type": "String"
+					"HighWatermarkBlobDirectory":{  
+						"type":"String"
+					},
+					"HighWatermarkBlobName":{  
+						"type":"String"
 					}
 				},
-				"type": "AzureBlob",
-				"typeProperties": {
-					"format": {
-						"type": "TextFormat",
-						"columnDelimiter": ",",
-						"rowDelimiter": "",
-						"nullValue": "\\N",
-						"treatEmptyAsNull": true,
-						"skipLineCount": 0,
-						"firstRowAsHeader": false
+				"annotations":[  
+  
+				],
+				"type":"DelimitedText",
+				"typeProperties":{  
+					"location":{  
+						"type":"AzureBlobStorageLocation",
+						"fileName":{  
+							"value":"@dataset().HighWatermarkBlobName",
+							"type":"Expression"
+						},
+						"folderPath":{  
+							"value":"@dataset().HighWatermarkBlobDirectory",
+							"type":"Expression"
+						},
+						"container":{  
+							"value":"@dataset().HighWatermarkBlobContainer",
+							"type":"Expression"
+						}
 					},
-					"fileName": {
-						"value": "@dataset().HighWatermarkBlobName",
-						"type": "Expression"
+					"columnDelimiter":",",
+					"escapeChar":"\\",
+					"quoteChar":"\""
+				},
+				"schema":[  
+  
+				]
+			}
+		},
+		{  
+			"name":"[concat(parameters('factoryName'), '/SAPOHDSource_Incremental')]",
+			"type":"Microsoft.DataFactory/factories/datasets",
+			"apiVersion":"2018-06-01",
+			"properties":{  
+				"description":"SAP BW Open Hub table source",
+				"linkedServiceName":{  
+					"referenceName":"[parameters('SAP BW Open Hub Connection')]",
+					"type":"LinkedServiceReference"
+				},
+				"parameters":{  
+					"BaseReqeustId":{  
+						"type":"Int"
 					},
-					"folderPath": {
-						"value": "@dataset().HighWatermarkBlobPath",
-						"type": "Expression"
+					"SAPOpenHubDestinationName":{  
+						"type":"String"
+					}
+				},
+				"annotations":[  
+  
+				],
+				"type":"SapOpenHubTable",
+				"schema":[  
+  
+				],
+				"typeProperties":{  
+					"openHubDestinationName":{  
+						"value":"@dataset().SAPOpenHubDestinationName",
+						"type":"Expression"
 					}
 				}
 			}
 		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SAPOHDSource_Incremental')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "SAP BW Open Hub table source",
-				"linkedServiceName": {
-					"referenceName": "[parameters('SAP BW Open Hub Connection')]",
-					"type": "LinkedServiceReference"
+		{  
+			"name":"[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2Sink')]",
+			"type":"Microsoft.DataFactory/factories/datasets",
+			"apiVersion":"2018-06-01",
+			"properties":{  
+				"description":"ADLS Gen2 sink",
+				"linkedServiceName":{  
+					"referenceName":"[parameters('Azure Data Lake Storage Gen2 Connection')]",
+					"type":"LinkedServiceReference"
 				},
-				"parameters": {
-					"BaseReqeustId": {
-						"type": "Int"
+				"parameters":{  
+					"Data_Destination_Container":{  
+						"type":"String"
 					},
-					"SAPOpenHubDestinationName": {
-						"type": "String"
+					"Data_Destination_Directory":{  
+						"type":"String"
 					}
 				},
-				"type": "SapOpenHubTable",
-				"typeProperties": {
-					"openHubDestinationName": {
-						"value": "@dataset().SAPOpenHubDestinationName",
-						"type": "Expression"
-					},
-					"excludeLastRequest": true,
-					"baseRequestId": {
-						"value": "@dataset().BaseReqeustId",
-						"type": "Expression"
-					}
-				}
-			}
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2Sink')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "ADLS Gen2 sink",
-				"linkedServiceName": {
-					"referenceName": "[parameters('Azure Data Lake Storage Gen2 Connection')]",
-					"type": "LinkedServiceReference"
+				"annotations":[  
+  
+				],
+				"type":"DelimitedText",
+				"typeProperties":{  
+					"location":"[parameters('storeSettings_parameter')]",
+					"columnDelimiter":",",
+					"escapeChar":"\\",
+					"quoteChar":"\""
 				},
-				"parameters": {
-					"ADLSGen2SinkPath": {
-						"type": "String"
-					}
-				},
-				"type": "AzureBlobFSFile",
-				"typeProperties": {
-					"format": {
-						"type": "TextFormat",
-						"columnDelimiter": ",",
-						"rowDelimiter": "",
-						"nullValue": "\\N",
-						"treatEmptyAsNull": true,
-						"skipLineCount": 0,
-						"firstRowAsHeader": true
-					},
-					"fileName": "data.csv",
-					"folderPath": {
-						"value": "@dataset().ADLSGen2SinkPath",
-						"type": "Expression"
-					}
-				}
+				"schema":[  
+  
+				]
 			}
 		}
 	]
-}
+  }
