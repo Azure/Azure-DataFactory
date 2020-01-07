@@ -1,0 +1,211 @@
+{  
+    "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion":"1.0.0.0",
+    "parameters":{  
+       "factoryName":{  
+          "type":"string",
+          "metadata":"Data Factory name"
+       },
+       "SourceConnection":{  
+          "type":"string"
+       },
+       "DestinationConnection":{  
+          "type":"string"
+       }
+    },
+    "variables":{  
+       "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources":[  
+       {  
+          "name":"[concat(parameters('factoryName'), '/Copy from REST connector into ADLS Gen2')]",
+          "type":"Microsoft.DataFactory/factories/pipelines",
+          "apiVersion":"2018-06-01",
+          "properties":{  
+             "activities":[  
+                {  
+                   "name":"CopyData",
+                   "type":"Copy",
+                   "dependsOn":[  
+                      {  
+                         "activity":"GetBearerToken",
+                         "dependencyConditions":[  
+                            "Succeeded"
+                         ]
+                      }
+                   ],
+                   "policy":{  
+                      "timeout":"7.00:00:00",
+                      "retry":0,
+                      "retryIntervalInSeconds":30,
+                      "secureOutput":false,
+                      "secureInput":false
+                   },
+                   "userProperties":[  
+ 
+                   ],
+                   "typeProperties":{  
+                      "source":{  
+                         "type":"RestSource",
+                         "httpRequestTimeout":"00:01:40",
+                         "requestInterval":"00.00:00:00.010",
+                         "requestMethod":"GET",
+                         "additionalHeaders":{  
+                            "Authorization":{  
+                               "value":"@concat('Bearer ',activity('GetBearerToken').output.access_token)",
+                               "type":"Expression"
+                            }
+                         }
+                      },
+                      "sink":{  
+                         "type":"JsonSink",
+                         "storeSettings":{  
+                            "type":"AzureBlobFSWriteSettings"
+                         },
+                         "formatSettings":{  
+                            "type":"JsonWriteSettings",
+                            "quoteAllText":true
+                         }
+                      },
+                      "enableStaging":false
+                   },
+                   "inputs":[  
+                      {  
+                         "referenceName":"RestResource",
+                         "type":"DatasetReference",
+                         "parameters":{  
+ 
+                         }
+                      }
+                   ],
+                   "outputs":[  
+                      {  
+                         "referenceName":"SinkDataset",
+                         "type":"DatasetReference",
+                         "parameters":{  
+                            "Container":{  
+                               "value":"@pipeline().parameters.SinkContainer",
+                               "type":"Expression"
+                            },
+                            "Directory":{  
+                               "value":"@pipeline().parameters.SinkDirectory",
+                               "type":"Expression"
+                            }
+                         }
+                      }
+                   ]
+                },
+                {  
+                   "name":"GetBearerToken",
+                   "description": "Use this Web activity to get bearer token",
+                   "type":"WebActivity",
+                   "dependsOn":[  
+ 
+                   ],
+                   "policy":{  
+                      "timeout":"7.00:00:00",
+                      "retry":0,
+                      "retryIntervalInSeconds":30,
+                      "secureOutput":false,
+                      "secureInput":false
+                   },
+                   "userProperties":[  
+ 
+                   ],
+                   "typeProperties":{  
+                      "url":"https://login.microsoftonline.com/microsoft.onmicrosoft.com/oauth2/token",
+                      "method":"POST",
+                      "headers":{  
+                         "Content-Type":"application/x-www-form-urlencoded"
+                      },
+                      "body":"grant_type=client_credentials&client_id=<service principal ID>&resource=<your resource>&client_secret=<service principal key>"
+                   }
+                }
+             ],
+             "parameters":{  
+                "SinkContainer":{  
+                   "type":"string" 
+                },
+                "SinkDirectory":{  
+                   "type":"string"
+                }
+             },
+             "annotations":[  
+ 
+             ]
+          },
+          "dependsOn":[  
+             "[concat(variables('factoryId'), '/datasets/RestResource')]",
+             "[concat(variables('factoryId'), '/datasets/SinkDataset')]"
+          ]
+       },
+       {  
+          "name":"[concat(parameters('factoryName'), '/RestResource')]",
+          "type":"Microsoft.DataFactory/factories/datasets",
+          "apiVersion":"2018-06-01",
+          "properties":{  
+             "linkedServiceName":{  
+                "referenceName":"[parameters('SourceConnection')]",
+                "type":"LinkedServiceReference"
+             },
+             "description": "Connection to your REST/HTTP",
+             "annotations":[  
+ 
+             ],
+             "type":"RestResource",
+             "typeProperties":{  
+ 
+             },
+             "schema":[  
+ 
+             ]
+          },
+          "dependsOn":[  
+ 
+          ]
+       },
+       {  
+          "name":"[concat(parameters('factoryName'), '/SinkDataset')]",
+          "type":"Microsoft.DataFactory/factories/datasets",
+          "apiVersion":"2018-06-01",
+          "properties":{  
+             "linkedServiceName":{  
+                "referenceName":"[parameters('DestinationConnection')]",
+                "type":"LinkedServiceReference"
+             },
+             "description": "Connection to your Azure Data Lake Store",
+             "parameters":{  
+                "Container":{  
+                   "type":"string"
+                },
+                "Directory":{  
+                   "type":"string"
+                }
+             },
+             "annotations":[  
+ 
+             ],
+             "type":"Json",
+             "typeProperties":{  
+                "location":{  
+                   "type":"AzureBlobFSLocation",
+                   "folderPath":{  
+                      "value":"@dataset().Directory",
+                      "type":"Expression"
+                   },
+                   "fileSystem":{  
+                      "value":"@dataset().Container",
+                      "type":"Expression"
+                   }
+                }
+             },
+             "schema":{  
+ 
+             }
+          },
+          "dependsOn":[  
+ 
+          ]
+       }
+    ]
+ }
