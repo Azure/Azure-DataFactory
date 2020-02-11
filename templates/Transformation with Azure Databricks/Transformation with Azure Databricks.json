@@ -21,11 +21,11 @@
     },
     "resources": [
         {
-            "name": "[concat(parameters('factoryName'), '/ETL with Azure Databricks')]",
+            "name": "[concat(parameters('factoryName'), '/Transformation with Azure Databricks')]",
             "type": "Microsoft.DataFactory/factories/pipelines",
             "apiVersion": "2018-06-01",
             "properties": {
-                "description": "Run a simple ETL job using Azure Databricks, with a single pane of glass monitoring from ADF.\n\nIn the template, we check for source dataset availability. Once it is available we copy it into a blob storage for staging using a Copy activity. The same storage is accessed from Databricks clusters while processing the data (ETL). The output is stored in the same storage under 'output' folder. Various notebook properties are referenced as expressions using pipeline parameters, which lets you configure more generic and reusable pipelines.",
+                "description": "Run a simple Transformation job using Azure Databricks, with a single pane of glass monitoring from ADF.\n\nIn the template, we check for source dataset availability. Once it is available we copy it into a blob storage for staging using a Copy activity. The same storage is accessed from Databricks clusters while processing the data (Transformation). The output is stored in the same storage under 'output' folder. Various notebook properties are referenced as expressions using pipeline parameters, which lets you configure more generic and reusable pipelines.",
                 "activities": [
                     {
                         "name": "Availability flag",
@@ -105,7 +105,7 @@
                         ]
                     },
                     {
-                        "name": "ETL",
+                        "name": "Transformation",
                         "description": "Databricks Notebook activity does the processing of the data copied in the previous step (copy activity).  Please ensure you have added the databricks notebook (<a href='https://adflabstaging1.blob.core.windows.net/share/Transformations.html' target='_blank'>https://adflabstaging1.blob.core.windows.net/share/Transformations.html</a>) in the databricks work-space and referenced it in the notebook activity in ADF.",
                         "type": "DatabricksNotebook",
                         "dependsOn": [
