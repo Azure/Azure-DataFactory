@@ -8,11 +8,11 @@
 	],
 	"requires": {
 		"linkedservices": {
-			"PerlovskyBlob": {
+			"BlobStorage": {
 				"supportTypes": [
 					"AzureBlobStorage",
 					"AzureBlobFS",
-					"AzureDataLakeStore",
+					"AzureDataLakeStore"
 				]
 			}
 		}

@@ -6,7 +6,7 @@
 			"type": "string",
 			"metadata": "Data Factory name"
 		},
-		"PerlovskyBlob": {
+		"BlobStorage": {
 			"type": "string"
 		}
 	},
@@ -155,7 +155,7 @@
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "[parameters('PerlovskyBlob')]",
+					"referenceName": "[parameters('BlobStorage')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
