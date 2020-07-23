@@ -1,0 +1,1200 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        },
+        "EMA1Dynamics1": {
+            "type": "string"
+        },
+        "AZStorage": {
+            "type": "string"
+        },
+        "EMEA1AdobeIOBi": {
+            "type": "string"
+        },
+        "DynamicsRest1": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/CustomResourceMaster_NotForRun')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Execute Pipeline1",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "InitialLoadFromD365ToACS",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    },
+                    {
+                        "name": "Execute Pipeline2",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Pipeline1",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "CustomResourceWriteToACS",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    },
+                    {
+                        "name": "Execute Pipeline3",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Pipeline2",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "CustomResourceGetChangesFromD365",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    }
+                ],
+                "folder": {
+                    "name": "CustomResource"
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/pipelines/InitialLoadFromD365ToACS')]",
+                "[concat(variables('factoryId'), '/pipelines/CustomResourceWriteToACS')]",
+                "[concat(variables('factoryId'), '/pipelines/CustomResourceGetChangesFromD365')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/InitialLoadFromD365ToACS')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "D365ToCSV",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DynamicsSource",
+                                "query": {
+                                    "value": "<fetch><entity name=\"@{pipeline().parameters.resourceName}\"><all-attributes/></entity></fetch>",
+                                    "type": "Expression"
+                                }
+                            },
+                            "sink": {
+                                "type": "DelimitedTextSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "DelimitedTextWriteSettings",
+                                    "quoteAllText": true,
+                                    "fileExtension": ".txt"
+                                }
+                            },
+                            "enableStaging": false
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "D365Source",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "sourceEntityName": {
+                                        "value": "@pipeline().parameters.resourceName",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "InitialLoadStorageSink",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "subPath": {
+                                        "value": "@pipeline().parameters.resourceName",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "parameters": {
+                    "resourceName": {
+                        "type": "string",
+                        "defaultValue": "new_store"
+                    }
+                },
+                "folder": {
+                    "name": "CustomResource"
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/D365Source')]",
+                "[concat(variables('factoryId'), '/datasets/InitialLoadStorageSink')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/CustomResourceWriteToACS')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "AdobeSyncD365Changes",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "CustomResourceWriteToACS",
+                                "type": "DataFlowReference",
+                                "parameters": {
+                                    "resourceName": {
+                                        "value": "'@{pipeline().parameters.resourceName}'",
+                                        "type": "Expression"
+                                    },
+                                    "acskey": {
+                                        "value": "'@{pipeline().parameters.acsKey}'",
+                                        "type": "Expression"
+                                    },
+                                    "enableDelete": {
+                                        "value": "@pipeline().parameters.enableDelete",
+                                        "type": "Expression"
+                                    },
+                                    "acsResourceName": {
+                                        "value": "'@{pipeline().parameters.acsResourceName}'",
+                                        "type": "Expression"
+                                    }
+                                },
+                                "datasetParameters": {
+                                    "source1": {
+                                        "resourceName": {
+                                            "value": "@pipeline().parameters.resourceName",
+                                            "type": "Expression"
+                                        }
+                                    },
+                                    "CustomResourceDelete": {},
+                                    "WriteToACS": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Delete1",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "AdobeSyncD365Changes",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "D365CustomResourceProcessed",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "resourceName": {
+                                        "value": "@pipeline().parameters.resourceName",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true
+                            }
+                        }
+                    },
+                    {
+                        "name": "Copy data1",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "AdobeSyncD365Changes",
+                                "dependencyConditions": [
+                                    "Failed"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "ParquetSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFolderPath": {
+                                        "value": "@{pipeline().parameters.resourceName}/processed",
+                                        "type": "Expression"
+                                    },
+                                    "wildcardFileName": "*.parquet",
+                                    "enablePartitionDiscovery": false
+                                }
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                }
+                            },
+                            "enableStaging": false
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "D365ChangesCustomResource",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "resourceName": {
+                                        "value": "@pipeline().parameters.resourceName",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "D365ChangesCustomResource",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "resourceName": {
+                                        "value": "@pipeline().parameters.resourceName",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "parameters": {
+                    "enableDelete": {
+                        "type": "bool",
+                        "defaultValue": true
+                    },
+                    "resourceName": {
+                        "type": "string",
+                        "defaultValue": "new_store"
+                    },
+                    "acsKey": {
+                        "type": "string",
+                        "defaultValue": "storeId"
+                    },
+                    "acsResourceName": {
+                        "type": "string",
+                        "defaultValue": "cusStore"
+                    }
+                },
+                "folder": {
+                    "name": "CustomResource"
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/dataflows/CustomResourceWriteToACS')]",
+                "[concat(variables('factoryId'), '/datasets/D365CustomResourceProcessed')]",
+                "[concat(variables('factoryId'), '/datasets/D365ChangesCustomResource')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/CustomResourceGetChangesFromD365')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "GetDeltaLink",
+                        "type": "Lookup",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFileName": "*",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": {
+                                    "type": "DelimitedTextReadSettings"
+                                }
+                            },
+                            "dataset": {
+                                "referenceName": "D365CustomResourceDeltaLink",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "resourceName": {
+                                        "value": "@pipeline().parameters.resourceName",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "If Condition1",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "GetDeltaLink",
+                                "dependencyConditions": [
+                                    "Completed"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@contains(activity('GetDeltaLink').output, 'firstRow')",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "CopyDeltaLinkDirectly",
+                                    "type": "Copy",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "RestSource",
+                                            "httpRequestTimeout": "00:01:40",
+                                            "requestInterval": "00.00:00:00.010",
+                                            "requestMethod": "GET",
+                                            "additionalHeaders": {
+                                                "Prefer": "odata.track-changes"
+                                            }
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": {
+                                                        "path": "$['@odata.deltaLink']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "deltalink"
+                                                    }
+                                                }
+                                            ],
+                                            "collectionReference": ""
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "d365Rest1",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "subpath": {
+                                                    "value": "@{pipeline().parameters.resourceName}s",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365CustomResourceDeltaLink",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "ifTrueActivities": [
+                                {
+                                    "name": "GetChanges",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Set variable1",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "RestSource",
+                                            "httpRequestTimeout": "00:01:40",
+                                            "requestInterval": "00.00:00:00.010",
+                                            "requestMethod": "GET",
+                                            "additionalHeaders": {
+                                                "Prefer": "odata.track-changes"
+                                            }
+                                        },
+                                        "sink": {
+                                            "type": "JsonSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "JsonWriteSettings",
+                                                "quoteAllText": true
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": {
+                                                        "path": "$['@odata.deltaLink']"
+                                                    },
+                                                    "sink": {
+                                                        "path": "deltalink"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "$['value']"
+                                                    },
+                                                    "sink": {
+                                                        "path": "value"
+                                                    }
+                                                }
+                                            ],
+                                            "collectionReference": ""
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "d365Rest1",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "subpath": {
+                                                    "value": "@activity('GetDeltaLink').output.firstRow.deltalink",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365CustomResourceChangesJson",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "fileName": {
+                                                    "value": "@variables('fileName')",
+                                                    "type": "Expression"
+                                                },
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "CopyDeltaLink",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "CopyChanges",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "JsonSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSReadSettings",
+                                                "recursive": true
+                                            },
+                                            "formatSettings": {
+                                                "type": "JsonReadSettings"
+                                            }
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": {
+                                                        "path": "$['deltalink']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "deltalink",
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "D365CustomResourceChangesJson",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "fileName": {
+                                                    "value": "@variables('fileName')",
+                                                    "type": "Expression"
+                                                },
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365CustomResourceDeltaLink",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "CopyChanges",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "GetChanges",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "JsonSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSReadSettings",
+                                                "recursive": true
+                                            },
+                                            "formatSettings": {
+                                                "type": "JsonReadSettings"
+                                            }
+                                        },
+                                        "sink": {
+                                            "type": "ParquetSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSWriteSettings"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": {
+                                                        "path": "[['new_storeaddress']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "storeAddress",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "[['modifiedon']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "modifiedon",
+                                                        "type": "DateTime"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "[['new_storeid']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "storeId",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "[['new_name']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "storeName",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "[['new_storecategory']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "storeCategory",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "[['id']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "id",
+                                                        "type": "Guid"
+                                                    }
+                                                },
+                                                {
+                                                    "source": {
+                                                        "path": "[['reason']"
+                                                    },
+                                                    "sink": {
+                                                        "name": "reason",
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            ],
+                                            "collectionReference": "$['value']",
+                                            "mapComplexValuesToString": true
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "D365CustomResourceChangesJson",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "fileName": {
+                                                    "value": "@variables('fileName')",
+                                                    "type": "Expression"
+                                                },
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365ChangesCustomResource",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Delete1",
+                                    "type": "Delete",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "CopyDeltaLink",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "dataset": {
+                                            "referenceName": "D365CustomResourceChangesJson",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "fileName": {
+                                                    "value": "@variables('fileName')",
+                                                    "type": "Expression"
+                                                },
+                                                "resourceName": {
+                                                    "value": "@pipeline().parameters.resourceName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        },
+                                        "enableLogging": false,
+                                        "storeSettings": {
+                                            "type": "AzureBlobFSReadSettings",
+                                            "recursive": true
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Set variable1",
+                                    "type": "SetVariable",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "fileName",
+                                        "value": {
+                                            "value": "@{pipeline().RunId}.json",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "parameters": {
+                    "resourceName": {
+                        "type": "string",
+                        "defaultValue": "store"
+                    }
+                },
+                "variables": {
+                    "fileName": {
+                        "type": "String"
+                    }
+                },
+                "folder": {
+                    "name": "CustomResource"
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/D365CustomResourceDeltaLink')]",
+                "[concat(variables('factoryId'), '/datasets/d365Rest1')]",
+                "[concat(variables('factoryId'), '/datasets/D365CustomResourceChangesJson')]",
+                "[concat(variables('factoryId'), '/datasets/D365ChangesCustomResource')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365Source')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('EMA1Dynamics1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "sourceEntityName": {
+                        "type": "string",
+                        "defaultValue": "contact"
+                    }
+                },
+                "annotations": [],
+                "type": "DynamicsEntity",
+                "schema": [],
+                "typeProperties": {
+                    "entityName": {
+                        "value": "@dataset().sourceEntityName",
+                        "type": "Expression"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/InitialLoadStorageSink')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "subPath": {
+                        "type": "string"
+                    }
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": {
+                            "value": "@dataset().subPath",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "initial"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/CustomResourceWriteToACS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "D365ChangesCustomResource",
+                                "type": "DatasetReference"
+                            },
+                            "name": "source1"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "CustomResourceDelete"
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "WriteToACS"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "ConditionalSplit1"
+                        },
+                        {
+                            "name": "MarkUpsert"
+                        },
+                        {
+                            "name": "Window1"
+                        },
+                        {
+                            "name": "Filter1"
+                        },
+                        {
+                            "name": "Select1"
+                        },
+                        {
+                            "name": "Exists1"
+                        },
+                        {
+                            "name": "AlterRow1"
+                        },
+                        {
+                            "name": "DerivedColumn1"
+                        },
+                        {
+                            "name": "DerivedColumn2"
+                        },
+                        {
+                            "name": "Select2"
+                        },
+                        {
+                            "name": "Exists2"
+                        }
+                    ],
+                    "script": "parameters{\n\tresourceName as string ('new_store'),\n\tacskey as string ('storeId'),\n\tenableDelete as boolean (true()),\n\tacsResourceName as string ('cusStore')\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tmoveFiles: [($resourceName + '/changes'),($resourceName + '/processed')],\n\tmodifiedBefore: (toTimestamp(minus(currentUTC(), minutes(5)))),\n\tformat: 'parquet',\n\twildcardPaths:[($resourceName + '/changes/*.parquet')]) ~> source1\nsource1 split(!isNull(byName('id')) && byName('reason') == 'deleted',\n\tisNull(byName('id')),\n\tdisjoint: false) ~> ConditionalSplit1@(deletedData, updatedData, unknown)\nSelect1 alterRow(upsertIf(true())) ~> MarkUpsert\nExists2 window(over(keycolumn),\n\tdesc(byName('modifiedon'), true),\n\tlatest = max(toTimestamp(byName('modifiedon')))) ~> Window1\nWindow1 filter(toTimestamp(byName('modifiedon')) == latest) ~> Filter1\nFilter1 select(mapColumn(\n\t\teach(match(name!='modifiedon'&&name!='latest'&&name!='keycolumn'&&name!=\"id\"&&name!=\"reason\"))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nConditionalSplit1@updatedData, ConditionalSplit1@deletedData exists(byName($acskey) == byName('id'),\n\tnegate:true,\n\tbroadcast: 'auto')~> Exists1\nConditionalSplit1@deletedData alterRow(deleteIf($enableDelete)) ~> AlterRow1\nExists1 derive(keycolumn = byName($acskey)) ~> DerivedColumn1\nAlterRow1 derive(id = byName('id')) ~> DerivedColumn2\nDerivedColumn2 select(mapColumn(\n\t\tid\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select2\nDerivedColumn1, DerivedColumn2 exists(keycolumn == id,\n\tnegate:true,\n\tbroadcast: 'auto')~> Exists2\nSelect2 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'adobecampaign',\n\tresourceName: ($acsResourceName),\n\tdeletable:true,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:false,\n\tkeys:[('id')],\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 1) ~> CustomResourceDelete\nMarkUpsert sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'adobecampaign',\n\tresourceName: ($acsResourceName),\n\tdeletable:false,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:[($acskey)],\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 2) ~> WriteToACS"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/D365ChangesCustomResource')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365CustomResourceProcessed')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "resourceName": {
+                        "type": "string"
+                    }
+                },
+                "annotations": [],
+                "type": "Binary",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": {
+                            "value": "@{dataset().resourceName}/processed",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "custom"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365ChangesCustomResource')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "resourceName": {
+                        "type": "string"
+                    }
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": {
+                            "value": "@{dataset().resourceName}/changes",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "custom"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365CustomResourceDeltaLink')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "resourceName": {
+                        "type": "string"
+                    }
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileName": "deltalink.csv",
+                        "folderPath": {
+                            "value": "@{dataset().resourceName}/deltalink",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "custom"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/d365Rest1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('DynamicsRest1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "subpath": {
+                        "type": "string",
+                        "defaultValue": "contacts"
+                    }
+                },
+                "annotations": [],
+                "type": "RestResource",
+                "typeProperties": {
+                    "relativeUrl": {
+                        "value": "@dataset().subpath",
+                        "type": "Expression"
+                    }
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365CustomResourceChangesJson')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "fileName": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    }
+                },
+                "annotations": [],
+                "type": "Json",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileName": {
+                            "value": "@dataset().fileName",
+                            "type": "Expression"
+                        },
+                        "folderPath": {
+                            "value": "@{dataset().resourceName}/tmp",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "custom"
+                    }
+                },
+                "schema": {}
+            },
+            "dependsOn": []
+        }
+    ]
+}

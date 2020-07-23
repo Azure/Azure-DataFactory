@@ -1,0 +1,1102 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        },
+        "AZStorage": { "type": "string" },
+        "EMEA1AdobeIOBi": { "type": "string" },
+        "EMA1Dynamics1": { "type": "string" }
+    },
+    "variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/EgressACSToD365_Incremental')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "LookupNextLink",
+                        "type": "Lookup",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": false,
+                                    "wildcardFileName": "*.csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "dataset": {
+                                "referenceName": "AdobeNextlink1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "firstRowOnly": true
+                        }
+                    },
+                    {
+                        "name": "If Condition1",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "LookupNextLink",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@contains(activity('LookupNextLink').output, 'firstRow')",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "Web1",
+                                    "type": "WebActivity",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": "https://adf.azure.com",
+                                        "method": "POST",
+                                        "headers": {},
+                                        "body": "fail the activity"
+                                    }
+                                }
+                            ],
+                            "ifTrueActivities": [
+                                {
+                                    "name": "Execute Pipeline1",
+                                    "type": "ExecutePipeline",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "pipeline": {
+                                            "referenceName": "EgressACSToD365_main",
+                                            "type": "PipelineReference"
+                                        },
+                                        "waitOnCompletion": true,
+                                        "parameters": {
+                                            "lastPosition": {
+                                                "value": "@activity('LookupNextLink').output.firstRow.last",
+                                                "type": "Expression"
+                                            },
+                                            "EnableEmailSend": {
+                                                "value": "@pipeline().parameters.EnableEmailSend",
+                                                "type": "Expression"
+                                            },
+                                            "EnableEmailOpen": {
+                                                "value": "@pipeline().parameters.EnableEmailOpen",
+                                                "type": "Expression"
+                                            },
+                                            "EnableEmailClick": {
+                                                "value": "@pipeline().parameters.EnableEmailClick",
+                                                "type": "Expression"
+                                            },
+                                            "EnableEmailBounce": {
+                                                "value": "@pipeline().parameters.EnableEmailBounce",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "concurrency": 1,
+                "parameters": {
+                    "EnableEmailSend": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    },
+                    "EnableEmailOpen": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    },
+                    "EnableEmailClick": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    },
+                    "EnableEmailBounce": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    }
+                },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/AdobeNextlink1')]", "[concat(variables('factoryId'), '/pipelines/EgressACSToD365_main')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeNextlink1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "nextlink",
+                        "fileSystem": "adobeegress"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": [
+                    {
+                        "name": "last",
+                        "type": "String"
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/EgressACSToD365_main')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "LoadFromAdobe",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "EgressACSToD365",
+                                "type": "DataFlowReference",
+                                "parameters": {
+                                    "EnableEmailSend": {
+                                        "value": "'@{pipeline().parameters.EnableEmailSend}'",
+                                        "type": "Expression"
+                                    },
+                                    "EnableEmailOpen": {
+                                        "value": "'@{pipeline().parameters.EnableEmailOpen}'",
+                                        "type": "Expression"
+                                    },
+                                    "EnableEmailClick": {
+                                        "value": "'@{pipeline().parameters.EnableEmailClick}'",
+                                        "type": "Expression"
+                                    },
+                                    "EnableEmailBounce": {
+                                        "value": "'@{pipeline().parameters.EnableEmailBounce}'",
+                                        "type": "Expression"
+                                    },
+                                    "LastPosition": {
+                                        "value": "'@{pipeline().parameters.lastPosition}'",
+                                        "type": "Expression"
+                                    },
+                                    "NullExternalId": "'e597a37c-5d7b-ea11-a811-000d3ad0f227'"
+                                },
+                                "datasetParameters": {
+                                    "EventSource": {},
+                                    "NextLink": {},
+                                    "EmailSendStaging": {},
+                                    "EmailOpenStaging": {},
+                                    "EmailClickStaging": {},
+                                    "EmailBounceStaging": {},
+                                    "BackupNextLink": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            }
+                        }
+                    },
+                    {
+                        "name": "EmailSend",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "LoadFromAdobe",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFolderPath": "eventStaging",
+                                    "wildcardFileName": "emailSendStaging.csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "sink": {
+                                "type": "DynamicsSink",
+                                "writeBatchSize": 10,
+                                "writeBehavior": "upsert"
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "adobe_senton",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": { "name": "adobe_senton" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_deliveryname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_deliveryname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_campaignname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_campaignname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid_owner",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "regardingobjectid@EntityReference" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_mirrorpageurl",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_mirrorpageurl" }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "AdobeEmailSend1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "EmailOpen",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "LoadFromAdobe",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFolderPath": "eventStaging",
+                                    "wildcardFileName": "emailOpenStaging.csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "sink": {
+                                "type": "DynamicsSink",
+                                "writeBatchSize": 10,
+                                "writeBehavior": "upsert"
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "adobe_openedon",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": { "name": "adobe_openedon" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_deliveryname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_deliveryname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_campaignname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_campaignname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid_owner",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "regardingobjectid@EntityReference" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_mirrorpageurl",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_mirrorpageurl" }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "AdobeEmailOpen1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "EmailClick",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "LoadFromAdobe",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFolderPath": "eventStaging",
+                                    "wildcardFileName": "emailClickStaging.csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "sink": {
+                                "type": "DynamicsSink",
+                                "writeBatchSize": 10,
+                                "writeBehavior": "upsert"
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "adobe_clickedon",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": { "name": "adobe_clickedon" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_deliveryname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_deliveryname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_campaignname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_campaignname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid_owner",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "regardingobjectid@EntityReference" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_mirrorpageurl",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_mirrorpageurl" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_trackingurl",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_trackingurl" }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "AdobeEmailClick1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "EmailBounce",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "LoadFromAdobe",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFolderPath": "eventStaging",
+                                    "wildcardFileName": "emailBounceStaging.csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "sink": {
+                                "type": "DynamicsSink",
+                                "writeBatchSize": 10,
+                                "writeBehavior": "upsert"
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "adobe_bouncedon",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": { "name": "adobe_bouncedon" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_deliveryname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_deliveryname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "subject",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_campaignname",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_campaignname" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "activityid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "regardingobjectid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "regardingobjectid_owner",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "regardingobjectid@EntityReference" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "adobe_mirrorpageurl",
+                                            "type": "String"
+                                        },
+                                        "sink": { "name": "adobe_mirrorpageurl" }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "AdobeEmailBounce1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DeleteEmailSendStaging",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "EmailSend",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true,
+                                "wildcardFileName": "emailSendStaging.csv"
+                            }
+                        }
+                    },
+                    {
+                        "name": "DeleteEmailOpenStaging",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "EmailOpen",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true,
+                                "wildcardFileName": "emailOpenStaging.csv"
+                            }
+                        }
+                    },
+                    {
+                        "name": "DeleteEmailClickStaging",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "EmailClick",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true,
+                                "wildcardFileName": "emailClickStaging.csv"
+                            }
+                        }
+                    },
+                    {
+                        "name": "DeleteEmailBounceStaging",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "EmailBounce",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true,
+                                "wildcardFileName": "emailBounceStaging.csv"
+                            }
+                        }
+                    }
+                ],
+                "concurrency": 1,
+                "parameters": {
+                    "lastPosition": { "type": "string" },
+                    "EnableEmailSend": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    },
+                    "EnableEmailOpen": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    },
+                    "EnableEmailClick": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    },
+                    "EnableEmailBounce": {
+                        "type": "string",
+                        "defaultValue": "true"
+                    }
+                },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/dataflows/EgressACSToD365')]", "[concat(variables('factoryId'), '/datasets/AdobeEventsStaging1')]", "[concat(variables('factoryId'), '/datasets/AdobeEmailSend1')]", "[concat(variables('factoryId'), '/datasets/AdobeEmailOpen1')]", "[concat(variables('factoryId'), '/datasets/AdobeEmailClick1')]", "[concat(variables('factoryId'), '/datasets/AdobeEmailBounce1')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/EgressACSToD365')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "EventSource"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "AdobeEventsNextlink1",
+                                "type": "DatasetReference"
+                            },
+                            "name": "NextLink"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference"
+                            },
+                            "name": "EmailSendStaging"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference"
+                            },
+                            "name": "EmailOpenStaging"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference"
+                            },
+                            "name": "EmailClickStaging"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "AdobeEventsStaging1",
+                                "type": "DatasetReference"
+                            },
+                            "name": "EmailBounceStaging"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "BackupNextLink1",
+                                "type": "DatasetReference"
+                            },
+                            "name": "BackupNextLink"
+                        }
+                    ],
+                    "transformations": [
+                        { "name": "H2R" },
+                        { "name": "SelectEmailSendColumns" },
+                        { "name": "ConditionalSplit1" },
+                        { "name": "SelectNextLink" },
+                        { "name": "CreateNewColumns" },
+                        { "name": "SelectEmailOpenColumns" },
+                        { "name": "SelectEmailClickColumns" },
+                        { "name": "SelectEmailBounceColumns" }
+                    ],
+                    "script": "parameters{\n\tEnableEmailSend as string ('true'),\n\tEnableEmailOpen as string ('true'),\n\tEnableEmailClick as string ('true'),\n\tEnableEmailBounce as string ('true'),\n\tLastPosition as string (''),\n\tNullExternalId as string ('e597a37c-5d7b-ea11-a811-000d3ad0f227')\n}\nsource(output(\n\t\tevent as ({com.adobe.mcloud.protocol.campaignReportingEvent} as (birthDate as string, campaignName as string, count as long, deliveryLabel as string, deliveryName as string, domain as string, eventSource as string, eventType as string, failureReason as long, failureType as long, mPageHost as string, mirrorPageId as string, profileExternalId as string, recipientId as long, recurringDelId as long, segmentCode as string, status as long, timestamp as string, trackingUrl as string, trackingUrlLabel as string, trackingUrlType as long), genericBytes as string, header as ({_adobeio} as (eventCode as string, imsOrgId as string, instanceId as string, providerMetadata as string), {_smarts} as (definitionId as string, runningSmartId as string), imsOrg as string, messageType as string, pipelineMessageId as string, sandboxId as string, sandboxName as string, sentTime as string, source as string)),\n\t\tnext as string\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false,\n\tformat: 'adobeevent',\n\tlastEventPosition: ($LastPosition),\n\tpartitionBy('hash', 1)) ~> EventSource\nEventSource select(mapColumn(\n\t\teventType = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.eventType,\n\t\tadobe_campaignname = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.campaignName,\n\t\tadobe_deliveryname = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.deliveryName,\n\t\tmPageHost = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.mPageHost,\n\t\tmirrorPageId = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.mirrorPageId,\n\t\tprofileExternalId = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.profileExternalId,\n\t\tadobe_senton = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.timestamp,\n\t\tstatus = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.status,\n\t\tcount = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.count,\n\t\ttrackingUrl = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.trackingUrl,\n\t\ttrackingUrlType = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.trackingUrlType,\n\t\ttrackingUrlLabel = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.trackingUrlLabel,\n\t\tfailureType = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.failureType,\n\t\tfailureReason = event.{com.adobe.mcloud.protocol.campaignReportingEvent}.failureReason,\n\t\tnext\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> H2R\nConditionalSplit1@EmailSend select(mapColumn(\n\t\teventType,\n\t\tadobe_campaignname,\n\t\tadobe_deliveryname,\n\t\tadobe_senton,\n\t\tsubject,\n\t\tadobe_mirrorpageurl,\n\t\tactivityid,\n\t\tregardingobjectid,\n\t\tregardingobjectid_owner\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectEmailSendColumns\nCreateNewColumns split($EnableEmailSend == 'true' && eventType == 'DELIVERY' && status == 1 && count == 1,\n\t$EnableEmailOpen == 'true' && eventType == 'TRACKING' && trackingUrlType == 2 && trackingUrlLabel == 'Open',\n\t$EnableEmailClick == 'true' && eventType == 'TRACKING' && in([1, 10, 11], trackingUrlType) && !isNull(trackingUrl) && trackingUrl != '' && !isNull(trackingUrlLabel) && trackingUrlLabel != '',\n\t$EnableEmailBounce == 'true' && eventType == 'DELIVERY' && status == 2 && failureType == 2 && failureReason != 8,\n\t!isNull(next) && next!='',\n\tdisjoint: false) ~> ConditionalSplit1@(EmailSend, EmailOpen, EmailClick, EmailBounce, Next, unkown)\nConditionalSplit1@Next select(mapColumn(\n\t\tlast = next\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectNextLink\nH2R derive(subject = 'Campaign Name: ' + toString(adobe_campaignname)  + '; Delivery ID: ' + toString(adobe_deliveryname),\n\t\tadobe_mirrorpageurl = toString(mPageHost) + \"/rest/head/mirrorPage/\" + toString(mirrorPageId) + \".html?mode=preview\",\n\t\tactivityid = uuid(),\n\t\tregardingobjectid = iif(profileExternalId === '', $NullExternalId, profileExternalId),\n\t\tadobe_senton = toTimestamp(toLong(toDouble(adobe_senton)/1000)),\n\t\tregardingobjectid_owner = 'contact') ~> CreateNewColumns\nConditionalSplit1@EmailOpen select(mapColumn(\n\t\teventType,\n\t\tadobe_campaignname,\n\t\tadobe_deliveryname,\n\t\tadobe_openedon = adobe_senton,\n\t\tsubject,\n\t\tadobe_mirrorpageurl,\n\t\tactivityid,\n\t\tregardingobjectid,\n\t\tregardingobjectid_owner\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectEmailOpenColumns\nConditionalSplit1@EmailClick select(mapColumn(\n\t\teventType,\n\t\tadobe_campaignname,\n\t\tadobe_deliveryname,\n\t\tadobe_clickedon = adobe_senton,\n\t\tsubject,\n\t\tadobe_trackingurl = trackingUrl,\n\t\tadobe_mirrorpageurl,\n\t\tactivityid,\n\t\tregardingobjectid,\n\t\tregardingobjectid_owner\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectEmailClickColumns\nConditionalSplit1@EmailBounce select(mapColumn(\n\t\teventType,\n\t\tadobe_campaignname,\n\t\tadobe_deliveryname,\n\t\tadobe_bouncedon = adobe_senton,\n\t\tsubject,\n\t\tadobe_mirrorpageurl,\n\t\tactivityid,\n\t\tregardingobjectid,\n\t\tregardingobjectid_owner\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectEmailBounceColumns\nSelectNextLink sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['nextlink.csv'],\n\ttruncate: true,\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 2) ~> NextLink\nSelectEmailSendColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['emailSendStaging.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 1) ~> EmailSendStaging\nSelectEmailOpenColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['emailOpenStaging.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 1) ~> EmailOpenStaging\nSelectEmailClickColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['emailClickStaging.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 1) ~> EmailClickStaging\nSelectEmailBounceColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['emailBounceStaging.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 1) ~> EmailBounceStaging\nSelectNextLink sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 2) ~> BackupNextLink"
+                }
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/AdobeEventsNextlink1')]", "[concat(variables('factoryId'), '/datasets/AdobeEventsStaging1')]", "[concat(variables('factoryId'), '/datasets/BackupNextLink1')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeEventsStaging1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "eventStaging",
+                        "fileSystem": "adobeegress"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeEmailSend1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('EMA1Dynamics1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DynamicsEntity",
+                "schema": [],
+                "typeProperties": { "entityName": "adobe_emailsend" }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeEmailOpen1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('EMA1Dynamics1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DynamicsEntity",
+                "schema": [],
+                "typeProperties": { "entityName": "adobe_emailopen" }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeEmailClick1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('EMA1Dynamics1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DynamicsEntity",
+                "schema": [],
+                "typeProperties": { "entityName": "adobe_emailclick" }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeEmailBounce1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('EMA1Dynamics1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DynamicsEntity",
+                "schema": [],
+                "typeProperties": { "entityName": "adobe_emailbounce" }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/AdobeEventsNextlink1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "nextlink",
+                        "fileSystem": "adobeegress"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/BackupNextLink1')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "backupnextlink",
+                        "fileSystem": "adobeegress"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        }
+    ]
+}
