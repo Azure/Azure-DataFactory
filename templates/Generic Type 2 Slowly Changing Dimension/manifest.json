@@ -33,6 +33,6 @@
         "Azure Data Lake Storage"
     ],
     "categories": [
-        "transform"
+        "dataflow"
     ]
 }
