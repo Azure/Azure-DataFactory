@@ -31,5 +31,5 @@
 	"categories": [
 		"wrangling"
 	],
-	"scope": "ADF"
+	"scope": ["ADF"]
 }

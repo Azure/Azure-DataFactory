@@ -28,6 +28,6 @@
     "categories": [
         "ssis"
     ],
-	"scope": "ADF"
+	"scope": ["ADF"]
 
 }
