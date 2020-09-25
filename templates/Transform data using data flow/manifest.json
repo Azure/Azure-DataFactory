@@ -26,9 +26,5 @@
     ],
     "services": ["Azure Data Factory"],
     "documentation": "https://github.com/kromerm/adfdataflowdocs",
-<<<<<<< HEAD
-	"scope": "ADF"
-=======
 	"scope": ["ADF"]
->>>>>>> 88b1332986281cde400801ad902f0a350f8ccc02
 }
