@@ -33,6 +33,7 @@
         "Azure Data Lake Storage"
     ],
     "categories": [
-        "transform"
-    ]
+        "dataflow"
+    ],
+    "documentation": "https://youtu.be/tc283k8CWh8"
 }

@@ -24,5 +24,6 @@
 	],
 	"categories": [
 		"wrangling"
-	]
+	],
+	"scope": "ADF"
 }
