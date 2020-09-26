@@ -88,14 +88,14 @@
        "Bulk Copy",
        "Copy",
        "Data Movement",
-       "AzureSqlDW",
+       "Azure Synapse Analytics",
        "AzureSqlServer"
 
     ],
     "services":[  
        "Azure Data Factory",
        "Azure Data Lake Storage",
-       "SQL Data Warehouse",
+       "Azure Synapse Analytics",
        "Azure Blob Storage",
        "AzureSqlServer"
     ],

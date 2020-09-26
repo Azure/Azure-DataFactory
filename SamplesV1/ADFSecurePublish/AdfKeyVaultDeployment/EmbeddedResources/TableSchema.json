@@ -485,7 +485,7 @@
         },
         "azureSqlDataWarehouseTableDataset": {
             "title": "Microsoft.Azure.Management.DataFactories.Models.AzureSqlDataWarehouseTableDataset",
-            "description": "The Azure SQL data warehouse dataset.",
+            "description": "The Azure Synapse Analytics dataset.",
             "type": "object",
             "properties": {
                 "type": {
@@ -502,7 +502,7 @@
                     ],
                     "properties": {
                         "tableName": {
-                            "description": "The table name of the Azure SQL data warehouse dataset.",
+                            "description": "The table name of the Azure Synapse Analytics dataset.",
                             "type": "string"
                         }
                     },
