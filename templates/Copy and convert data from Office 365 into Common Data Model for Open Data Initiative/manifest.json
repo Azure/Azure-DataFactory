@@ -32,7 +32,6 @@
 		"Open Data Initiative"
 	],
 	"services": [
-		"Azure Data Factory"
 	],
 	"categories": ["copy"]
 }

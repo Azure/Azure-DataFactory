@@ -354,7 +354,6 @@
         "S3"
     ],
     "services":[  
-        "Azure Data Factory",
         "Amazon S3",
         "Azure Blob Storage",
         "Azure Data Lake Storage"

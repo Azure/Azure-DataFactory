@@ -653,8 +653,6 @@
       "Bulk Copy",
       "Database"
     ],
-    "services": [
-      "Azure Data Factory"
-    ],
+    "services": [],
     "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023"
   }

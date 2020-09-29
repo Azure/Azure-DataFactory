@@ -28,7 +28,6 @@
         "Transform"
     ],
     "services": [
-        "Azure Data Factory",
         "Azure SQL Database",
         "CosmosDB"
     ],

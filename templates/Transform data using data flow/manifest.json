@@ -24,7 +24,7 @@
         "Data Flow",
         "Transform"
     ],
-    "services": ["Azure Data Factory"],
+    "services": [],
     "documentation": "https://github.com/kromerm/adfdataflowdocs",
 	"scope": ["ADF"]
 }
