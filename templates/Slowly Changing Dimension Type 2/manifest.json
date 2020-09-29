@@ -25,7 +25,7 @@
         "dataflow"
     ],
     "documentation": "https://mssqldude.wordpress.com/2019/04/15/adf-slowly-changing-dimension-type-2-with-mapping-data-flows-complete/",
-    "services": ["Azure Data Factory"],
+    "services": [],
     "annotations": [
         "Data Flow",
         "mapping data flow",

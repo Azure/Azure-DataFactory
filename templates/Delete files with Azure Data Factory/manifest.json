@@ -103,7 +103,6 @@
         "Azure Blob Storage"
     ],
     "services":[  
-        "Azure Data Factory",
         "Azure Blob Storage",
         "Azure Data Lake Storage"
     ],

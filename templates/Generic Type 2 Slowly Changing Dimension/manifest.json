@@ -29,7 +29,6 @@
         "Transform With Data Flow"
     ],
     "services": [
-        "Azure Data Factory",
         "Azure Data Lake Storage"
     ],
     "categories": [

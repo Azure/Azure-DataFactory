@@ -33,7 +33,6 @@
         "SAP Table"
     ],
     "services":[  
-        "Azure Data Factory",
         "SAP Table"
     ],
     "categories":[  

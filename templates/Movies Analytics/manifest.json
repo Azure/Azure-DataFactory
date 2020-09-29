@@ -31,7 +31,6 @@
 		"Data Flow"
 	],
 	"services": [
-		"Azure Data Factory",
 		"Synapse"
 	],
 	"categories": [

@@ -93,7 +93,6 @@
 
     ],
     "services":[  
-       "Azure Data Factory",
        "Azure Data Lake Storage",
        "Azure Synapse Analytics",
        "Azure Blob Storage",

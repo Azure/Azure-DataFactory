@@ -94,7 +94,6 @@
         "Azure Data Explorer"
     ],
     "services": [
-        "Azure Data Factory",
         "Azure Data Explorer"
     ],
     "categories": [

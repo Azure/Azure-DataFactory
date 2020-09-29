@@ -25,9 +25,7 @@
 	"annotations": [
 		"Wrangling Data Flow"
 	],
-	"services": [
-		"Azure Data Factory"
-	],
+	"services": [],
 	"categories": [
 		"wrangling"
 	],

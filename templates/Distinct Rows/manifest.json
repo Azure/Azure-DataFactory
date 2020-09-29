@@ -18,8 +18,6 @@
 	},
 	"documentation": "https://mssqldude.wordpress.com/2019/09/18/adf-data-flows-distinct-rows/",
 	"annotations": [],
-	"services": [
-		"Azure Data Factory"
-	],
+	"services": [],
 	"categories": ["dataflow"]
 }

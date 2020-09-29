@@ -27,5 +27,5 @@
     "annotations": [
         "Data Flow"
     ],
-    "services": ["Azure Data Factory"]
+    "services": []
 }

@@ -24,7 +24,7 @@
     },
     "documentation": "https://docs.microsoft.com/en-us/azure/data-factory/how-to-schedule-azure-ssis-integration-runtime",
     "annotations": ["SSIS","SSIS Integration Runtime","SSIS IR","SQL Server Integration Services"],
-    "services": ["Azure Data Factory", "SSIS"],
+    "services": ["SSIS"],
     "categories": [
         "ssis"
     ],

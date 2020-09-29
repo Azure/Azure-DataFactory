@@ -149,6 +149,6 @@
         "Data Movement",
         "Transform"
     ],
-    "services": ["Azure Data Factory"],
+    "services": [],
     "documentation": ""
 }

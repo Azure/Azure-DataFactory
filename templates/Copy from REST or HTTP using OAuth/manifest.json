@@ -27,7 +27,6 @@
        "copy"
     ],
     "services":[  
-       "Azure Data Factory",
        "Azure Data Lake Storage"
     ],
     "categories":[  

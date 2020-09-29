@@ -55,7 +55,6 @@
 	  "ADLS"
 	],
 	"services": [
-	  "Azure Data Factory",
 	  "SAP BW",
 	  "Azure Data Lake Storage"
 	],

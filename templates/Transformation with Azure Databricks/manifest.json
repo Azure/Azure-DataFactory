@@ -33,7 +33,6 @@
     ],
     "services": [
         "Azure Blob Storage",
-        "Azure Data Factory",
         "Azure Databricks"
     ],
     "categories": [
