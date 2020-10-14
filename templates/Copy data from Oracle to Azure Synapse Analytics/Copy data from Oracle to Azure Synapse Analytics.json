@@ -18,15 +18,15 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/Copy data from on premise SQL Server to SQL Datawarehouse')]",
+			"name": "[concat(parameters('factoryName'), '/CopyData_from_Oracle_to_SynpaseAnalytics')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2017-09-01-preview",
 			"properties": {
-				"description": "Copy data from on premise SQL Server to Azure Synapse Analytics.\n\nYou can also go to \"Copy Data Tool\" to get the pipeline for more connectors and scenarios.",
+				"description": "Copy data from Oracle server to Azure Synapse Analytics.\n\n\nYou can also go to \"Copy Data Tool\" to get the pipeline for more connectors and scenarios.",
 				"activities": [
 					{
-						"name": "SQL_to_SQLDataWarehouse",
-						"description": "Copy data from SQL server to Azure Synapse Analytics",
+						"name": "Oracle_to_SynapseAnalytics",
+						"description": "Copy data from Oracle server to Azure Synapse Analytics",
 						"type": "Copy",
 						"policy": {
 							"timeout": "7.00:00:00",
@@ -37,7 +37,7 @@
 						},
 						"typeProperties": {
 							"source": {
-								"type": "SqlSource"
+								"type": "OracleSource"
 							},
 							"sink": {
 								"type": "SqlDWSink",
@@ -50,17 +50,18 @@
 								}
 							},
 							"enableStaging": true,
+							"enableSkipIncompatibleRow": false,
 							"dataIntegrationUnits": 0
 						},
 						"inputs": [
 							{
-								"referenceName": "DataSource",
+								"referenceName": "DataSourceStore",
 								"type": "DatasetReference"
 							}
 						],
 						"outputs": [
 							{
-								"referenceName": "DataDestination",
+								"referenceName": "DataDestinationStore",
 								"type": "DatasetReference"
 							}
 						]
@@ -68,29 +69,29 @@
 				]
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DataSource')]",
-				"[concat(variables('factoryId'), '/datasets/DataDestination')]"
+				"[concat(variables('factoryId'), '/datasets/DataSourceStore')]",
+				"[concat(variables('factoryId'), '/datasets/DataDestinationStore')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DataSource')]",
+			"name": "[concat(parameters('factoryName'), '/DataSourceStore')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2017-09-01-preview",
 			"properties": {
-				"description": "Connect to your data source store.",
+				"description": "Connection to your Oracle server.",
 				"linkedServiceName": {
 					"referenceName": "[parameters('DataSourceConnection')]",
 					"type": "LinkedServiceReference"
 				},
-				"type": "SqlServerTable"
+				"type": "OracleTable"
 			}
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DataDestination')]",
+			"name": "[concat(parameters('factoryName'), '/DataDestinationStore')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2017-09-01-preview",
 			"properties": {
-				"description": "Connect to your data destination store.",
+				"description": "Connection to your Azure Synapse Analytics.",
 				"linkedServiceName": {
 					"referenceName": "[parameters('DataDestinationConnection')]",
 					"type": "LinkedServiceReference"

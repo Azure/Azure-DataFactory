@@ -24,7 +24,7 @@
     },
     "resources":[  
         {  
-            "name":"[concat(parameters('factoryName'), '/Delete files with Azure Data Factory')]",
+            "name":"[concat(parameters('factoryName'), '/Delete files older than 30 days')]",
             "type":"Microsoft.DataFactory/factories/pipelines",
             "apiVersion":"2018-06-01",
             "properties":{  
