@@ -160,19 +160,19 @@
                 "parameters":{  
                     "SourceFileFolder":{  
                         "type":"string",
-                        "defaultValue":"sourcefolder"
+                        "defaultValue":"/"
                     },
                     "SourceFileDirectory":{  
                         "type":"string",
-                        "defaultValue":"subfolder"
+                        "defaultValue":"/"
                     },
                     "DestinationFileFolder":{  
                         "type":"string",
-                        "defaultValue":"destinationfolder"
+                        "defaultValue":"/"
                     },
                     "DestinationFileDirectory":{  
                         "type":"string",
-                        "defaultValue":"subfolder"
+                        "defaultValue":"/"
                     }
                 },
                 "annotations":[  
