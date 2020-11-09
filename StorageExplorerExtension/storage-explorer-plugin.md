@@ -30,9 +30,8 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 - After restarting Storage Explorer, you would now see the Azure Data Factory extension installed and can navigate to it by clicking on the Data Factory icon in the menu.
 
-  ![ADF extension](/images/9.jpg)
+  ![ADF extension](./images/9.jpg)
 
--  
 
 ## Connecting to a Amazon S3 storage
 
