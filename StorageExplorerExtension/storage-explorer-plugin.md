@@ -26,7 +26,7 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 - Run the downloaded extension (.seix) to install. The process will automatically open up the storage explorer (if not already open) with the ADF extension enabled. 
 
-  ![Restart Storage Explorer after installing plugin](images/installed-extension-restart.png)
+  ![Restart Storage Explorer after installing plugin](\images\installed-extension-restart.png)
 
 - After restarting Storage Explorer, you would now see the Azure Data Factory extension installed and can navigate to it by clicking on the Data Factory icon in the menu.
 
@@ -38,31 +38,31 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 1. Navigate to the extension and create a new connection
 
-   ![Create new connection](/images/create-new-connection.png)
+   ![Create new connection](\images\create-new-connection.png)
 
 2. Add Amazon S3 credentials to connect. 
 
-   ![add s3 credentials](/images/3.jpg)
+   ![add s3 credentials](\images\3.jpg)
 
 3. Right-click and copy the desired folder/ file from the navigation bar that lists all Amazon S3 account data. 
 
-   ![List data](/images/4.jpg)
+   ![List data](\images\4.jpg)
 
 4. Navigate to the destination storage account by clicking on toggle explorer and select the storage container. Open it up double-clicking it. Since you have copied the file/ folder in the previous step from Amazon s3, you can paste it in this storage account. 
 
-   ![](/images/5.jpg)
+   ![](\images\5.jpg)
 
 5. Alternatively, you can even use a drag-and-drop gesture to copy the files/ folders from Amazon S3 to Azure Storage (blob/ Gen2). 
 
-   ![](/images/6.jpg)
+   ![](\images\6.jpg)
 
 6. Monitor and validate the data movement/ copy.  
 
-   ![](/images/7.jpg)
+   ![](\images\7.jpg)
 
 7. You can find more details around the copy job and find more advanced information by viewing the job information in Azure Data Factory UI. You can navigate there by simply clicking on 'Execution details' under Activities in Storage Explorer.  
 
-   ![](/images/8.jpg)
+   ![](\images\8.jpg)
 
 ## FAQ and troubleshooting
 
