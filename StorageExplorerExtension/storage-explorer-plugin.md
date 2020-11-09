@@ -32,6 +32,7 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
   ![ADF extension](./images/9.jpg)
 
+---
 
 ## Connecting to a Amazon S3 storage
 
