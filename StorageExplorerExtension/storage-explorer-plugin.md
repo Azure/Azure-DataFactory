@@ -32,6 +32,7 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
   ![ADF extension](./images/9.jpg)
 
+---
 
 ## Connecting to a Amazon S3 storage
 
@@ -65,4 +66,25 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 ## FAQ and troubleshooting
 
-Coming soon
+1. What Azure subscription role assignments are needed for the functionality of the plugin?
+
+   - *You should have an Azure subscription to use the plugin.* 
+   - *You need to be subscription contributor. If you do not have contributor access on subscription, then at least ensure that there is a resource group under the subscription with the name as the 'subscription id', and you should have contributor permissions on this resource group to make the ADF plugin work.* 
+
+2. How does the storage explorer work? Does it create a Data Factory instance?
+
+   - *The Storage explorer plugin creates a new data factory instance behind the scenes (during the 1st time usage and reuses the same factory there after). When you drag-and-drop or copy/paste files/ folders using the plugin, appropriate pipelines in the ADF service are generated and executed to power the data movement.*
+   - *The data movement is powered by Cloud (ADF service) and does not consume your local machine's bandwidth.*   
+
+3. How much does it cost for the data movement using the plugin? 
+
+   - *Since we require ADF service to be created to power the data movement, there is equivalent charges that will apply to your data movement jobs. Please check Azure Data Factory pricing page for [more details](https://azure.microsoft.com/pricing/details/data-factory/).* 
+   - *Under Activities in storage explorer, we should the pipeline information and DIU consumption. You can use this value to estimate the data movement cost.* 
+
+4. Who is the plugin for?
+
+   - *For anyone requiring to move data (binary copy) from Amazon S3 to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (www.adf.azure.com).*  
+
+     *E.g. Many interactive data science experiments may require bringing data from various sources (S3) to Azure storage before running the experiment.* 
+
+   - *For advanced use cases, we suggest using ADF UI (www.adf.azure.com) since we expose many more advanced properties that can be used for various scenarios.* 
