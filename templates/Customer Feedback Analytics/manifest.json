@@ -48,7 +48,7 @@
     },
     "documentation": "https://aka.ms/synapseai",
     "author": "Microsoft",
-    "annotations": ["copy", "Data Movement", "ADLS", "SQL", "AI", "Cognitive Services"],
+    "annotations": ["Data Flow", "Data Movement", "ADLS", "SQL", "AI", "Cognitive Services"],
     "services": [],
     "categories": ["dataflow"]
 }
