@@ -10,6 +10,11 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 ![Azure Data Factory Extension](./images/3.jpg)
 
+## Demo video
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=GacGa5T0flk
+" target="_blank"><img src="http://img.youtube.com/vi/GacGa5T0flk/0.jpg" 
+alt="IMAGE ALT TEXT HERE" width="480" height="360" border="10" /></a>
+
 ## Prerequisites
 
 - You will require Storage Explorer ***November (Version 1.16.0)*** or later to be able to use the Azure Data Factory extension with it. To download and install the latest version of Storage Explorer, see [Azure Storage Explorer](https://www.storageexplorer.com/).
