@@ -88,8 +88,8 @@ alt="IMAGE ALT TEXT HERE" width="480" height="360" border="10" /></a>
 
 4. Who is the plugin for?
 
-   - *For anyone requiring to move data (binary copy) from Amazon S3 to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (www.adf.azure.com).*  
+   - *For anyone requiring to move data (binary copy) from Amazon S3 to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (https://adf.azure.com).*  
 
      *E.g. Many interactive data science experiments may require bringing data from various sources (S3) to Azure storage before running the experiment.* 
 
-   - *For advanced use cases, we suggest using ADF UI (www.adf.azure.com) since we expose many more advanced properties that can be used for various scenarios.* 
+   - *For advanced use cases, we suggest using ADF UI (https://adf.azure.com) since we expose many more advanced properties that can be used for various scenarios.* 
