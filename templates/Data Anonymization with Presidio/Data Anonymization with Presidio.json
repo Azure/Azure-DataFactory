@@ -15,7 +15,7 @@
             "type": "Microsoft.DataFactory/factories/pipelines",
             "apiVersion": "2018-06-01",
             "properties": {
-                "description": "Copy files from one location to another while anonymizing their content.",
+                "description": "Anonymize PII data from files during copy activity between locations with Presidio.",
                 "activities": [
                     {
                         "name": "GetFileList",
@@ -203,7 +203,7 @@
                     },
                     {
                         "name": "FilterFiles",
-                        "description": "Only files will be selected, the source-folders will not be selected.",
+                        "description": "filter only files, source folders will not be selected.",
                         "type": "Filter",
                         "dependsOn": [
                             {
