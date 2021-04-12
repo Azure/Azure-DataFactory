@@ -17,7 +17,7 @@
         }
     },
     "author": "Microsoft",
-    "documentation": "https://github.com/microsoft/presidio/blob/feature/adf-template-gallery-scenario/docs/samples/deployments/data-factory/presidio-data-factory-template-gallery.md",
+    "documentation": "https://github.com/microsoft/presidio/blob/main/docs/samples/deployments/data-factory/presidio-data-factory-template-gallery.md",
     "annotations": [
         "Data Masking",
         "De-identification",
