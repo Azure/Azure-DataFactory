@@ -14,6 +14,7 @@ Param(
 
 )
 
+$baseTriggerUri = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.DataFactory/factories/$DataFactoryName/triggers/"
 
 # Login to Azure
 #Connect-AzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId
@@ -37,7 +38,7 @@ foreach ( $trigger in $triggerlist ) {
         Write-Host "----------"
         foreach ($pipeline in $azResource.Properties.pipelines.pipelineReference) {
             Write-Host  $pipeline.referenceName
-     
+        }
     
         #Write-Host "----------"
         #Write-Host "Recurrence"
@@ -74,7 +75,6 @@ foreach ( $trigger in $triggerlist ) {
         }
         $upcomingRunList.Add($obj )
       }
-   } 
     else {
         # no pipelines scheduled for the trigger
 
