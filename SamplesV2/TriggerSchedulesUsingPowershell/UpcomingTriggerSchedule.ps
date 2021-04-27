@@ -13,12 +13,15 @@ Param(
     [string] $TenantId
 
 )
-
 $baseTriggerUri = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.DataFactory/factories/$DataFactoryName/triggers/"
-
-# Login to Azure
 #Connect-AzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId
+$triggerlist = Get-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
 
+$upcomingRunList = New-Object System.Collections.Generic.List[System.Object]
+
+Write-Host "Number of triggers in ADF: " $triggerlist.length
+
+# For each trigger, find all pipeline schedules and print them 
 $triggerlist = Get-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
 
 $upcomingRunList = New-Object System.Collections.Generic.List[System.Object]
@@ -29,17 +32,20 @@ Write-Host "Number of triggers in ADF: " $triggerlist.length
 
 foreach ( $trigger in $triggerlist ) {  
     $azResourceUri = $baseTriggerUri +"/"+ $trigger.Name
-    #Write-Host $azResourceUri
+    Write-Host $azResourceUri
+}
 
     $azResource = Get-AzResource -ResourceId $azResourceUri -ExpandProperties
 
     if ( $azResource.Properties.pipelines.pipelineReference.length -gt 0 ){
-        Write-Host "Pipelines"
-        Write-Host "----------"
-        foreach ($pipeline in $azResource.Properties.pipelines.pipelineReference) {
-            Write-Host  $pipeline.referenceName
-        }
+        
+        #Write-Host "Pipelines"
+        #Write-Host "----------"
+        #foreach ($pipeline in $azResource.Properties.pipelines.pipelineReference) {
+        #    Write-Host  $pipeline.referenceName
+        #}
     
+
         #Write-Host "----------"
         #Write-Host "Recurrence"
         $recurrence =  $azResource.Properties.TypeProperties.recurrence        
@@ -74,7 +80,8 @@ foreach ( $trigger in $triggerlist ) {
             pipelines = $azResource.Properties.pipelines.pipelineReference
         }
         $upcomingRunList.Add($obj )
-      }
+      
+    
     else {
         # no pipelines scheduled for the trigger
 
@@ -102,4 +109,3 @@ foreach ( $schedules in  $upcomingRunList ) {
 Write-Host "-----------------------------------------"
 Write-Host " Number of upcoming pipeline runs: " $totalUpcomingPipeline 
 Write-Host "-----------------------------------------"
-
