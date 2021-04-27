@@ -66,7 +66,7 @@ foreach ( $trigger in $triggerlist ) {
         }
             
         # Get the Date and Time of the schedule for the trigger of current pipeline
-        $Write-Host $trigger.Name " is scheduled to run on "   $upcomingRuns.Date " at " $upcomingRuns.TimeOfDay
+        Write-Host $trigger.Name " is scheduled to run on "   $upcomingRuns.Date " at " $upcomingRuns.TimeOfDay
 
         # add to the list of upcoming to get all schedules for the pipelines and build new upcoming run list
         $obj = [PSCustomObject]@{
