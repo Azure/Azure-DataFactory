@@ -1,4 +1,4 @@
-# Which Triggers are Scheduled to run - get all pipeline schedules for the trigger and print them with Pipeline Name, Date, Time
+# Which Triggers are Scheduled to run, we have to get all pipeline schedules for the trigger, and print them with Pipeline Name, Date, Time
 
 Param(
     [Parameter(Mandatory=$true)] 
@@ -93,7 +93,7 @@ foreach ( $schedules in  $upcomingRunList ) {
     $DateStr = $schedules.schedule.ToString("yyyy-MM-dd")
     Write-Host -ForegroundColor Gray $DateStr  " : Pipelines (" $schedules.pipelines.length ") " $schedules.pipelines.referenceName | Format-List
     $totalUpcomingPipeline += $schedules.pipelines.length
-    Write-Host “Schedule Name is “ $schedules.pipelines.referenceName
+    Write-Host “Pipeline Name is “ $schedules.pipelines.referenceName
     Write-Host “Scheduled Date is “ $schedules.schedule.Date
     Write-Host “Scheduled Time is “ $schedules.schedule.TimeOfDay
 
