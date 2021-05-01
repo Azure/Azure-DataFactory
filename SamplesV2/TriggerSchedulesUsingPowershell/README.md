@@ -31,4 +31,4 @@ To understand the script, please refer to Scheduled Trigger JSON definition samp
 }
 ```
 
-**Note: ** It is a starter script. Please modify it to meet your needs. 
+**Note:** It is a starter script. Please modify it to meet your needs. 
