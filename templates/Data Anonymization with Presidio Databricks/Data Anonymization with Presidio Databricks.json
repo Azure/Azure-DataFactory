@@ -6,16 +6,10 @@
 			"type": "string",
 			"metadata": "Data Factory name"
 		},
-		"PresidioDatabricks": {
-			"type": "string"
-		},
-		"PresidioStorage": {
-			"type": "string"
-		}
+		"PresidioDatabricks": { "type": "string" },
+		"PresidioStorage": { "type": "string" }
 	},
-	"variables": {
-		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
-	},
+	"variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
 	"resources": [
 		{
 			"name": "[concat(parameters('factoryName'), '/Anonymize dataset - Presidio Databricks')]",
@@ -61,9 +55,7 @@
 						"dependsOn": [
 							{
 								"activity": "Anonymize Source",
-								"dependencyConditions": [
-									"Succeeded"
-								]
+								"dependencyConditions": [ "Succeeded" ]
 							}
 						],
 						"policy": {
@@ -78,20 +70,18 @@
 							"source": {
 								"type": "DelimitedTextSource",
 								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
+									"type": "AzureBlobStorageReadSettings",
 									"recursive": true,
 									"wildcardFolderPath": "anonymized",
 									"wildcardFileName": "part-*",
 									"enablePartitionDiscovery": false
 								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
+								"formatSettings": { "type": "DelimitedTextReadSettings" }
 							},
 							"sink": {
 								"type": "DelimitedTextSink",
 								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings",
+									"type": "AzureBlobStorageWriteSettings",
 									"copyBehavior": "MergeFiles"
 								},
 								"formatSettings": {
@@ -112,7 +102,7 @@
 						},
 						"inputs": [
 							{
-								"referenceName": "Anonymized_CSV",
+								"referenceName": "AnonymizedCsv",
 								"type": "DatasetReference",
 								"parameters": {
 									"container_name": {
@@ -124,15 +114,15 @@
 						],
 						"outputs": [
 							{
-								"referenceName": "Target",
+								"referenceName": "TargetCsv",
 								"type": "DatasetReference",
 								"parameters": {
-									"file_name": {
-										"value": "@pipeline().parameters.SourceFile_Name",
-										"type": "Expression"
-									},
 									"container_name": {
 										"value": "@pipeline().parameters.DestinationStore_Name",
+										"type": "Expression"
+									},
+									"file_name": {
+										"value": "@pipeline().parameters.SourceFile_Name",
 										"type": "Expression"
 									}
 								}
@@ -145,9 +135,7 @@
 						"dependsOn": [
 							{
 								"activity": "Merge Anonymized to Target",
-								"dependencyConditions": [
-									"Succeeded"
-								]
+								"dependencyConditions": [ "Succeeded" ]
 							}
 						],
 						"policy": {
@@ -160,7 +148,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"dataset": {
-								"referenceName": "Anonymized_CSV",
+								"referenceName": "AnonymizedCsv",
 								"type": "DatasetReference",
 								"parameters": {
 									"container_name": {
@@ -171,7 +159,7 @@
 							},
 							"enableLogging": false,
 							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
+								"type": "AzureBlobStorageReadSettings",
 								"recursive": true,
 								"enablePartitionDiscovery": false
 							}
@@ -179,29 +167,18 @@
 					}
 				],
 				"parameters": {
-					"SourceFile_Name": {
-						"type": "string"
-					},
-					"SourceStore_Location": {
-						"type": "string"
-					},
-					"DestinationStore_Name": {
-						"type": "string"
-					},
-					"TextColumn_Name": {
-						"type": "string"
-					}
+					"SourceFile_Name": { "type": "string" },
+					"SourceStore_Location": { "type": "string" },
+					"DestinationStore_Name": { "type": "string" },
+					"TextColumn_Name": { "type": "string" }
 				},
 				"annotations": [],
 				"lastPublishTime": "2021-05-04T12:46:37Z"
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/Anonymized_CSV')]",
-				"[concat(variables('factoryId'), '/datasets/Target')]"
-			]
+			"dependsOn": [ "[concat(variables('factoryId'), '/datasets/AnonymizedCsv')]", "[concat(variables('factoryId'), '/datasets/TargetCsv')]" ]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Anonymized_CSV')]",
+			"name": "[concat(parameters('factoryName'), '/AnonymizedCsv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -209,18 +186,14 @@
 					"referenceName": "[parameters('PresidioStorage')]",
 					"type": "LinkedServiceReference"
 				},
-				"parameters": {
-					"container_name": {
-						"type": "string"
-					}
-				},
+				"parameters": { "container_name": { "type": "string" } },
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
-						"type": "AzureBlobFSLocation",
+						"type": "AzureBlobStorageLocation",
 						"folderPath": "anonymized",
-						"fileSystem": {
+						"container": {
 							"value": "@dataset().container_name",
 							"type": "Expression"
 						}
@@ -235,7 +208,7 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Target')]",
+			"name": "[concat(parameters('factoryName'), '/TargetCsv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -244,30 +217,25 @@
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
-					"file_name": {
-						"type": "string"
-					},
-					"container_name": {
-						"type": "string"
-					}
+					"container_name": { "type": "string" },
+					"file_name": { "type": "string" }
 				},
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
-						"type": "AzureBlobFSLocation",
+						"type": "AzureBlobStorageLocation",
 						"fileName": {
 							"value": "@dataset().file_name",
 							"type": "Expression"
 						},
-						"fileSystem": {
+						"container": {
 							"value": "@dataset().container_name",
 							"type": "Expression"
 						}
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
-					"firstRowAsHeader": true,
 					"quoteChar": "\""
 				},
 				"schema": []
