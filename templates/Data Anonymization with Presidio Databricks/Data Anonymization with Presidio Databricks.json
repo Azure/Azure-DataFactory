@@ -18,7 +18,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "Anonymize Source",
+						"name": "AnonymizeSource",
 						"description": "Anonymize dataset with Presidio",
 						"type": "DatabricksNotebook",
 						"dependsOn": [],
@@ -50,11 +50,11 @@
 						}
 					},
 					{
-						"name": "Merge Anonymized to Target",
+						"name": "MergeAnonymizedToTarget",
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "Anonymize Source",
+								"activity": "AnonymizeSource",
 								"dependencyConditions": [ "Succeeded" ]
 							}
 						],
@@ -130,11 +130,11 @@
 						]
 					},
 					{
-						"name": "Delete Anonymized",
+						"name": "DeleteAnonymized",
 						"type": "Delete",
 						"dependsOn": [
 							{
-								"activity": "Merge Anonymized to Target",
+								"activity": "MergeAnonymizedToTarget",
 								"dependencyConditions": [ "Succeeded" ]
 							}
 						],
