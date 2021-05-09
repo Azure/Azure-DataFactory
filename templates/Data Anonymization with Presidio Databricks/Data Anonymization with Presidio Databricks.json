@@ -16,6 +16,7 @@
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
+				"description": "Anonymize PII data from dataset with Presidio on Azure Databricks.",
 				"activities": [
 					{
 						"name": "AnonymizeSource",
