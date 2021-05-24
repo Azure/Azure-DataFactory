@@ -11,11 +11,11 @@
     "variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
     "resources": [
         {
-            "name": "[concat(parameters('factoryName'), '/Anonymize')]",
+            "name": "[concat(parameters('factoryName'), '/Data anonymization with Presidio as an HTTP service')]",
             "type": "Microsoft.DataFactory/factories/pipelines",
             "apiVersion": "2018-06-01",
             "properties": {
-                "description": "Anonymize PII data from files during copy activity between locations with Presidio.",
+                "description": "Anonymize PII data from text files during copy activity between locations with Presidio as an HTTP service.",
                 "activities": [
                     {
                         "name": "GetFileList",
