@@ -1,6 +1,7 @@
  
-# This simple script prints pipeline and actvity level run details between two dates. You can go back 45 days only. You can change output to whatever format (csv, JSON) as
-# you like with cusotm printing.
+# This simple script prints pipeline and activity level run details between two dates. 
+# You can go back 45 days only. You can change output to whatever format (csv) as
+# you like with custom printing. This prints same run hour/corehour values as what you see in UX.
 
 # Here is sample output. Azure IR is used with General Compute meter. It shows corehours and hours spent. 
 <# ExternalActivity
