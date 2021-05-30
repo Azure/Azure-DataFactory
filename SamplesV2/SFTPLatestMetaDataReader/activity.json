@@ -1,0 +1,16 @@
+{
+                "typeProperties": {
+                   
+					"extendedProperties": {
+                        "outPutTableName": "FileReader_MetaData",
+                        "outPutDbConnectionString": "Data Source=[yourdbserver].database.windows.net;Initial Catalog=[yourdb];User ID=[username];Password=[pwd];Connection Timeout=500",
+                        "connectionHost": "[yoursftp].com",
+                        "sftpUserName": "$$$$$$",
+                        "passWord": "$$$$$$$",
+                        "remoteDirectory": "/###/####/",
+                        "FileCat": "SLFWD-CI",
+                        "FileExt": ".txt"
+                    }
+			  }
+           }    
+           
