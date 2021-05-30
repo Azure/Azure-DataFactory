@@ -1,0 +1,9 @@
+{
+	"name": "ChallaRGDF",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "42f56645-2431-4558-b9a3-76e079b838ef",
+		"tenantId": "d8a8a5d0-a972-48ed-85ba-44a2f334343d"
+	}
+}
