@@ -1,0 +1,141 @@
+{  
+    "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion":"1.0.0.0",
+    "parameters":{  
+        "factoryName":{  
+            "type":"string",
+            "metadata":"Data Factory name"
+        },
+        "LinkedService_for_Source_Dataset":{  
+            "type":"string"
+        },
+        "LinkedService_for_Logging_Storage":{  
+            "type":"string"
+        },
+        "SourceStore_parameter":{  
+            "type":"object"
+        },
+        "SourceStore_Settings_parameter":{  
+            "type":"string"
+        }
+    },
+    "variables":{  
+        "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources":[  
+        {  
+            "name":"[concat(parameters('factoryName'), '/Delete files older than 30 days')]",
+            "type":"Microsoft.DataFactory/factories/pipelines",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Please input a folder path as the parameter for this pipeline, and the pipeline will delete files which were last modified more than 30 days ago under the particular folder path.",
+                "activities":[  
+                    {  
+                        "name":"DeleteFiles",
+                        "type":"Delete",
+                        "description":"Connect to your storage account to save the log file.",
+                        "dependsOn":[  
+
+                        ],
+                        "policy":{  
+                            "timeout":"7.00:00:00",
+                            "retry":0,
+                            "retryIntervalInSeconds":30,
+                            "secureOutput":false,
+                            "secureInput":false
+                        },
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "dataset":{  
+                                "referenceName":"BinaryDatasetForDeleteActivity",
+                                "type":"DatasetReference",
+                                "parameters":{  
+                                    "FolderPath":{  
+                                        "value":"@pipeline().parameters.SourceFolder",
+                                        "type":"Expression"
+                                    },
+                                    "Directory":{  
+                                        "value":"@pipeline().parameters.SourceDirectory",
+                                        "type":"Expression"
+                                    }
+                                }
+                            },
+                            "logStorageSettings":{  
+                                "linkedServiceName":{  
+                                    "referenceName":"[parameters('LinkedService_for_Logging_Storage')]",
+                                    "type":"LinkedServiceReference"
+                                },
+                                "path":{  
+                                    "value":"@pipeline().parameters.LoggingPath",
+                                    "type":"Expression"
+                                }
+                            },
+                            "enableLogging":true,                       
+                            "storeSettings":{  
+                                "type":"[parameters('SourceStore_Settings_parameter')]",
+                                "recursive": true,
+                                "wildcardFileName": "*",
+                                "modifiedDatetimeEnd": {
+                                    "value": "@{adddays(pipeline().TriggerTime, -30)}",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "parameters":{  
+                    "SourceFolder":{  
+                        "type":"string",
+                        "defaultValue":"sourcefolder"
+                    },
+                    "SourceDirectory":{  
+                        "type":"string",
+                        "defaultValue":"subfolder"
+                    },
+                    "LoggingPath":{  
+                        "type":"string",
+                        "defaultValue":"loggingfolder/subfolder"
+                    }
+                },
+                "annotations":[  
+
+                ]
+            },
+            "dependsOn":[  
+                "[concat(variables('factoryId'), '/datasets/BinaryDatasetForDeleteActivity')]"
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinaryDatasetForDeleteActivity')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Connect to your source store to delete files.",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('LinkedService_for_Source_Dataset')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":{  
+                    "FolderPath":{  
+                        "type":"string"
+                    },
+                    "Directory":{  
+                        "type":"string"
+                    }
+                },
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties": {
+                    "location":"[parameters('SourceStore_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        }
+    ]
+}

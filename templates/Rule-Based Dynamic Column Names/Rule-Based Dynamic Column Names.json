@@ -1,0 +1,173 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"AzureBlobStorage1": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Rule Based Dynamic Column Names')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "https://kromerbigdata.com/2019/05/24/adf-mapping-data-flows-create-rules-to-modify-column-names/",
+				"activities": [
+					{
+						"name": "Rule Based Dynamic Column Names",
+						"type": "ExecuteDataFlow",
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "RuleBasedDynamicColumnNames",
+								"type": "DataFlowReference"
+							}
+						}
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/RuleBasedDynamicColumnNames')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RuleBasedDynamicColumnNames')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "movie_dataflow_source1",
+								"type": "DatasetReference"
+							},
+							"name": "source1",
+							"script": "source(output(\n\t\tmovie as string,\n\t\ttitle as string,\n\t\tgenres as string,\n\t\tyear as string,\n\t\tRating as string,\n\t\t{Rotton Tomato} as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "OutputContainer",
+								"type": "DatasetReference"
+							},
+							"name": "sink1",
+							"script": "RemoveOldNames sink(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> sink1"
+						}
+					],
+					"transformations": [
+						{
+							"name": "RenameColumns",
+							"script": "FixNames derive(each(match(type == 'string'), $$ + '_trimmed' = trim(toString($$))),\n\t\teach(match(type=='integer'), 'int_' + $$ = toInteger($$))) ~> RenameColumns"
+						},
+						{
+							"name": "Casting",
+							"script": "source1 derive(year = toInteger(year),\n\t\tmovie = toInteger(movie),\n\t\tRating = toInteger(Rating),\n\t\t{Rotton Tomato} = toInteger({Rotton Tomato})) ~> Casting"
+						},
+						{
+							"name": "FixNames",
+							"script": "Casting select(mapColumn(\n\t\tmovie,\n\t\ttitle,\n\t\tgenres,\n\t\tyear,\n\t\trating = Rating,\n\t\trottentomato = {Rotton Tomato}\n\t))~> FixNames"
+						},
+						{
+							"name": "RemoveOldNames",
+							"script": "RenameColumns select(mapColumn(\n\t\ttitle_trimmed,\n\t\tgenres_trimmed,\n\t\tint_movie,\n\t\tint_year,\n\t\tint_rating,\n\t\tint_rottentomato\n\t))~> RemoveOldNames"
+						}
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/movie_dataflow_source1')]",
+				"[concat(variables('factoryId'), '/datasets/OutputContainer')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/movie_dataflow_source1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "moviesDB.csv",
+						"folderPath": "SampleData",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "movie",
+						"type": "String"
+					},
+					{
+						"name": "title",
+						"type": "String"
+					},
+					{
+						"name": "genres",
+						"type": "String"
+					},
+					{
+						"name": "year",
+						"type": "String"
+					},
+					{
+						"name": "Rating",
+						"type": "String"
+					},
+					{
+						"name": "Rotton Tomato",
+						"type": "String"
+					}
+				]
+			}
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/OutputContainer')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			}
+		}
+	]
+}

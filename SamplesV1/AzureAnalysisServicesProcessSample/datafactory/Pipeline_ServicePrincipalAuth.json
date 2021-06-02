@@ -1,0 +1,50 @@
+﻿{
+  "name": "tabular-processing-activity-test",
+  "properties": {
+    "description": "Generic pipeline template",
+    "activities": [
+      {
+        "type": "DotNetActivity",
+        "typeProperties": {
+          "assemblyName": "AzureAnalysisServicesProcessSample",
+          "entryPoint": "AzureAnalysisServicesProcessSample.ProcessAzureASActivity",
+          "packageLinkedService": "<AZURE_STORAGE_LINKED_SERVICE_WHERE_PACKAGE_IS_LOCATED>",
+          "packageFile": "<ZIP_FILE_INSIDE_AZURE_STORAGE>",
+          "extendedProperties": {
+            "AzureASConnectionString": "Data Source=asazure://<LOCATION>.asazure.windows.net/<NAME>;User ID=;Password={0};Persist Security Info=True;Impersonation Level=Impersonate",
+            "TabularDatabaseName": "<DATABASE_NAME>",
+            "AzureADAuthority": "https://login.windows.net/<TENANT_ID>",
+            "AzureADResource": "https://<LOCATION>.asazure.windows.net",
+            "AzureADClientId": "<CLIENT_ID>",
+            "AzureADClientSecretPath": "<CLIENT_SECRET_FILE_INSIDE_AZURE_STORAGE>"
+          }
+        },
+        "inputs": [
+          {
+            "name": "dummy-before-tabular-processing-test"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "dummy-after-tabular-processing-test"
+          }
+        ],
+        "policy": {
+          "timeout": "00:30:00",
+          "concurrency": 1,
+          "retry": 1
+        },
+        "scheduler": {
+          "frequency": "Hour",
+          "interval": 1
+        },
+        "name": "TabularProcessingActivityTest",
+        "linkedServiceName": "<AZURE_BATCH_LINKED_SERVICE>"
+      }
+    ],
+    "start": "<START_DATE i.e.: 2017-04-10T09:45:00Z>",
+    "end": "<END_DATE i.e.: 2017-04-10T12:45:00Z>",
+    "isPaused": false,
+    "pipelineMode": "Scheduled"
+  }
+}

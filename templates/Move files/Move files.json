@@ -1,0 +1,323 @@
+{  
+    "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion":"1.0.0.0",
+    "parameters":{  
+        "factoryName":{  
+            "type":"string",
+            "metadata":"Data Factory name"
+        },
+        "DataSourceConnection":{  
+            "type":"string"
+        },
+        "DataDestinationConnection":{  
+            "type":"string"
+        },
+        "SourceStore_parameter":{  
+            "type":"object"
+        },
+        "Copyactivity_input_parameter":{  
+            "type":"object"
+        },
+        "Copyactivity_output_parameter":{  
+            "type":"object"
+        },
+        "DataSource_Folder_StoreSettings_parameter":{  
+            "type":"object"
+        },
+        "DataSource_File_StoreSettings_parameter":{  
+            "type":"object"
+        },
+        "DataDestination_StoreSettings_parameter":{  
+            "type":"object"
+        },
+        "DataSource_Folder_parameter":{  
+            "type":"string"
+        },
+        "DataSource_File_parameter":{  
+            "type":"string"
+        },
+        "DataDestination_parameter":{  
+            "type":"string"
+        },
+        "ReadSettings_parameter":{  
+            "type":"string"
+        },
+        "WriteSettings_parameter":{  
+            "type":"string"
+        }
+    },
+    "variables":{  
+        "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources":[  
+        {  
+            "name":"[concat(parameters('factoryName'), '/MoveFiles')]",
+            "type":"Microsoft.DataFactory/factories/pipelines",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Move files from one folder to another folder",
+                "activities":[  
+                    {  
+                        "name":"GetFileList",
+                        "description":"Get the list of file",
+                        "type":"GetMetadata",
+                        "dependsOn":[  
+
+                        ],
+                        "policy":{  
+                            "timeout":"7.00:00:00",
+                            "retry":0,
+                            "retryIntervalInSeconds":30,
+                            "secureOutput":false,
+                            "secureInput":false
+                        },
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "dataset":{  
+                                "referenceName":"BinaryDataSource_Folder",
+                                "type":"DatasetReference",
+                                "parameters":"[parameters('SourceStore_parameter')]"
+                            },
+                            "fieldList":[  
+                                "childItems"
+                            ],
+                            "storeSettings":{  
+                                "type":"[parameters('ReadSettings_parameter')]",
+                                "recursive":true
+                            }
+                        }
+                    },
+                    {  
+                        "name":"ForEachFile",
+                        "description":"Iterate each file, and move them one by one.",
+                        "type":"ForEach",
+                        "dependsOn":[  
+                            {  
+                                "activity":"FilterFiles",
+                                "dependencyConditions":[  
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "items":{  
+                                "value":"@activity('FilterFiles').output.value",
+                                "type":"Expression"
+                            },
+                            "batchCount":20,
+                            "activities":[  
+                                {  
+                                    "name":"CopyAFile",
+                                    "description":"Copy a file from the source store to the destination store.",
+                                    "type":"Copy",
+                                    "dependsOn":[  
+
+                                    ],
+                                    "policy":{  
+                                        "timeout":"7.00:00:00",
+                                        "retry":0,
+                                        "retryIntervalInSeconds":30,
+                                        "secureOutput":false,
+                                        "secureInput":false
+                                    },
+                                    "userProperties":[  
+
+                                    ],
+                                    "typeProperties":{  
+                                        "source":{  
+                                            "type":"BinarySource",
+                                            "storeSettings":{  
+                                                "type":"[parameters('ReadSettings_parameter')]",
+                                                "recursive":true
+                                            },
+                                            "recursive":false
+                                        },
+                                        "sink":{  
+                                            "type":"BinarySink",
+                                            "storeSettings":{  
+                                                "type":"[parameters('WriteSettings_parameter')]"
+                                            }
+                                        },
+                                        "enableStaging":false,
+                                        "dataIntegrationUnits":0
+                                    },
+                                    "inputs":[  
+                                        {  
+                                            "referenceName":"BinaryDataSource_File",
+                                            "type":"DatasetReference",
+                                            "parameters":"[parameters('Copyactivity_input_parameter')]"
+                                        }
+                                    ],
+                                    "outputs":[  
+                                        {  
+                                            "referenceName":"BinaryDataDestination",
+                                            "type":"DatasetReference",
+                                            "parameters":"[parameters('Copyactivity_output_parameter')]"
+                                        }
+                                    ]
+                                },
+                                {  
+                                    "name":"DeleteAFile",
+                                    "description":"Delete a file from the source store",
+                                    "type":"Delete",
+                                    "dependsOn":[  
+                                        {  
+                                            "activity":"CopyAFile",
+                                            "dependencyConditions":[  
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy":{  
+                                        "timeout":"7.00:00:00",
+                                        "retry":0,
+                                        "retryIntervalInSeconds":30,
+                                        "secureOutput":false,
+                                        "secureInput":false
+                                    },
+                                    "userProperties":[  
+
+                                    ],
+                                    "typeProperties":{  
+                                        "dataset":{  
+                                            "referenceName":"BinaryDataSource_File",
+                                            "type":"DatasetReference",
+                                            "parameters":"[parameters('Copyactivity_input_parameter')]"
+                                        },
+                                        "enableLogging":false,
+                                        "storeSettings":{  
+                                            "type":"[parameters('ReadSettings_parameter')]",
+                                            "recursive":true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {  
+                        "name":"FilterFiles",
+                        "description":"Only files will be selected, the source-folders will not be selected.",
+                        "type":"Filter",
+                        "dependsOn":[  
+                            {  
+                                "activity":"GetFileList",
+                                "dependencyConditions":[  
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "items":{  
+                                "value":"@activity('GetFileList').output.childItems",
+                                "type":"Expression"
+                            },
+                            "condition":{  
+                                "value":"@equals(item().type, 'File')",
+                                "type":"Expression"
+                            }
+                        }
+                    }
+                ],
+                "parameters":{
+                    "SourceStore_Location":{  
+                        "type":"String"
+                    },
+                    "SourceStore_Directory":{  
+                        "type":"String"
+                    },
+                    "DestinationStore_Location":{  
+                        "type":"String"
+                    },
+                    "DestinationStore_Directory":{  
+                        "type":"String"
+                    }
+                },
+                "annotations":[  
+
+                ]
+            },
+            "dependsOn":[  
+                "[concat(variables('factoryId'), '/datasets/BinaryDataSource_Folder')]",
+                "[concat(variables('factoryId'), '/datasets/BinaryDataSource_File')]",
+                "[concat(variables('factoryId'), '/datasets/BinaryDataDestination')]"
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinaryDataSource_Folder')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"It describes the folder in the data source store.",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataSourceConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('DataSource_Folder_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('DataSource_Folder_StoreSettings_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinaryDataSource_File')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"It describes the file in the data source store.",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataSourceConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('DataSource_File_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('DataSource_File_StoreSettings_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinaryDataDestination')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"It describes the destination store.",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataDestinationConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('DataDestination_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('DataDestination_StoreSettings_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        }
+    ]
+}

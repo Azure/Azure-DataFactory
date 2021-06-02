@@ -1,0 +1,16 @@
+﻿{
+  "name": "dummy-after-tabular-processing-test",
+  "properties": {
+    "published": false,
+    "type": "AzureBlob",
+    "linkedServiceName": "<AZURE_STORAGE_LINKED_SERVICE_NAME>",
+    "typeProperties": {
+      "fileName": "<dummyfilename>",
+      "folderPath": "<dummyfoldername>"
+    },
+    "availability": {
+      "frequency": "Hour",
+      "interval": 1
+    }
+  }
+}

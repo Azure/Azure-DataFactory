@@ -1,0 +1,102 @@
+{
+    "name": "Bulk Copy from Database to Azure Data Explorer",
+    "description": "Use this template to copy large amount of data in bulk from database like SQL Server, Google BigQuery, etc to Azure Data Explorer (ADX), using control table to store partition list of source data.\n\nIf you want to copy data from a small number of tables with moderate size of data into ADX, it's more efficient to use “Copy Data tool” with intuitive wizard-based experience.",
+    "image": "<svg width=\"400px\" height=\"240px\" viewBox=\"0 0 400 240\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\" clip-path=\"url(#mainClip36241)\"><g transform=\"matrix(0.7809110629067245, 0, 0, 0.7809110629067245, 23.904555314533624, 87.20173535791757)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0.8, 0.8)\"><rect x=\"0\" y=\"0\" width=\"192.4\" height=\"82.4\" fill=\"#F4F4F4\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><rect x=\"0\" y=\"0\" width=\"192.4\" height=\"25\" fill=\"#DCDCDC\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/><g transform=\"matrix(1, 0, 0, 1, 0, 0)\" clip-path=\"url(#CLIP36242)\"><text x=\"0\" y=\"10.506005859375001\" style=\"font: 12px Segoe UI\" text-anchor=\"start\" fill=\"#515151\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 5, 6.5)\">Lookup</text></g></g><g transform=\"matrix(1, 0, 0, 1, 0, 25)\"><g transform=\"matrix(1, 0, 0, 1, 10, 13.5)\"><path d=\"M 4.5,9 L 4.5,9 L 3,9 L 3,3 L 9,3 L 9,4.5 L 4.5,4.5 L 4.5,9 M 4.5,25.5 L 4.5,25.5 L 9,25.5 L 9,27 L 3,27 L 3,21 L 4.5,21 L 4.5,25.5 M 27,3 L 27,3 L 27,9 L 25.5,9 L 25.5,4.5 L 21,4.5 L 21,3 L 27,3 M 25.5,21 L 25.5,21 L 27,21 L 27,27 L 21,27 L 21,25.5 L 25.5,25.5 L 25.5,21 M 16.5,15.433499999999999 C 16.625999999999998,15.5595 17.511,16.4355 17.8185,16.727999999999998 C 18.1275,17.0205 18.4785,17.3595 18.873,17.741999999999997 C 19.269,18.1245 19.6785,18.5295 20.102999999999998,18.9555 C 20.529,19.3815 20.920499999999997,19.782 21.2745,20.157 C 21.63,20.532 21.924,20.865000000000002 22.1535,21.153 C 22.386,21.441000000000003 22.5,21.6405 22.5,21.75 C 22.5,21.954 22.4265,22.1295 22.278,22.278 C 22.1295,22.4265 21.954,22.5 21.75,22.5 C 21.642000000000003,22.5 21.4425,22.3845 21.153,22.155 C 20.865000000000002,21.9255 20.532,21.6315 20.157,21.276 C 19.782,20.920499999999997 19.3815,20.5305 18.9555,20.1045 C 18.531,19.6785 18.125999999999998,19.269 17.741999999999997,18.8745 C 17.3595,18.48 17.022000000000002,18.129 16.727999999999998,17.82 C 16.4355,17.5095 15.5595,16.6245 15.433499999999999,16.5 L 16.5,15.433499999999999 z M 12.75,9 C 14.817,9 16.5,10.683 16.5,12.75 C 16.5,14.817 14.817,16.5 12.75,16.5 C 10.683,16.5 9,14.817 9,12.75 C 9,10.683 10.683,9 12.75,9 z M 12.75,7.5 C 9.8505,7.5 7.5,9.8505 7.5,12.75 C 7.5,15.6495 9.8505,18 12.75,18 C 15.6495,18 18,15.6495 18,12.75 C 18,9.8505 15.6495,7.5 12.75,7.5 z\" fill=\"#212121\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/></g><g transform=\"matrix(1, 0, 0, 1, 0, 0)\" clip-path=\"url(#CLIP36243)\"><g transform=\"matrix(1, 0, 0, 1, 50, 21.328662109375)\"><text x=\"0\" y=\"12.257006835937501\" style=\"font: 14px Segoe UI\" text-anchor=\"start\" fill=\"black\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\">GetPartitionList</text></g></g></g></g><path d=\"M 2,0 L 191,0 C 191.89543050033842,0 193,1.1045694996615871 193,2 L 193,81 C 193,81.8954305003384 191.89543050033842,83 191,83 L 2,83 C 1.1045694996615871,83 0,81.8954305003384 0,81 L 0,2 C 0,1.1045694996615871 1.1045694996615871,0 2,0 z\" fill=\"transparent\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0.5, 0.5)\"/><path d=\"M 2,0 L 191,0 C 191.89543050033842,0 193,1.1045694996615871 193,2 L 193,81 C 193,81.8954305003384 191.89543050033842,83 191,83 L 2,83 C 1.1045694996615871,83 0,81.8954305003384 0,81 L 0,2 C 0,1.1045694996615871 1.1045694996615871,0 2,0 z\" fill=\"none\" stroke=\"#C8C8C8\" stroke-width=\"1\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"10\" transform=\"matrix(1, 0, 0, 1, 0.5, 0.5)\"/></g></g></g><g transform=\"matrix(1, 0, 0, 1, 194, 1)\"><g transform=\"matrix(1, 0, 0, 1, 0, 34)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><path d=\"M 0,0 L 9,0 L 9,12 L 0,12 z\" fill=\"#488E50\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 1)\"/></g></g></g></g><g transform=\"matrix(1, 0, 0, 1, 248, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><g transform=\"matrix(1, 0, 0, 1, 0.8, 0.8)\"><rect x=\"0\" y=\"0\" width=\"192.4\" height=\"82.4\" fill=\"#F4F4F4\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><rect x=\"0\" y=\"0\" width=\"192.4\" height=\"25\" fill=\"#DCDCDC\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/><g transform=\"matrix(1, 0, 0, 1, 0, 0)\" clip-path=\"url(#CLIP36244)\"><text x=\"0\" y=\"10.506005859375001\" style=\"font: 12px Segoe UI\" text-anchor=\"start\" fill=\"#515151\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 5, 6.5)\">ForEach</text></g></g><g transform=\"matrix(1, 0, 0, 1, 0, 25)\"><g transform=\"matrix(1, 0, 0, 1, 10, 13.5)\"><path d=\"M 16.944,7.0649999999999995 L 15.883500000000002,6.0045 L 12.0435,9.8445 L 15.789,13.589999999999998 L 16.8495,12.529499999999999 L 14.8215,10.5015 L 22.542,10.5015 L 22.542,10.5 L 24,10.5 L 24,21 L 12,21 L 12,6 L 4.5,6 L 4.5,25.5 L 12,25.5 L 12,22.5 L 25.5,22.5 L 25.5,9 L 15.0105,9 L 16.944,7.0649999999999995 z M 10.5,24 L 6,24 L 6,19.5 L 10.5,19.5 L 10.5,24 z M 10.5,18 L 6,18 L 6,13.5 L 10.5,13.5 L 10.5,18 z M 10.5,12 L 6,12 L 6,7.5 L 10.5,7.5 L 10.5,12 z\" fill=\"#424242\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/></g><g transform=\"matrix(1, 0, 0, 1, 0, 0)\" clip-path=\"url(#CLIP36245)\"><g transform=\"matrix(1, 0, 0, 1, 50, 21.328662109375)\"><text x=\"0\" y=\"12.257006835937501\" style=\"font: 14px Segoe UI\" text-anchor=\"start\" fill=\"black\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 0)\">ForEachPartition</text></g></g></g></g><path d=\"M 2,0 L 191,0 C 191.89543050033842,0 193,1.1045694996615871 193,2 L 193,81 C 193,81.8954305003384 191.89543050033842,83 191,83 L 2,83 C 1.1045694996615871,83 0,81.8954305003384 0,81 L 0,2 C 0,1.1045694996615871 1.1045694996615871,0 2,0 z\" fill=\"transparent\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0.5, 0.5)\"/><path d=\"M 2,0 L 191,0 C 191.89543050033842,0 193,1.1045694996615871 193,2 L 193,81 C 193,81.8954305003384 191.89543050033842,83 191,83 L 2,83 C 1.1045694996615871,83 0,81.8954305003384 0,81 L 0,2 C 0,1.1045694996615871 1.1045694996615871,0 2,0 z\" fill=\"none\" stroke=\"#C8C8C8\" stroke-width=\"1\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"10\" transform=\"matrix(1, 0, 0, 1, 0.5, 0.5)\"/></g></g></g><g transform=\"matrix(1, 0, 0, 1, 194, 1)\"><g transform=\"matrix(1, 0, 0, 1, 0, 34)\"><g transform=\"matrix(1, 0, 0, 1, 0, 0)\"><path d=\"M 0,0 L 9,0 L 9,12 L 0,12 z\" fill=\"#488E50\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 0, 1)\"/></g></g></g></g><g transform=\"matrix(1, 0, 0, 1, 202.5, 36.88)\"><path d=\"M 0,0 L 45,0\" fill=\"none\" stroke=\"#488E50\" stroke-width=\"1\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"10\" transform=\"matrix(1, 0, 0, 1, 0.5, 5.12)\"/><path d=\"M 0,0 L 8,4.62 L 0,9.24 z\" fill=\"#488E50\" stroke=\"none\" transform=\"matrix(1, 0, 0, 1, 37, 0.5)\"/><path d=\"M 0,0 L 8,4.62 L 0,9.24 z\" fill=\"none\" stroke=\"#488E50\" stroke-width=\"1\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"10\" transform=\"matrix(1, 0, 0, 1, 37, 0.5)\"/></g></g></g><clipPath id=\"mainClip36241\"><rect x=\"0\" y=\"0\" width=\"400\" height=\"240\"/></clipPath><clipPath id=\"CLIP36242\"><path d=\"M 5,6.5 L 192.4,6.5 L 192.4,25 L 5,25 z\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/></clipPath><clipPath id=\"CLIP36243\"><path d=\"M 50,21.328662109375 L 192.4,21.328662109375 L 192.4,37.671337890625 L 50,37.671337890625 z\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/></clipPath><clipPath id=\"CLIP36244\"><path d=\"M 5,6.5 L 192.4,6.5 L 192.4,25 L 5,25 z\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/></clipPath><clipPath id=\"CLIP36245\"><path d=\"M 50,21.328662109375 L 192.4,21.328662109375 L 192.4,37.671337890625 L 50,37.671337890625 z\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"/></clipPath></svg>",
+    "icons": [
+        "Lookup",
+        "AzureDataExplorerTable",
+        "ForEach"
+    ],
+    "requires": {
+        "linkedservices": {
+            "SourceLinkedService": {
+                "supportTypes": [
+                    "SqlServer",
+                    "AzureSqlDatabase",
+                    "GoogleBigQuery",
+                    "Odbc",
+                    "Oracle",
+                    "Db2",
+                    "MySql",
+                    "PostgreSql",
+                    "Teradata",
+                    "Netezza",
+                    "SapHana"
+                ],
+                "parameterSets": [
+                    {
+                        "types": [
+                            "SqlServer",
+                            "AzureSqlDatabase"
+                        ],
+                        "parameters": {
+                            "ControlTableSQLQuery": {
+                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionID} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
+                                "type": "Expression"
+                            },
+                            "SourceSQLQuery": {
+                                "value": "@item().SourceQuery",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "Oracle"
+                        ],
+                        "parameters": {
+                            "ControlTableOracleQuery": {
+                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionID} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
+                                "type": "Expression"
+                            },
+                            "SourceOracleQuery": {
+                                "value": "@item().SourceQuery",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "types": [
+                            "GoogleBigQuery",
+                            "Odbc",
+                            "Db2",
+                            "MySql",
+                            "PostgreSql",
+                            "Teradata",
+                            "Netezza",
+                            "SapHana"
+                        ],
+                        "parameters": {
+                            "ControlTableQuery": {
+                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionID} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
+                                "type": "Expression"
+                            },
+                            "SourceQuery": {
+                                "value": "@item().SourceQuery",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ]
+            },
+            "AzureDataExplorer": {
+                "supportTypes": [
+                    "AzureDataExplorer"
+                ]
+            }
+        }
+    },
+    "documentation": "https://docs.microsoft.com/azure/data-explorer/data-factory-template",
+    "annotations": [
+        "Copy",
+        "Data Movement",
+        "Bulk Copy",
+        "Azure Data Explorer"
+    ],
+    "services": [
+        "Azure Data Explorer"
+    ],
+    "categories": [
+        "copy"
+    ]
+}

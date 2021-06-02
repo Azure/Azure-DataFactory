@@ -1,0 +1,247 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"PresidioDatabricks": { "type": "string" },
+		"PresidioStorage": { "type": "string" }
+	},
+	"variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Data Anonymization with Presidio on Databricks')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Anonymize PII data from CSV dataset with Presidio on Azure Databricks.",
+				"activities": [
+					{
+						"name": "AnonymizeSource",
+						"description": "Anonymize dataset with Presidio",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/notebooks/02_transform_presidio_csv",
+							"baseParameters": {
+								"anonymized_column": {
+									"value": "@pipeline().parameters.TextColumn_Name",
+									"type": "Expression"
+								},
+								"storage_output_folder": "anonymized",
+								"input_file_path": {
+									"value": "@pipeline().parameters.SourceFile_Name",
+									"type": "Expression"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('PresidioDatabricks')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "MergeAnonymizedToTarget",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "AnonymizeSource",
+								"dependencyConditions": [ "Succeeded" ]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "anonymized",
+									"wildcardFileName": "part-*",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": { "type": "DelimitedTextReadSettings" }
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings",
+									"copyBehavior": "MergeFiles"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "AnonymizedCsv",
+								"type": "DatasetReference",
+								"parameters": {
+									"container_name": {
+										"value": "@pipeline().parameters.SourceStore_Location",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "TargetCsv",
+								"type": "DatasetReference",
+								"parameters": {
+									"container_name": {
+										"value": "@pipeline().parameters.DestinationStore_Name",
+										"type": "Expression"
+									},
+									"file_name": {
+										"value": "@pipeline().parameters.SourceFile_Name",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "DeleteAnonymized",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "MergeAnonymizedToTarget",
+								"dependencyConditions": [ "Succeeded" ]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "AnonymizedCsv",
+								"type": "DatasetReference",
+								"parameters": {
+									"container_name": {
+										"value": "@pipeline().parameters.SourceStore_Location",
+										"type": "Expression"
+									}
+								}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"parameters": {
+					"SourceFile_Name": { "type": "string" },
+					"SourceStore_Location": { "type": "string" },
+					"DestinationStore_Name": { "type": "string" },
+					"TextColumn_Name": { "type": "string" }
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-05-04T12:46:37Z"
+			},
+			"dependsOn": [ "[concat(variables('factoryId'), '/datasets/AnonymizedCsv')]", "[concat(variables('factoryId'), '/datasets/TargetCsv')]" ]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AnonymizedCsv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('PresidioStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": { "container_name": { "type": "string" } },
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "anonymized",
+						"container": {
+							"value": "@dataset().container_name",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TargetCsv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('PresidioStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"container_name": { "type": "string" },
+					"file_name": { "type": "string" }
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().container_name",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}

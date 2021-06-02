@@ -1,0 +1,333 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"SapTable": {
+			"type": "string"
+		},
+		"AzureBlobStorage_Sink": {
+			"type": "string"
+		},
+		"AzureBlobStorage_Source": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyFromSAPTable')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyFromSAPTable",
+						"description": "Copy incremental data from SAP table to AzureBlobStorage",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupLastCopiedDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SapTableSource",
+								"rfcTableOptions": {
+									"value": "@{concat(pipeline().parameters.SapTableDateColumn,' LE ',formatDateTime(adddays(pipeline().TriggerTime,-1),'yyyyMMdd'), ' AND ',pipeline().parameters.SapTableDateColumn,' GE ', formatDateTime(activity('LookupLastCopiedDate').output.firstRow.Prop_0, 'yyyyMMdd'))}",
+									"type": "Expression"
+								},
+								"customRfcReadTableFunctionModule": "",
+								"partitionOption": "None"
+							},							
+							"sink":{  
+                                "type":"DelimitedTextSink",
+                                "storeSettings":{  
+                                    "type":"AzureBlobStorageWriteSettings"
+                                },
+                                "formatSettings":{  
+                                    "type":"DelimitedTextWriteSettings",
+                                    "quoteAllText":true,
+                                    "fileExtension":".txt"
+                                }
+                            },
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "SAPTableSource_Incremental",
+								"type": "DatasetReference",
+								"parameters": {
+									"SapTableName": {
+										"value": "@pipeline().parameters.SapTableName",
+										"type": "Expression"
+									}
+								}
+							}
+						],		
+						"outputs":[  
+                            {  
+                                "referenceName":"DelimitedTextSink",
+                                "type":"DatasetReference",
+                                "parameters":{  
+                                    "DelimitedTextSinkContainer":{  
+                                        "value":"@pipeline().parameters.DelimitedTextSinkContainer",
+                                        "type":"Expression"
+									},
+									"DelimitedTextSinkDirectory":{  
+                                        "value":"@pipeline().parameters.DelimitedTextSinkDirectory",
+                                        "type":"Expression"
+                                    }
+                                }
+                            }
+                        ]
+					},
+					{
+						"name": "LookupLastCopiedDate",
+						"description": "Copy incremental data from SAP table to AzureBlobStorage",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSetting",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSetting"
+								}
+							},
+							"dataset": {
+								"referenceName": "AzureBlobDelimitedDataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"HighWatermarkBlobDirectory": {
+										"value": "@pipeline().parameters.HighWatermarkBlobDirectory",
+										"type": "Expression"
+									},
+									"HighWatermarkBlobName": {
+										"value": "@pipeline().parameters.HighWatermarkBlobName",
+										"type": "Expression"
+									},
+									"HighWatermarkBlobContainer": {
+										"value": "@pipeline().parameters.HighWatermarkBlobContainer",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					},
+					{
+						"name": "SetLastCopiedDate",
+						"description": "Store the last copied date into blob by calling Logic App",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "CopyFromSAPTable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": {
+								"value": "@pipeline().parameters.LogicAppURL",
+								"type": "Expression"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\"copiedDate\":\"@{pipeline().TriggerTime}\"",
+								"type": "Expression"
+							},
+							"linkedServices": [],
+							"datasets": []
+						}
+					}
+				],
+				"parameters": {
+					"HighWatermarkBlobDirectory": {
+						"type": "string"
+					},
+					"HighWatermarkBlobName": {
+						"type": "string"
+					},
+					"HighWatermarkBlobContainer": {
+						"type": "string"
+					},
+					"SapTableName": {
+						"type": "string"
+					},
+					"DelimitedTextSinkContainer":{  
+                        "type":"string"
+					},
+					"DelimitedTextSinkDirectory":{  
+                        "type":"string"
+                    },
+					"LogicAppURL": {
+						"type": "string"
+					},
+					"SapTableDateColumn": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SAPTableSource_Incremental')]",
+				"[concat(variables('factoryId'), '/datasets/DelimitedTextSink')]",
+				"[concat(variables('factoryId'), '/datasets/AzureBlobDelimitedDataset')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SAPTableSource_Incremental')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SapTable')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SapTableName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SapTableResource",
+				"schema": [],
+				"typeProperties": {
+					"tableName": {
+						"value": "@dataset().SapTableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DelimitedTextSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "DelimitedText sink",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage_Sink')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"DelimitedTextSinkContainer": {
+						"type": "string"
+					},
+					"DelimitedTextSinkDirectory": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties":{  
+                    "location":{  
+                        "type":"AzureBlobStorageLocation",
+                        "container":{  
+                            "value":"@dataset().DelimitedTextSinkContainer",
+                            "type":"Expression"
+						},
+						"folderPath":{  
+                            "value":"@dataset().DelimitedTextSinkDirectory",
+                            "type":"Expression"
+						}
+                    },
+                    "columnDelimiter":",",
+                    "escapeChar":"\\",
+                    "nullValue":"\\N",
+                    "quoteChar":"\""
+                },
+                "schema":[  
+
+                ]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobDelimitedDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage_Source')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"HighWatermarkBlobDirectory": {
+						"type": "string"
+					},
+					"HighWatermarkBlobName": {
+						"type": "string"
+					},
+					"HighWatermarkBlobContainer": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().HighWatermarkBlobName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().HighWatermarkBlobDirectory",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().HighWatermarkBlobContainer",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}

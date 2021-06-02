@@ -1,0 +1,35 @@
+{
+    "name": "MyCustomActivityPipeline",
+    "properties": {
+        "activities": [
+            {
+                "name": "MyCustomActivity",
+                "type": "Custom",
+                "linkedServiceName": {
+                    "referenceName": "AzureBatchLinkedService",
+                    "type": "LinkedServiceReference"
+                },
+                "typeProperties": {
+                    "command": "Listall.exe",
+                    "resourceLinkedService": {
+                        "referenceName": "BatchStorageLinkedService",
+                        "type": "LinkedServiceReference"
+                    },
+                    "folderPath": "batchjobs/v2Sample",
+                    "referenceObjects": {
+                        "linkedServices": [
+                            {
+                                "referenceName": "BatchStorageLinkedService",
+                                "type": "LinkedServiceReference"
+                            }
+                        ]
+                    },
+                    "extendedProperties": {
+                        "InputFolderPath": "batchjobs/filestocheck",
+                        "OutputFilePath": "batchjobs/filestocheck/outputfile"
+                    }
+                }
+            }
+        ]
+    }
+}

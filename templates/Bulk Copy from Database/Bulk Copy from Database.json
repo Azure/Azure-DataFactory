@@ -1,0 +1,228 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "factoryName": {
+        "type": "string",
+        "metadata": "Data Factory Name"
+      },
+      "DataSourceConnection": {
+        "type": "string"
+      },
+      "ExternalControlTableConnection": {
+        "type": "string"
+      },
+      "DataDestinationConnection": {
+        "type": "string"
+      },
+      "allowPolyBase_parameter": {
+        "type": "bool"
+      },
+      "preCopyScript_parameter": {
+        "type": "bool"
+      },
+      "writeBatchSize_parameter": {
+        "type": "int"
+      },
+      "polyBaseSettings_parameter": {
+        "type": "object"
+      },
+      "enableStaging_parameter": {
+        "type": "bool"
+      },
+      "stagingSettings_parameter": {
+        "type": "object"
+      },
+      "copyactivity_output_parameter": {
+        "type": "object"
+      },
+      "DataDestination_parameter_paramter": {
+        "type": "object"
+      },
+      "DataDestination_type_paramter": {
+        "type": "string"
+      },    
+      "DataDestination_typeproperties_paramter": {
+        "type": "object"
+      },
+      "pipeline_parameter": {
+        "type": "object"
+      },
+      "CopySource_parameter": {
+        "type": "object"
+      },
+      "SourceDataset_parameter":{
+        "type": "string"
+      },
+      "SourceTable_parameter":{
+        "type": "object"
+      },
+      "ExternalDataset_parameter":{
+        "type": "string"
+      },
+      "ExternalTable_parameter":{
+        "type": "object"
+      },
+      "LookupActivity_Source_parameter":{
+        "type": "object"
+      }
+    },
+    "variables": {
+      "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+      {
+        "name": "[concat(parameters('factoryName'), '/BulkCopyfromDB_with_ControlTable')]",
+        "type": "Microsoft.DataFactory/factories/pipelines",
+        "apiVersion": "2018-06-01",
+        "properties": {
+          "description": "Copy huge amount of data in bulk from database using external control table to store source table list with partitions for each table.\n\nWhen you want to migrate data from your Azure Synapse Analytics like Oracle server, Netezza server, Teradata server or SQL Server to Azure, you have to load huge amount of data from multiple tables in data sources. In most cases, data has to be further partitioned in each table so that you can load rows with multiple threads in parallel from single table.",
+          "activities": [
+            {
+              "name": "GetPartitionList",
+              "description": "Lookup activity to retrieve the list of partitions stored in the external control table.",
+              "type": "Lookup",
+              "policy": {
+                "timeout": "7.00:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureOutput": false,
+                "secureInput": false
+              },
+              "typeProperties": {
+                "source": "[parameters('LookupActivity_Source_parameter')]",
+                "dataset": {
+                  "referenceName": "External_ControlTable",
+                  "type": "DatasetReference",
+                  "parameters": {
+                    "TableName": {
+                      "value": "@pipeline().parameters.Control_Table_Name",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                "firstRowOnly": false
+              }
+            },
+            {
+              "name": "ForEachPartition",
+              "description": "ForEach activity to get the partition list from Lookup activity and then iterate each of them to Copy activity. ",
+              "type": "ForEach",
+              "dependsOn": [
+                {
+                  "activity": "GetPartitionList",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ],
+              "typeProperties": {
+                "items": {
+                  "value": "@activity('GetPartitionList').output.value",
+                  "type": "Expression"
+                },
+                "batchCount": 5,
+                "activities": [
+                  {
+                    "name": "CopyOnePartition",
+                    "description": "Copy activity to copy each partition from source database store to destination store.",
+                    "type": "Copy",
+                    "policy": {
+                      "timeout": "7.00:00:00",
+                      "retry": 0,
+                      "retryIntervalInSeconds": 30,
+                      "secureOutput": false,
+                      "secureInput": false
+                    },
+                    "typeProperties": {
+                      "source": "[parameters('CopySource_parameter')]",
+                      "sink": {
+                        "type": "DelimitedTextSink",
+                        "allowPolyBase": "[parameters('allowPolyBase_parameter')]",
+                        "preCopyScript": "[parameters('preCopyScript_parameter')]",
+                        "writeBatchSize": "[parameters('writeBatchSize_parameter')]",
+                        "polyBaseSettings": "[parameters('polyBaseSettings_parameter')]"
+                      },
+                      "enableStaging": "[parameters('enableStaging_parameter')]",
+                      "stagingSettings": "[parameters('stagingSettings_parameter')]",
+                      "dataIntegrationUnits": 0
+                    },
+                    "inputs": [
+                      {
+                        "referenceName": "DataSource",
+                        "type": "DatasetReference"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "referenceName": "DataDestination",
+                        "type": "DatasetReference",
+                        "parameters": "[parameters('copyactivity_output_parameter')]"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "parameters": "[parameters('pipeline_parameter')]"
+        },
+        "dependsOn": [
+          "[concat(variables('factoryId'), '/datasets/External_ControlTable')]",
+          "[concat(variables('factoryId'), '/datasets/DataSource')]",
+          "[concat(variables('factoryId'), '/datasets/DataDestination')]"
+        ]
+      },
+      {
+        "name": "[concat(parameters('factoryName'), '/External_ControlTable')]",
+        "type": "Microsoft.DataFactory/factories/datasets",
+        "apiVersion": "2018-06-01",
+        "properties": {
+          "description": "The external control table is used to store the partition list of data source tables.",
+          "linkedServiceName": {
+            "referenceName": "[parameters('ExternalControlTableConnection')]",
+            "type": "LinkedServiceReference"
+          },
+          "parameters": {
+            "TableName": {
+              "type": "String"
+            }
+          },
+          "type": "[parameters('ExternalDataset_parameter')]",        
+          "schema": [],
+          "typeProperties": "[parameters('ExternalTable_parameter')]"
+        }
+      },
+      {
+        "name": "[concat(parameters('factoryName'), '/DataSource')]",
+        "type": "Microsoft.DataFactory/factories/datasets",
+        "apiVersion": "2018-06-01",
+        "properties": {
+          "description": "Connection to your data source store.",
+          "linkedServiceName": {
+            "referenceName": "[parameters('DataSourceConnection')]",
+            "type": "LinkedServiceReference"
+          },
+          "type": "[parameters('SourceDataset_parameter')]",
+          "schema": [],
+          "typeProperties": "[parameters('SourceTable_parameter')]"
+        }
+      },
+      {
+        "name": "[concat(parameters('factoryName'), '/DataDestination')]",
+        "type": "Microsoft.DataFactory/factories/datasets",
+        "apiVersion": "2018-06-01",
+        "properties": {
+          "description": "Connection to your data destination store.",
+          "linkedServiceName": {
+            "referenceName": "[parameters('DataDestinationConnection')]",
+            "type": "LinkedServiceReference"
+          },
+          "parameters": "[parameters('DataDestination_parameter_paramter')]",
+          "type": "[parameters('DataDestination_type_paramter')]",
+          "typeProperties": "[parameters('DataDestination_typeproperties_paramter')]",
+          "schema": []
+        }
+      }
+    ]
+  }

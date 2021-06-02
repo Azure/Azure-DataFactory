@@ -1,0 +1,312 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        },
+        "presidiosource": { "type": "string" }
+    },
+    "variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Data anonymization with Presidio as an HTTP service')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Anonymize PII data from text files during copy activity between locations with Presidio as an HTTP service.",
+                "activities": [
+                    {
+                        "name": "GetFileList",
+                        "description": "Get the list of file",
+                        "type": "GetMetadata",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "BinaryDataSource_Folder",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "Container": {
+                                        "value": "@pipeline().parameters.SourceStore_Location",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "fieldList": [ "childItems" ],
+                            "storeSettings": {
+                                "type": "AzureBlobStorageReadSettings",
+                                "recursive": true
+                            },
+                            "formatSettings": { "type": "BinaryReadSettings" }
+                        }
+                    },
+                    {
+                        "name": "ForEachFile",
+                        "description": "Iterate each file, and move them one by one.",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "FilterFiles",
+                                "dependencyConditions": [ "Succeeded" ]
+                            },
+                            {
+                                "activity": "GetSASToken",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('FilterFiles').output.value",
+                                "type": "Expression"
+                            },
+                            "batchCount": 20,
+                            "activities": [
+                                {
+                                    "name": "LoadFileContent",
+                                    "type": "Lookup",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "DelimitedTextSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageReadSettings",
+                                                "recursive": false,
+                                                "wildcardFolderPath": {
+                                                    "value": "@pipeline().parameters.SourceStore_Location",
+                                                    "type": "Expression"
+                                                },
+                                                "wildcardFileName": "@item().name",
+                                                "enablePartitionDiscovery": false
+                                            },
+                                            "formatSettings": { "type": "DelimitedTextReadSettings" }
+                                        },
+                                        "dataset": {
+                                            "referenceName": "FileContent",
+                                            "type": "DatasetReference",
+                                            "parameters": {}
+                                        },
+                                        "firstRowOnly": false
+                                    }
+                                },
+                                {
+                                    "name": "UploadBlob",
+                                    "type": "WebActivity",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "PresidioAnonymize",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": {
+                                            "value": "@concat('https://', pipeline().parameters.DestinationStore_Name, '.blob.core.windows.net/', pipeline().parameters.DestinationStore_Location, '/', item().name, '?', activity('GetSASToken').output.value)",
+                                            "type": "Expression"
+                                        },
+                                        "method": "PUT",
+                                        "headers": { "x-ms-blob-type": "BlockBlob" },
+                                        "body": {
+                                            "value": "@activity('PresidioAnonymize').output. text",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "PresidioAnalyze",
+                                    "description": "Analyze text with presidio",
+                                    "type": "WebActivity",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "LoadFileContent",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": {
+                                            "value": "@concat(pipeline().parameters.Analyzer_Url, '/analyze')",
+                                            "type": "Expression"
+                                        },
+                                        "method": "POST",
+                                        "headers": { "Content-Type": "application/json" },
+                                        "body": {
+                                            "value": "@concat('{\"text\":\"',replace(string(activity('LoadFileContent').output.value[0].Prop_0), '\"', '\\\"'),'\",\"language\":\"en\"}')\n\n",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "PresidioAnonymize",
+                                    "description": "Anonymize text with presidio",
+                                    "type": "WebActivity",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "PresidioAnalyze",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": {
+                                            "value": "@concat(pipeline().parameters.Anonymizer_Url, '/anonymize')",
+                                            "type": "Expression"
+                                        },
+                                        "method": "POST",
+                                        "headers": { "Content-Type": "application/json" },
+                                        "body": {
+                                            "value": "@concat('{\"text\":\"',replace(string(activity('LoadFileContent').output.value[0].Prop_0), '\"', '\\\"'), '\",\"anonymizers\": {\"DEFAULT\": { \"type\": \"replace\", \"new_value\": \"ANONYMIZED\" }},\"analyzer_results\": ', activity('PresidioAnalyze').output. Response,'}')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "FilterFiles",
+                        "description": "filter only files, source folders will not be selected.",
+                        "type": "Filter",
+                        "dependsOn": [
+                            {
+                                "activity": "GetFileList",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('GetFileList').output.childItems",
+                                "type": "Expression"
+                            },
+                            "condition": {
+                                "value": "@equals(item().type, 'File')",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "name": "GetSASToken",
+                        "description": "Get storage account SAS Token from Azure Key Vault",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat('https://', pipeline().parameters.KeyVault_Name, '.vault.azure.net/secrets/sas-token?api-version=7.0')",
+                                "type": "Expression"
+                            },
+                            "method": "GET",
+                            "headers": {},
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "https://vault.azure.net"
+                            }
+                        }
+                    }
+                ],
+                "parameters": {
+                    "SourceStore_Location": { "type": "String" },
+                    "DestinationStore_Name": { "type": "string" },
+                    "DestinationStore_Location": { "type": "String", "defaultValue": "presidio" },
+                    "KeyVault_Name": { "type": "string" },
+                    "Analyzer_Url": { "type": "string" },
+                    "Anonymizer_Url": { "type": "string" }
+                },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/BinaryDataSource_Folder')]", "[concat(variables('factoryId'), '/datasets/FileContent')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/BinaryDataSource_Folder')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "It describes the folder in the data source store.",
+                "linkedServiceName": {
+                    "referenceName": "[parameters('presidiosource')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": { "Container": { "type": "String" } },
+                "annotations": [],
+                "type": "Binary",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "container": {
+                            "value": "@{dataset().Container}",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/FileContent')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('presidiosource')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": { "type": "AzureBlobStorageLocation" },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        }
+    ]
+}

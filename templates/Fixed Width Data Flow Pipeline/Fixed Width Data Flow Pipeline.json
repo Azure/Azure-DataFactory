@@ -1,0 +1,146 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"AzureBlobStorage1": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Fixed Width Data Flow Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "This is an example of creating a data flow to process fixed-width text files",
+				"activities": [
+					{
+						"name": "fixedwidth",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "Fixed Width",
+								"type": "DataFlowReference"
+							}
+						}
+					}
+				],
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/Fixed Width')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Fixed Width')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Each parameter in this data flow is defined as 'start position', 'offset' as in '1,7'.",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "fixedwidth",
+								"type": "DatasetReference"
+							},
+							"name": "fixedsource1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "folderout",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						}
+					],
+					"transformations": [
+						{
+							"name": "MapFields"
+						}
+					],
+					"script": "\nparameters{\n\tField1 as string ('1,7'),\n\tField2 as string ('8,8'),\n\tField3 as string ('15,10'),\n\tField4 as string ('25,11'),\n\tField5 as string ('36,10'),\n\tField6 as string ('46,12'),\n\tField7 as string ('58,1')\n}\nsource(output(\n\t\tColumn_1 as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> fixedsource1\nfixedsource1 derive(Field1 = substring(Column_1,toInteger(split($Field1,',')[1]),toInteger(split($Field1,',')[2])),\n\t\tField2 = substring(Column_1,toInteger(split($Field2,',')[1]),toInteger(split($Field2,',')[2])),\n\t\tField3 = substring(Column_1,toInteger(split($Field3,',')[1]),toInteger(split($Field3,',')[2])),\n\t\tField4 = substring(Column_1,toInteger(split($Field4,',')[1]),toInteger(split($Field4,',')[2])),\n\t\tField5 = substring(Column_1,toInteger(split($Field5,',')[1]),toInteger(split($Field5,',')[2])),\n\t\tField6 = substring(Column_1,toInteger(split($Field6,',')[1]),toInteger(split($Field6,',')[2])),\n\t\tField7 = substring(Column_1,toInteger(split($Field7,',')[1]),toInteger(split($Field7,',')[2])),\n\tpartitionBy('roundRobin', 2)) ~> MapFields\nMapFields sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['mysinglefile.csv'],\n\ttruncate: true,\n\tpartitionBy('hash', 1)) ~> sink1"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/fixedwidth')]",
+				"[concat(variables('factoryId'), '/datasets/folderout')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/fixedwidth')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "fixed.txt",
+						"folderPath": "SampleData",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/folderout')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "output/mydataflow123partfiles",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}

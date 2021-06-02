@@ -1,0 +1,195 @@
+{  
+    "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion":"1.0.0.0",
+    "parameters":{  
+        "factoryName":{  
+            "type":"string",
+            "metadata":"Data Factory name"
+        },
+        "DataSourceConnection": {
+			"type": "string"
+		},
+		"DataDestinationConnection": {
+			"type": "string"
+        },
+        "ReadSettings_parameter":{  
+            "type":"string"
+        },
+        "WriteSettings_parameter":{  
+            "type":"string"
+        },
+        "SourceStore_location_parameter":{  
+            "type":"object"
+        },
+        "DestinationStore_location_parameter":{  
+            "type":"object"
+        },
+        "SourceStore_parameter_parameter":{  
+            "type":"object"
+        },
+        "DestinationStore_parameter_parameter":{  
+            "type":"object"
+        },
+        "CopyInputs_parameter_parameter":{  
+            "type":"object"
+        },
+        "CopyOutputs_parameter_parameter":{  
+            "type":"object"
+        }
+
+    },
+    "variables":{  
+        "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources":[  
+        {  
+            "name":"[concat(parameters('factoryName'), '/CopyNewFilesByLastModifiedDate')]",
+            "type":"Microsoft.DataFactory/factories/pipelines",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Copy new and changed files only by using LastModifiedDate",
+                "activities":[  
+                    {  
+                        "name":"CopyNewFiles",
+                        "description":"Copy new and changed files only by using LastModifiedDate",
+                        "type":"Copy",
+                        "dependsOn":[  
+
+                        ],
+                        "policy":{  
+                            "timeout":"7.00:00:00",
+                            "retry":0,
+                            "retryIntervalInSeconds":30,
+                            "secureOutput":false,
+                            "secureInput":false
+                        },
+                        "userProperties":[  
+
+                        ],
+                        "typeProperties":{  
+                            "source":{  
+                                "type":"BinarySource",
+                                "storeSettings":{  
+                                    "type":"[parameters('ReadSettings_parameter')]",
+                                    "recursive":true,
+                                    "wildcardFileName":{  
+                                        "value":"*",
+                                        "type":"Expression"
+                                    },
+                                    "modifiedDatetimeStart":{  
+                                        "value":"@{pipeline().parameters.LastModified_From}",
+                                        "type":"Expression"
+                                    },
+                                    "modifiedDatetimeEnd":{  
+                                        "value":"@{pipeline().parameters.LastModified_To}",
+                                        "type":"Expression"
+                                    }
+                                }
+                            },
+                            "sink":{  
+                                "type":"BinarySink",
+                                "storeSettings":{  
+                                    "type":"[parameters('WriteSettings_parameter')]"
+                                }
+                            },
+                            "enableStaging":false
+                        },
+                        "inputs":[  
+                            {  
+                                "referenceName":"BinaryDataSourceStore",
+                                "type":"DatasetReference",
+                                "parameters":"[parameters('CopyInputs_parameter_parameter')]"
+                            }
+                        ],
+                        "outputs":[  
+                            {  
+                                "referenceName":"BinaryDataDestinationStore",
+                                "type":"DatasetReference",
+                                "parameters":"[parameters('CopyOutputs_parameter_parameter')]"
+                            }
+                        ]
+                    }
+                ],
+                "parameters":{  
+                    "FolderPath_Source":{  
+                        "type":"String",
+                        "defaultValue":"sourcefolder"
+                    },
+                    "Directory_Source":{  
+                        "type":"String",
+                        "defaultValue":"subfolder"
+                    },
+                    "FolderPath_Destination":{  
+                        "type":"String",
+                        "defaultValue":"destinationfolder"
+                    },
+                    "Directory_Destination":{  
+                        "type":"String",
+                        "defaultValue":"subfolder"
+                    },
+                    "LastModified_From":{  
+                        "type":"String",
+                        "defaultValue":"2019-02-01T00:00:00Z"
+                    },
+                    "LastModified_To":{  
+                        "type":"String",
+                        "defaultValue":"2019-03-01T00:00:00Z"
+                    }
+                },
+                "annotations":[  
+
+                ]
+            },
+            "dependsOn":[  
+                "[concat(variables('factoryId'), '/datasets/BinaryDataSourceStore')]",
+                "[concat(variables('factoryId'), '/datasets/BinaryDataDestinationStore')]"
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinaryDataSourceStore')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Connection to your data source store. ",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataSourceConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('SourceStore_parameter_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('SourceStore_location_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        },
+        {  
+            "name":"[concat(parameters('factoryName'), '/BinaryDataDestinationStore')]",
+            "type":"Microsoft.DataFactory/factories/datasets",
+            "apiVersion":"2018-06-01",
+            "properties":{  
+                "description":"Connection to your data destination store.  ",
+                "linkedServiceName":{  
+                    "referenceName":"[parameters('DataDestinationConnection')]",
+                    "type":"LinkedServiceReference"
+                },
+                "parameters":"[parameters('DestinationStore_parameter_parameter')]",
+                "annotations":[  
+
+                ],
+                "type":"Binary",
+                "typeProperties":{  
+                    "location":"[parameters('DestinationStore_location_parameter')]"
+                }
+            },
+            "dependsOn":[  
+
+            ]
+        }
+    ]
+}

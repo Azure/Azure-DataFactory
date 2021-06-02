@@ -1,0 +1,225 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"SourceLinkedService": {
+			"type": "string"
+		},
+		"AzureDataExplorer": {
+			"type": "string"
+		},
+		"ControlTableSQLQuery": {
+			"type": "object"
+		},
+		"ControlTableOracleQuery": {
+			"type": "object"
+		},
+		"ControlTableQuery": {
+			"type": "object"
+		},
+		"SourceSQLQuery": {
+			"type": "object"
+		},
+		"SourceOracleQuery": {
+			"type": "object"
+		},
+		"SourceQuery": {
+			"type": "object"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/BulkCopyFromDBToAzureDataExplorer')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Use this template to copy large amount of data in bulk from database like SQL Server, Google BigQuery, etc to Azure Data Explorer (ADX), using control table to store partition list of source data.\n\nIf you want to copy data from a small number of tables with moderate size of data into ADX, it's more efficient to use “Copy Data tool” with intuitive wizard-based experience.",
+				"activities": [
+					{
+						"name": "GetPartitionList",
+						"description": "Lookup activity to retrieve the list of partitions stored in the control table.\n\nThis template assumes your control table is located in the same database as your source data, with the following schema. You can change the linked service in dataset or query in Settings to adapt to your case.\n\nPartitionId | SourceQuery | ADXTableName\n<e.g. 1> | <e.g. select * from table where lastModifiedTime >= '2019-08-01 00:00:00'> | <e.g. MyAdxTable>",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "[parameters('ControlTableSQLQuery')]",
+								"oracleReaderQuery": "[parameters('ControlTableOracleQuery')]",
+								"query": "[parameters('ControlTableQuery')]"
+							},
+							"dataset": {
+								"referenceName": "ControlTableDataset",
+								"type": "DatasetReference"
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachPartition",
+						"description": "ForEach activity to get the partition list from Lookup activity and then iterate each of them to Copy activity. ",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetPartitionList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetPartitionList').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 10,
+							"activities": [
+								{
+									"name": "CopyData",
+									"description": "Copy activity to copy each partition from source database to ADX.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"sqlReaderQuery": "[parameters('SourceSQLQuery')]",
+											"oracleReaderQuery": "[parameters('SourceOracleQuery')]",
+											"query": "[parameters('SourceQuery')]"
+										},
+										"sink": {
+											"type": "AzureDataExplorerSink"
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "SourceDataset",
+											"type": "DatasetReference"
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "AzureDataExplorerTable",
+											"type": "DatasetReference",
+											"parameters": {
+												"ADXTableName": {
+													"value": "@item().ADXTableName",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"ControlTableName": {
+						"type": "string"
+					},
+					"ControlTableSchemaPartitionId": {
+						"type": "string",
+						"defaultValue": "PartitionId"
+					},
+					"ControlTableSchemaSourceQuery": {
+						"type": "string",
+						"defaultValue": "SourceQuery"
+					},
+					"ControlTableSchemaADXTableName": {
+						"type": "string",
+						"defaultValue": "ADXTableName"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ControlTableDataset')]",
+				"[concat(variables('factoryId'), '/datasets/SourceDataset')]",
+				"[concat(variables('factoryId'), '/datasets/AzureDataExplorerTable')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ControlTableDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Dataset for control table, which is used to store the partition list of source data.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('SourceLinkedService')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SourceDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Dataset for source.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('SourceLinkedService')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureDataExplorerTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Dataset for Azure Data Explorer sink.",
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureDataExplorer')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"ADXTableName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureDataExplorerTable",
+				"schema": [],
+				"typeProperties": {
+					"table": {
+						"value": "@dataset().ADXTableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

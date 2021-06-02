@@ -1,0 +1,2133 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        },
+        "AZStorage": { "type": "string" },
+        "EMEA1AdobeIOBi": { "type": "string" },
+        "EMA1Dynamics1": { "type": "string" },
+        "DynamicsRest1": { "type": "string" }
+    },
+    "variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/IngressMaster_NotForRunBi')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Execute Pipeline1",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Pipeline3",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "IngressGetChangesFromD365Bi",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    },
+                    {
+                        "name": "Execute Pipeline2",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Pipeline1",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "IngressWriteToACSBi",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    },
+                    {
+                        "name": "Execute Pipeline3",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "IngressD365ToFile_InitialLoadBi",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    },
+                    {
+                        "name": "Execute Pipeline4",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Pipeline2",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "OptOutBidirectionalInSync",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {}
+                        }
+                    }
+                ],
+                "folder": { "name": "IngressBidirectionalOptOut" },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/pipelines/IngressGetChangesFromD365Bi')]", "[concat(variables('factoryId'), '/pipelines/IngressWriteToACSBi')]", "[concat(variables('factoryId'), '/pipelines/IngressD365ToFile_InitialLoadBi')]", "[concat(variables('factoryId'), '/pipelines/OptOutBidirectionalInSync')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/IngressGetChangesFromD365Bi')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "GetDeltaLink",
+                        "type": "Lookup",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFileName": "*",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "dataset": {
+                                "referenceName": "D365DeltaLink_Bi",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        }
+                    },
+                    {
+                        "name": "If Condition1",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "GetDeltaLink",
+                                "dependencyConditions": [ "Completed" ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@contains(activity('GetDeltaLink').output, 'firstRow')",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "CopyDeltaLinkDirectly",
+                                    "type": "Copy",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "RestSource",
+                                            "httpRequestTimeout": "00:01:40",
+                                            "requestInterval": "00.00:00:00.010",
+                                            "requestMethod": "GET",
+                                            "additionalHeaders": { "Prefer": "odata.track-changes, odata.maxpagesize=100" },
+                                            "paginationRules": { "AbsoluteUrl": "$.['@odata.nextLink']" }
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": { "type": "AzureBlobFSWriteSettings" },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": { "path": "$['@odata.deltaLink']" },
+                                                    "sink": {
+                                                        "name": "deltalink",
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            ],
+                                            "collectionReference": ""
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "d365Rest",
+                                            "type": "DatasetReference",
+                                            "parameters": { "subpath": "contacts" }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365DeltaLink_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {}
+                                        }
+                                    ]
+                                }
+                            ],
+                            "ifTrueActivities": [
+                                {
+                                    "name": "GetChanges",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Set variable1",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "RestSource",
+                                            "httpRequestTimeout": "00:01:40",
+                                            "requestInterval": "00.00:00:00.010",
+                                            "requestMethod": "GET",
+                                            "additionalHeaders": { "Prefer": "odata.track-changes" }
+                                        },
+                                        "sink": {
+                                            "type": "JsonSink",
+                                            "storeSettings": { "type": "AzureBlobFSWriteSettings" },
+                                            "formatSettings": {
+                                                "type": "JsonWriteSettings",
+                                                "quoteAllText": true
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": { "path": "$['@odata.deltaLink']" },
+                                                    "sink": { "path": "deltalink" }
+                                                },
+                                                {
+                                                    "source": { "path": "$['value']" },
+                                                    "sink": { "path": "value" }
+                                                }
+                                            ],
+                                            "collectionReference": ""
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "d365Rest",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "subpath": {
+                                                    "value": "@activity('GetDeltaLink').output.firstRow.deltalink",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365ChangesJson_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "filePath": {
+                                                    "value": "@variables('filePath')",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "CopyDeltaLink",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "CopyChanges",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "JsonSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSReadSettings",
+                                                "recursive": true
+                                            },
+                                            "formatSettings": { "type": "JsonReadSettings" }
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": { "type": "AzureBlobFSWriteSettings" },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": { "path": "$['deltalink']" },
+                                                    "sink": {
+                                                        "name": "deltalink",
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "D365ChangesJson_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "filePath": {
+                                                    "value": "@variables('filePath')",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365DeltaLink_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {}
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "CopyChanges",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "GetChanges",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "JsonSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobFSReadSettings",
+                                                "recursive": true
+                                            },
+                                            "formatSettings": { "type": "JsonReadSettings" }
+                                        },
+                                        "sink": {
+                                            "type": "ParquetSink",
+                                            "storeSettings": { "type": "AzureBlobFSWriteSettings" }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "mappings": [
+                                                {
+                                                    "source": { "path": "[['address1_line1']" },
+                                                    "sink": {
+                                                        "name": "address1_line1",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['modifiedon']" },
+                                                    "sink": {
+                                                        "name": "modifiedon",
+                                                        "type": "DateTime"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['address1_line2']" },
+                                                    "sink": {
+                                                        "name": "address1_line2",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['address1_line3']" },
+                                                    "sink": {
+                                                        "name": "address1_line3",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['contactid']" },
+                                                    "sink": {
+                                                        "name": "contactid",
+                                                        "type": "Guid"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['address1_city']" },
+                                                    "sink": {
+                                                        "name": "address1_city",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['address1_country']" },
+                                                    "sink": {
+                                                        "name": "address1_country",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['birthdate']" },
+                                                    "sink": {
+                                                        "name": "birthdate",
+                                                        "type": "DateTime"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['createdon']" },
+                                                    "sink": {
+                                                        "name": "createdon",
+                                                        "type": "DateTime"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['emailaddress1']" },
+                                                    "sink": {
+                                                        "name": "emailaddress1",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['firstname']" },
+                                                    "sink": {
+                                                        "name": "firstname",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['gendercode']" },
+                                                    "sink": {
+                                                        "name": "gendercode",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['lastname']" },
+                                                    "sink": {
+                                                        "name": "lastname",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['telephone1']" },
+                                                    "sink": {
+                                                        "name": "telephone1",
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotfax']" },
+                                                    "sink": {
+                                                        "name": "donotfax",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotpostalmail']" },
+                                                    "sink": {
+                                                        "name": "donotpostalmail",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotemail']" },
+                                                    "sink": {
+                                                        "name": "donotemail",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotphone']" },
+                                                    "sink": {
+                                                        "name": "donotphone",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotbulkemail']" },
+                                                    "sink": {
+                                                        "name": "donotbulkemail",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotbulkpostalmail']" },
+                                                    "sink": {
+                                                        "name": "donotbulkpostalmail",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['msdyn_gdproptout']" },
+                                                    "sink": {
+                                                        "name": "msdyn_gdproptout",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['donotsendmm']" },
+                                                    "sink": {
+                                                        "name": "donotsendmm",
+                                                        "type": "Boolean"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['id']" },
+                                                    "sink": {
+                                                        "name": "id",
+                                                        "type": "Guid"
+                                                    }
+                                                },
+                                                {
+                                                    "source": { "path": "[['reason']" },
+                                                    "sink": {
+                                                        "name": "reason",
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            ],
+                                            "collectionReference": "$['value']"
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "D365ChangesJson_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "filePath": {
+                                                    "value": "@variables('filePath')",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "D365Changes_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {}
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "DeleteTmp",
+                                    "type": "Delete",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "CopyDeltaLink",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "dataset": {
+                                            "referenceName": "D365ChangesJson_Bi",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "filePath": {
+                                                    "value": "@variables('filePath')",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        },
+                                        "enableLogging": false,
+                                        "storeSettings": {
+                                            "type": "AzureBlobFSReadSettings",
+                                            "recursive": true
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Set variable1",
+                                    "type": "SetVariable",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "filePath",
+                                        "value": {
+                                            "value": "@{pipeline().RunId}.json",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "concurrency": 1,
+                "variables": { "filePath": { "type": "String" } },
+                "folder": { "name": "IngressBidirectionalOptOut" },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/D365DeltaLink_Bi')]", "[concat(variables('factoryId'), '/datasets/d365Rest')]", "[concat(variables('factoryId'), '/datasets/D365ChangesJson_Bi')]", "[concat(variables('factoryId'), '/datasets/D365Changes_Bi')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/IngressWriteToACSBi')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "AdobeSyncD365Changes",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "IngressWriteToACS_Bi",
+                                "type": "DataFlowReference",
+                                "parameters": { "enableGDPRDelete": "false()" },
+                                "datasetParameters": {
+                                    "source1": {},
+                                    "WriteToAdobe": {},
+                                    "GDPRDelete": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            }
+                        }
+                    },
+                    {
+                        "name": "CopyFailedFilesBack",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "AdobeSyncD365Changes",
+                                "dependencyConditions": [ "Failed" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "ParquetSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFolderPath": "processed",
+                                    "wildcardFileName": "*.parquet",
+                                    "enablePartitionDiscovery": false
+                                }
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": { "type": "AzureBlobFSWriteSettings" }
+                            },
+                            "enableStaging": false
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "D365Changes_Bi",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "D365Changes_Bi",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DeleteStagingFiles",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "AdobeSyncD365Changes",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "D365Processed_Bi",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true
+                            }
+                        }
+                    }
+                ],
+                "concurrency": 1,
+                "parameters": {
+                    "enableGDPRDelete": {
+                        "type": "bool",
+                        "defaultValue": false
+                    }
+                },
+                "folder": { "name": "IngressBidirectionalOptOut" },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/dataflows/IngressWriteToACS_Bi')]", "[concat(variables('factoryId'), '/datasets/D365Changes_Bi')]", "[concat(variables('factoryId'), '/datasets/D365Processed_Bi')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/IngressD365ToFile_InitialLoadBi')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "CopyContactToStaging",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": { "type": "DynamicsSource" },
+                            "sink": {
+                                "type": "DelimitedTextSink",
+                                "storeSettings": { "type": "AzureBlobFSWriteSettings" },
+                                "formatSettings": {
+                                    "type": "DelimitedTextWriteSettings",
+                                    "quoteAllText": true,
+                                    "fileExtension": ".txt"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "customertypecode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "customertypecode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address2_addresstypecode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "address2_addresstypecode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "merged",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "merged",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "territorycode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "territorycode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "emailaddress1",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "emailaddress1",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "haschildrencode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "haschildrencode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "exchangerate",
+                                            "type": "Decimal"
+                                        },
+                                        "sink": {
+                                            "name": "exchangerate",
+                                            "type": "Decimal"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "preferredappointmenttimecode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "preferredappointmenttimecode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "msdyn_orgchangestatus",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "msdyn_orgchangestatus",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "isbackofficecustomer",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "isbackofficecustomer",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "modifiedon",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": {
+                                            "name": "modifiedon",
+                                            "type": "DateTime",
+                                            "format": "yyyy-MM-ddTmm:hh:ssZ"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "owninguser",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "owninguser",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "lastname",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "lastname",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotpostalmail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotpostalmail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "marketingonly",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "marketingonly",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotphone",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotphone",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "preferredcontactmethodcode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "preferredcontactmethodcode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "educationcode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "educationcode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "ownerid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "ownerid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "customersizecode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "customersizecode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "firstname",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "firstname",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "yomifullname",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "yomifullname",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotemail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotemail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address2_shippingmethodcode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "address2_shippingmethodcode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "fullname",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "fullname",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_addressid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "address1_addressid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "msdyn_gdproptout",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "msdyn_gdproptout",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address2_freighttermscode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "address2_freighttermscode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "statuscode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "statuscode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "createdon",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": {
+                                            "name": "createdon",
+                                            "type": "DateTime",
+                                            "format": "yyyy-MM-ddTmm:hh:ssZ"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotsendmm",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotsendmm",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotfax",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotfax",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "leadsourcecode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "leadsourcecode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "creditonhold",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "creditonhold",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "transactioncurrencyid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "transactioncurrencyid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address3_addressid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "address3_addressid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotbulkemail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotbulkemail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "modifiedby",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "modifiedby",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "followemail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "followemail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "shippingmethodcode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "shippingmethodcode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "createdby",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "createdby",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotbulkpostalmail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotbulkpostalmail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "contactid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "contactid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "participatesinworkflow",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "participatesinworkflow",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "statecode",
+                                            "type": "Int32"
+                                        },
+                                        "sink": {
+                                            "name": "statecode",
+                                            "type": "Int32"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "owningbusinessunit",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "owningbusinessunit",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address2_addressid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "address2_addressid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_composite",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_composite",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_stateorprovince",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_stateorprovince",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_country",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_country",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_line1",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_line1",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_line2",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_line2",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_city",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_city",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_line3",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_line3",
+                                            "type": "String"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "address1_postalcode",
+                                            "type": "String"
+                                        },
+                                        "sink": {
+                                            "name": "address1_postalcode",
+                                            "type": "String"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "contact",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "ContactInitial",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    }
+                ],
+                "parameters": {
+                    "lastUpdate": {
+                        "type": "string",
+                        "defaultValue": "2020-03-19T00:10:00Z"
+                    }
+                },
+                "folder": { "name": "IngressBidirectionalOptOut" },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/contact')]", "[concat(variables('factoryId'), '/datasets/ContactInitial')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/OptOutBidirectionalInSync')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "D365ToStaging",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DynamicsSource",
+                                "query": {
+                                    "value": "<fetch><entity name=\"contact\"><all-attributes/><filter type=\"and\"><condition attribute=\"modifiedon\" operator=\"gt\" value=\"@{pipeline().parameters.lastQueryTime}\" />\n<condition attribute=\"modifiedon\" operator=\"le\" value=\"@{pipeline().parameters.triggerTIme}\" />\n</filter></entity></fetch>",
+                                    "type": "Expression"
+                                }
+                            },
+                            "sink": {
+                                "type": "DelimitedTextSink",
+                                "storeSettings": { "type": "AzureBlobFSWriteSettings" },
+                                "formatSettings": {
+                                    "type": "DelimitedTextWriteSettings",
+                                    "quoteAllText": true,
+                                    "fileExtension": ".txt"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "modifiedon",
+                                            "type": "DateTime"
+                                        },
+                                        "sink": {
+                                            "name": "modifiedon",
+                                            "type": "DateTime"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "contactid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": {
+                                            "name": "contactid",
+                                            "type": "Guid"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotbulkpostalmail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotbulkpostalmail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotphone",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotphone",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotemail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotemail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotfax",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotfax",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotbulkemail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotbulkemail",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "msdyn_gdproptout",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "msdyn_gdproptout",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotsendmm",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotsendmm",
+                                            "type": "Boolean"
+                                        }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "donotpostalmail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": {
+                                            "name": "donotpostalmail",
+                                            "type": "Boolean"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "contact",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "OptOutFromD365Staging",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "subPath": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "name": "MergeOptOuts",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "D365ToStaging",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "OptOutBidirectionalInSync",
+                                "type": "DataFlowReference",
+                                "parameters": {
+                                    "triggerTime": {
+                                        "value": "'@{pipeline().parameters.triggerTime}'",
+                                        "type": "Expression"
+                                    },
+                                    "lastQueryTime": {
+                                        "value": "'@{pipeline().parameters.lastQueryTime}'",
+                                        "type": "Expression"
+                                    }
+                                },
+                                "datasetParameters": {
+                                    "D365": {
+                                        "subPath": {
+                                            "value": "@pipeline().RunId",
+                                            "type": "Expression"
+                                        }
+                                    },
+                                    "AdobeCampaign": {},
+                                    "ToD365Merge": {
+                                        "subPath": {
+                                            "value": "@pipeline().RunId",
+                                            "type": "Expression"
+                                        }
+                                    },
+                                    "ToCampaignMerge": {},
+                                    "ToCampaignNew": {},
+                                    "ToD365New": {
+                                        "subPath": {
+                                            "value": "@pipeline().RunId",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            }
+                        }
+                    },
+                    {
+                        "name": "StagingToD365",
+                        "type": "Copy",
+                        "dependsOn": [
+                            {
+                                "activity": "MergeOptOuts",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "wildcardFileName": "*.csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": { "type": "DelimitedTextReadSettings" }
+                            },
+                            "sink": {
+                                "type": "DynamicsSink",
+                                "writeBatchSize": 10,
+                                "writeBehavior": "upsert"
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "mappings": [
+                                    {
+                                        "source": {
+                                            "name": "blackListPhone",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": { "name": "donotphone" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "blackListEmail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": { "name": "donotemail" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "blackListFax",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": { "name": "donotfax" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "blackListPostalMail",
+                                            "type": "Boolean"
+                                        },
+                                        "sink": { "name": "donotpostalmail" }
+                                    },
+                                    {
+                                        "source": {
+                                            "name": "contactid",
+                                            "type": "Guid"
+                                        },
+                                        "sink": { "name": "contactid" }
+                                    }
+                                ]
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "OptOutToD365Staging",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "subPath": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "contact",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DeleteInputStaging",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "MergeOptOuts",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "OptOutFromD365Staging",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "subPath": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true
+                            }
+                        }
+                    },
+                    {
+                        "name": "DeleteOutputStaging",
+                        "type": "Delete",
+                        "dependsOn": [
+                            {
+                                "activity": "StagingToD365",
+                                "dependencyConditions": [ "Succeeded" ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "OptOutToD365Staging",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "subPath": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "enableLogging": false,
+                            "storeSettings": {
+                                "type": "AzureBlobFSReadSettings",
+                                "recursive": true
+                            }
+                        }
+                    }
+                ],
+                "parameters": {
+                    "lastQueryTime": {
+                        "type": "string",
+                        "defaultValue": "2019-03-19T00:10:00Z"
+                    },
+                    "triggerTime": {
+                        "type": "string",
+                        "defaultValue": "2020-06-14T00:00:00Z"
+                    }
+                },
+                "folder": { "name": "IngressBidirectionalOptOut" },
+                "annotations": []
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/contact')]", "[concat(variables('factoryId'), '/datasets/OptOutFromD365Staging')]", "[concat(variables('factoryId'), '/dataflows/OptOutBidirectionalInSync')]", "[concat(variables('factoryId'), '/datasets/OptOutToD365Staging')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365DeltaLink_Bi')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileName": "deltalink.csv",
+                        "folderPath": "deltalink",
+                        "fileSystem": "d365bi"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/IngressWriteToACS_Bi')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "D365Changes_Bi",
+                                "type": "DatasetReference"
+                            },
+                            "name": "source1"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "WriteToAdobe"
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "GDPRDelete"
+                        }
+                    ],
+                    "transformations": [
+                        { "name": "ConditionalSplit1" },
+                        { "name": "GenerateNewColumns" },
+                        { "name": "MarkUpsert" },
+                        { "name": "SurrogateKey1" },
+                        { "name": "Aggregate1" },
+                        { "name": "DerivedColumn1" },
+                        { "name": "Window1" },
+                        { "name": "Filter1" },
+                        { "name": "Select1" },
+                        { "name": "Exists1" }
+                    ],
+                    "script": "parameters{\n\tenableGDPRDelete as boolean (true())\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tmoveFiles: ['changes','processed'],\n\tmodifiedBefore: (toTimestamp(minus(currentUTC(), minutes(5)))),\n\tformat: 'parquet',\n\twildcardPaths:['changes/*.parquet']) ~> source1\nsource1 split(!isNull(byName('id')) && byName('reason') == 'deleted' && $enableGDPRDelete,\n\tisNull(byName('id')),\n\tdisjoint: false) ~> ConditionalSplit1@(deletedData, updatedData, unknown)\nConditionalSplit1@updatedData derive(location = @(address1=byName('address1_line1'),\n\t\taddress2=byName('address1_line2'),\n\t\taddress3=byName('address1_line3'),\n\t\tcity=byName('address1_city'),\n\t\tzipCode=byName('address1_postalcode')),\n\t\tbirthDate = byName('birthdate'),\n\t\tcreated = byName('createdon'),\n\t\temail = byName('emailaddress1'),\n\t\tfirstName = byName('firstname'),\n\t\tgender = iif(isNull(byName('gendercode')), 'unknown', iif(toString(byName('gendercode')) == \"1\", 'male', 'female')),\n\t\tlastModified = toTimestamp(byName('modifiedon')),\n\t\tlastName = byName('lastname'),\n\t\tphone = byName('telephone1'),\n\t\texternalId = byName('contactid'),\n\t\tblackListEmail = toBoolean(byName('donotemail')),\n\t\tblackListPhone = toBoolean(byName('donotphone')),\n\t\tblackListFax = toBoolean(byName('donotfax')),\n\t\tblackListPostalMail = toBoolean(byName('donotpostalmail'))) ~> GenerateNewColumns\nSelect1 alterRow(upsertIf(true())) ~> MarkUpsert\nConditionalSplit1@deletedData keyGenerate(output(rowNum as long),\n\tstartAt: 1L) ~> SurrogateKey1\nSurrogateKey1 aggregate(groupBy(key = rowNum%50),\n\tuserIdList = collect(byName('id'))) ~> Aggregate1\nAggregate1 derive(key = 'ADF' + toString(currentDate('UTC')) + toString(uuid())) ~> DerivedColumn1\nExists1 window(over(externalId),\n\tdesc(lastModified, true),\n\tlatest = max(lastModified)) ~> Window1\nWindow1 filter(lastModified == latest) ~> Filter1\nFilter1 select(mapColumn(\n\t\tlocation,\n\t\tbirthDate,\n\t\tcreated,\n\t\temail,\n\t\tfirstName,\n\t\tgender,\n\t\tlastModified,\n\t\tlastName,\n\t\tphone,\n\t\texternalId,\n\t\teach(match(startsWith(name,'blackList')))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nGenerateNewColumns, ConditionalSplit1@deletedData exists(externalId == byName('id'),\n\tnegate:true,\n\tbroadcast: 'auto')~> Exists1\nMarkUpsert sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinput(\n\t\texternalId as string\n\t),\n\tformat: 'adobecampaign',\n\tresourceName: 'profile',\n\tdeletable:false,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['externalId'],\n\texcludeFields:[('blackListEmail'),('blackListFax'),('blackListPhone'),('blackListPostalMail')],\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 1) ~> WriteToAdobe\nDerivedColumn1 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'adobeprivacy',\n\tnamespace: 'externalId',\n\tnamespaceQualifier: 'custom',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tsaveOrder: 2) ~> GDPRDelete"
+                }
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/D365Changes_Bi')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365Changes_Bi')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "changes",
+                        "fileSystem": "d365bi"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365Processed_Bi')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Binary",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "processed",
+                        "fileSystem": "d365bi"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/contact')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('EMA1Dynamics1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DynamicsEntity",
+                "schema": [],
+                "typeProperties": { "entityName": "contact" }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/ContactInitial')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "initial",
+                        "fileSystem": "adobeingress"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/OptOutFromD365Staging')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": { "subPath": { "type": "string" } },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": {
+                            "value": "inStaging/@{dataset().subPath}",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "optout"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/OptOutBidirectionalInSync')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "OptOutFromD365Staging",
+                                "type": "DatasetReference"
+                            },
+                            "name": "D365"
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "AdobeCampaign"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "OptOutToD365Staging",
+                                "type": "DatasetReference"
+                            },
+                            "name": "ToD365Merge"
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "ToCampaignMerge"
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('EMEA1AdobeIOBi')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "ToCampaignNew"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "OptOutToD365Staging",
+                                "type": "DatasetReference"
+                            },
+                            "name": "ToD365New"
+                        }
+                    ],
+                    "transformations": [
+                        { "name": "FilterDuplicates" },
+                        { "name": "JoinD365AndCampaign" },
+                        { "name": "Reconcile" },
+                        { "name": "ConditionalSplit1" },
+                        { "name": "MarkUpsert" },
+                        { "name": "MarkUpsertNew" },
+                        { "name": "DerivedColumn1" }
+                    ],
+                    "script": "parameters{\n\ttriggerTime as string (toString(currentTimestamp())),\n\tlastQueryTime as string (toString(subDays(currentTimestamp(),1)))\n}\nsource(output(\n\t\tmodifiedon as string,\n\t\tcontactid as string,\n\t\tdonotbulkpostalmail as boolean,\n\t\tdonotphone as boolean,\n\t\tdonotemail as boolean,\n\t\tdonotfax as boolean,\n\t\tdonotbulkemail as boolean,\n\t\tmsdyn_gdproptout as boolean,\n\t\tdonotsendmm as boolean,\n\t\tdonotpostalmail as boolean\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> D365\nsource(output(\n\t\tPKey as string,\n\t\tblackList as boolean,\n\t\tblackListAllLastModified as string,\n\t\tblackListEmail as boolean,\n\t\tblackListEmailLastModified as string,\n\t\tblackListFax as boolean,\n\t\tblackListFaxLastModified as string,\n\t\tblackListLastModified as string,\n\t\tblackListMobile as boolean,\n\t\tblackListMobileLastModified as string,\n\t\tblackListPhone as boolean,\n\t\tblackListPhoneLastModified as string,\n\t\tblackListPostalMail as boolean,\n\t\tblackListPostalMailLastModified as string,\n\t\tccpaOptOut as boolean,\n\t\tccpaOptOutLastModified as string,\n\t\texternalId as string,\n\t\thref as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'adobecampaign',\n\tresourceName: 'profileBlackListModified',\n\tfilterMap: ['blackListLastModified'->($lastQueryTime)]) ~> AdobeCampaign\nAdobeCampaign filter(!isNull(externalId) && externalId != '') ~> FilterDuplicates\nD365, FilterDuplicates join(contactid == externalId,\n\tjoinType:'outer',\n\tbroadcast: 'auto')~> JoinD365AndCampaign\nConditionalSplit1@default derive(blackListEmail = iif(blackListEmailLastModified > modifiedon, blackListEmail, iif(blackListEmail, blackListEmail, donotemail)),\n\t\tblackListEmailLastModified = $triggerTime,\n\t\tblackListFax = iif(blackListFaxLastModified >= modifiedon, blackListFax, iif(blackListFax, blackListFax, donotfax)),\n\t\tblackListFaxLastModified = $triggerTime,\n\t\tblackListPhone = iif(blackListPhoneLastModified >= modifiedon, blackListPhone, iif(blackListPhone, blackListPhone, donotphone)),\n\t\tblackListPhoneLastModified = $triggerTime,\n\t\tblackListPostalMail = iif(blackListPostalMailLastModified >= modifiedon, blackListPostalMail, iif(blackListPostalMail, blackListPostalMail, donotbulkpostalmail)),\n\t\tblackListPostalMailLastModified = $triggerTime,\n\t\tblackListAllLastModified = $triggerTime) ~> Reconcile\nJoinD365AndCampaign split(isNull(contactid) || contactid == '',\n\tisNull(externalId) || externalId == '',\n\tdisjoint: false) ~> ConditionalSplit1@(NewFromAdobe, NewFromD365, default)\nReconcile alterRow(upsertIf(true())) ~> MarkUpsert\nDerivedColumn1 alterRow(upsertIf(true())) ~> MarkUpsertNew\nConditionalSplit1@NewFromD365 derive(externalId = contactid,\n\t\tblackListEmail = donotemail,\n\t\tblackListEmailLastModified = $triggerTime,\n\t\tblackListFax = donotfax,\n\t\tblackListFaxLastModified = $triggerTime,\n\t\tblackListPhone = donotphone,\n\t\tblackListPhoneLastModified = $triggerTime,\n\t\tblackListPostalMail = donotbulkpostalmail,\n\t\tblackListPostalMailLastModified = $triggerTime,\n\t\tblackListAllLastModified = $triggerTime) ~> DerivedColumn1\nReconcile sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tmapColumn(\n\t\tcontactid,\n\t\teach(match(startsWith(name,'blackList')))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ToD365Merge\nMarkUpsert sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'adobecampaign',\n\tresourceName: 'profile',\n\tdeletable:false,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['externalId'],\n\texcludeFields:[('externalId')],\n\tmapColumn(\n\t\texternalId,\n\t\teach(match(startsWith(name,'blackList')))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ToCampaignMerge\nMarkUpsertNew sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'adobecampaign',\n\tresourceName: 'profile',\n\tdeletable:false,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['externalId'],\n\texcludeFields:[('externalId')],\n\tmapColumn(\n\t\texternalId,\n\t\teach(match(startsWith(name,'blackList')))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ToCampaignNew\nConditionalSplit1@NewFromAdobe sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tmapColumn(\n\t\tcontactid = externalId,\n\t\teach(match(startsWith(name,'blackList')))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ToD365New"
+                }
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/datasets/OptOutFromD365Staging')]", "[concat(variables('factoryId'), '/datasets/OptOutToD365Staging')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/OptOutToD365Staging')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": { "subPath": { "type": "string" } },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": {
+                            "value": "outstaging/@{dataset().subPath}",
+                            "type": "Expression"
+                        },
+                        "fileSystem": "optout"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/d365Rest')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('DynamicsRest1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "subpath": {
+                        "type": "string",
+                        "defaultValue": "contacts"
+                    }
+                },
+                "annotations": [],
+                "type": "RestResource",
+                "typeProperties": {
+                    "relativeUrl": {
+                        "value": "@dataset().subpath",
+                        "type": "Expression"
+                    }
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/D365ChangesJson_Bi')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AZStorage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": { "filePath": { "type": "string" } },
+                "annotations": [],
+                "type": "Json",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileName": {
+                            "value": "@dataset().filePath",
+                            "type": "Expression"
+                        },
+                        "folderPath": "tmp",
+                        "fileSystem": "d365bi"
+                    }
+                },
+                "schema": {}
+            },
+            "dependsOn": []
+        }
+    ]
+}

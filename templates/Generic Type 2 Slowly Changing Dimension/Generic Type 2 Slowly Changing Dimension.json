@@ -1,0 +1,260 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"ADLSGen2": {
+			"type": "string"
+		},
+		"SQLDB": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/GenericSCDType2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Using byNames to fully parameterize a Slowly Change Dimension Type 2 patter",
+				"activities": [
+					{
+						"name": "GenericSCDType2",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "GenericSCDType2",
+								"type": "DataFlowReference",
+								"parameters": {
+									"PrimaryKey": {
+										"value": "'@{pipeline().parameters.PrimaryKey}'",
+										"type": "Expression"
+									},
+									"Columns": {
+										"value": "'@{pipeline().parameters.ColumnNames}'",
+										"type": "Expression"
+									}
+								},
+								"datasetParameters": {
+									"GenericInput": {
+										"Folder": {
+											"value": "@pipeline().parameters.IncomingDimensionFolder",
+											"type": "Expression"
+										}
+									},
+									"ExistingDimensionTable": {
+										"Table": {
+											"value": "@pipeline().parameters.DimensionTable",
+											"type": "Expression"
+										}
+									},
+									"DimensionTableSink": {
+										"Table": {
+											"value": "@pipeline().parameters.DimensionTable",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							}
+						}
+					}
+				],
+				"parameters": {
+					"IncomingDimensionFolder": {
+						"type": "string"
+					},
+					"DimensionTable": {
+						"type": "string"
+					},
+					"PrimaryKey": {
+						"type": "string"
+					},
+					"ColumnNames": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "GenericSCD"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/GenericSCDType2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/GenericSCDType2')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "GenericSCD"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "GenericDataset",
+								"type": "DatasetReference"
+							},
+							"name": "GenericInput"
+						},
+						{
+							"dataset": {
+								"referenceName": "SqlDimension",
+								"type": "DatasetReference"
+							},
+							"name": "ExistingDimensionTable"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "SqlDimension",
+								"type": "DatasetReference"
+							},
+							"name": "DimensionTableSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "NewAndUpdatedRows"
+						},
+						{
+							"name": "AddHashInput"
+						},
+						{
+							"name": "AddHashExisting"
+						},
+						{
+							"name": "GetMaxSurrogateKey"
+						},
+						{
+							"name": "AddKey"
+						},
+						{
+							"name": "JoinWithMaxSurrogateKey"
+						},
+						{
+							"name": "AddDimensionColumns"
+						},
+						{
+							"name": "FilterForUpdatedValues"
+						},
+						{
+							"name": "UpdateObsolete"
+						},
+						{
+							"name": "DropUnwantedColsInput"
+						},
+						{
+							"name": "UnionAllData"
+						},
+						{
+							"name": "MarkAsUpdate"
+						},
+						{
+							"name": "DropUnwantedColumns"
+						},
+						{
+							"name": "MarkAsInsert"
+						},
+						{
+							"name": "FilterForActive"
+						}
+					],
+					"script": "parameters{\n\tPrimaryKey as string ('ID'),\n\tColumns as string ('Player,Team,Salary')\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> GenericInput\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> ExistingDimensionTable\nAddHashInput, AddHashExisting exists(AddHashInput@id_hash == AddHashExisting@id_hash\n\t&& AddHashInput@columns_hash == AddHashExisting@columns_hash,\n\tnegate:true,\n\tbroadcast: 'auto')~> NewAndUpdatedRows\nGenericInput derive(id_hash = md5(byName($PrimaryKey)),\n\t\tcolumns_hash = md5(byNames(split($Columns,',')))) ~> AddHashInput\nFilterForActive derive(id_hash = md5(byNames(split($PrimaryKey,','))),\n\t\tcolumns_hash = md5(byNames(split($Columns,',')))) ~> AddHashExisting\nAddHashExisting aggregate(MaxSurrogateKey = max(toInteger(byName('Key')))) ~> GetMaxSurrogateKey\nNewAndUpdatedRows keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> AddKey\nAddKey, GetMaxSurrogateKey join(Key == MaxSurrogateKey || true(),\n\tjoinType:'cross',\n\tbroadcast: 'right')~> JoinWithMaxSurrogateKey\nJoinWithMaxSurrogateKey derive(Key = Key + MaxSurrogateKey,\n\t\tActive = 1,\n\t\tActiveStartTime = currentUTC(),\n\t\tActiveEndTime = toTimestamp(toString(null()))) ~> AddDimensionColumns\nAddHashExisting, NewAndUpdatedRows exists(AddHashExisting@id_hash == AddHashInput@id_hash,\n\tnegate:false,\n\tbroadcast: 'auto')~> FilterForUpdatedValues\nFilterForUpdatedValues derive(Active = 0,\n\t\tActiveEndTime = currentUTC()) ~> UpdateObsolete\nAddDimensionColumns select(mapColumn(\n\t\teach(match(!in(['id_hash','columns_hash','MaxSurrogateKey'],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedColsInput\nMarkAsInsert, DropUnwantedColumns union(byName: true)~> UnionAllData\nUpdateObsolete alterRow(updateIf(true())) ~> MarkAsUpdate\nMarkAsUpdate select(mapColumn(\n\t\teach(match(!in(['id_hash','columns_hash','MaxSurrogateKey'],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedColumns\nDropUnwantedColsInput alterRow(insertIf(true())) ~> MarkAsInsert\nExistingDimensionTable filter(toInteger(byName('Active')) == 1) ~> FilterForActive\nUnionAllData sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:true,\n\tupsertable:false,\n\tkeys:[($PrimaryKey)],\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DimensionTableSink"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/GenericDataset')]",
+				"[concat(variables('factoryId'), '/datasets/SqlDimension')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/GenericDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Folder": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "SCD"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().Folder",
+							"type": "Expression"
+						},
+						"container": "demo"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SqlDimension')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SQLDB')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Table": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().Table",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

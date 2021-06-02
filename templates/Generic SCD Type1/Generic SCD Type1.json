@@ -1,0 +1,239 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"AzureBlobStorage1": {
+			"type": "string"
+		},
+		"AzureSqlDatabase1": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Generic SCD Type1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "https://techcommunity.microsoft.com/t5/Azure-Data-Factory/Create-Generic-SCD-Pattern-in-ADF-Mapping-Data-Flows/ba-p/918519",
+				"activities": [
+					{
+						"name": "SCD Type1 Generic",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "scdT1Generic",
+								"type": "DataFlowReference",
+								"parameters": {
+									"dimname": "'dimprods'",
+									"keycol": "'ProductNumber'",
+									"SurrogateKey": "'ProductID'",
+									"tablename": "'DimProducts'"
+								},
+								"datasetParameters": {
+									"NewMembers1": {
+										"filename": "DimProducts.csv"
+									},
+									"ExistingMembers": {
+										"tablename": "DimProducts"
+									},
+									"SetMaxKey": {
+										"tablename": "DimProducts"
+									},
+									"sink1": {
+										"tablename": "DimProducts"
+									},
+									"sink2": {
+										"tablename": "DimProducts"
+									}
+								}
+							},
+							"integrationRuntime": {
+								"referenceName": "myDataFlowCluster",
+								"type": "IntegrationRuntimeReference"
+							}
+						}
+					}
+				],
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/scdT1Generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/scdT1Generic')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "This is a generalized Slowly Changing Dimension Type 1 that is parameterized to work against different dimension tables and dimension types.",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "BlobInputFolder",
+								"type": "DatasetReference"
+							},
+							"name": "NewMembers1"
+						},
+						{
+							"dataset": {
+								"referenceName": "ParameterTable",
+								"type": "DatasetReference"
+							},
+							"name": "ExistingMembers"
+						},
+						{
+							"dataset": {
+								"referenceName": "ParameterTable",
+								"type": "DatasetReference"
+							},
+							"name": "SetMaxKey"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ParameterTable",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						},
+						{
+							"dataset": {
+								"referenceName": "ParameterTable",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						}
+					],
+					"transformations": [
+						{
+							"name": "PickCols1"
+						},
+						{
+							"name": "PickCols2"
+						},
+						{
+							"name": "Lookup1"
+						},
+						{
+							"name": "checkMatch"
+						},
+						{
+							"name": "UpdateSetAttrs"
+						},
+						{
+							"name": "MapDrifted1",
+							"description": "Creates an explicit mapping for each drifted column"
+						},
+						{
+							"name": "isMatching"
+						},
+						{
+							"name": "AlterRow1"
+						},
+						{
+							"name": "SurrogateKey1"
+						},
+						{
+							"name": "InsertSetAttrs"
+						},
+						{
+							"name": "Join1"
+						},
+						{
+							"name": "SetCols"
+						}
+					],
+					"script": "\nparameters{\n\tdimname as string ('dimprods'),\n\tkeycol as string ('ProductNumber'),\n\tSurrogateKey as string ('ProductID'),\n\ttablename as string ('DimProducts')\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinferDriftedColumnTypes: true) ~> NewMembers1\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinferDriftedColumnTypes: true,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> ExistingMembers\nsource(output(\n\t\tmaxsk as integer\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tquery: (concat('select max(',$SurrogateKey,') as maxsk from ',$tablename)),\n\tformat: 'query') ~> SetMaxKey\nNewMembers1 derive(businesskey1 = toString(byPosition(2)),\n\t\tname1 = toString(byPosition(6))) ~> PickCols1\nExistingMembers derive(each(match(instr(name,'ID')>0), 'surrogatekey2' = toInteger($$)),\n\t\teach(match(instr(name,'Number')>0), 'businesskey2' = toString($$))) ~> PickCols2\nPickCols1, MapDrifted1 lookup(businesskey1 == businesskey2,\n\tbroadcast: 'none')~> Lookup1\nisMatching split(match,\n\tdisjoint: false) ~> checkMatch@(isMatch, noMatch)\ncheckMatch@isMatch derive({_LastUpdated} = currentTimestamp(),\n\t\tDWhash = sha2(256,name1)) ~> UpdateSetAttrs\nPickCols2 derive(ProductID = toInteger(byName('ProductID')),\n\t\tName = toString(byName('Name')),\n\t\tProductNumber = toString(byName('ProductNumber')),\n\t\tColor = toString(byName('Color')),\n\t\tStandardCost = toDecimal(byName('StandardCost')),\n\t\tListPrice = toDecimal(byName('ListPrice')),\n\t\t{_Inserted} = toTimestamp(byName('_Inserted')),\n\t\t{_LastUpdated} = toTimestamp(byName('_LastUpdated')),\n\t\tDWhash = toString(byName('DWhash')),\n\t\tsurrogatekey2 = toInteger(byName('surrogatekey2')),\n\t\tbusinesskey2 = toString(byName('businesskey2'))) ~> MapDrifted1\nLookup1 derive(match = isMatch()) ~> isMatching\nUpdateSetAttrs alterRow(updateIf(true())) ~> AlterRow1\ncheckMatch@noMatch keyGenerate(output(surrogatekey2 as long),\n\tstartAt: 1L) ~> SurrogateKey1\nJoin1 derive(surrogatekey2 = surrogatekey2 + maxsk,\n\t\t{_LastUpdated} = currentTimestamp(),\n\t\t{_Inserted} = currentTimestamp(),\n\t\tDWhash = sha2(256,name1)) ~> InsertSetAttrs\nSurrogateKey1, SetMaxKey join(true(),\n\tjoinType:'cross',\n\tbroadcast: 'none')~> Join1\nInsertSetAttrs select(mapColumn(\n\t\tName = name1,\n\t\t{_Inserted},\n\t\t{_LastUpdated},\n\t\teach(match(name == 'surrogatekey2'),\n\t\t\t$SurrogateKey+'' = $$),\n\t\teach(match(name == 'businesskey1'),\n\t\t\t$keycol+'' = $$)\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SetCols\nAlterRow1 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:false,\n\tupdateable:true,\n\tupsertable:false,\n\tkeys:[($keycol)],\n\tformat: 'table',\n\tmapColumn(\n\t\teach(patternMatch(`.*[^_]$`))\n\t),\n\tpartitionBy('hash', 1)) ~> sink1\nSetCols sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table') ~> sink2"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/BlobInputFolder')]",
+				"[concat(variables('factoryId'), '/datasets/ParameterTable')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/BlobInputFolder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"filename": {
+						"type": "string",
+						"defaultValue": "DimProducts.csv"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().filename",
+							"type": "Expression"
+						},
+						"folderPath": "SampleData/AW",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": "|",
+					"encodingName": "UTF-8",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ParameterTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureSqlDatabase1')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"tablename": {
+						"type": "string",
+						"defaultValue": "DimProducts"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().tablename",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

@@ -1,0 +1,357 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory Name"
+		},
+		"AzureBlobStorage1": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Dedupe Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Deduplication Data Flow",
+						"type": "ExecuteDataFlow",
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "dedupeProb2",
+								"type": "DataFlowReference"
+							}
+						}
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/dedupeProb2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dedupeProb2')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "names100",
+								"type": "DatasetReference"
+							},
+							"name": "sourceName",
+							"script": "source(output(\n\t\t{Emp ID} as string,\n\t\t{Name Prefix} as string,\n\t\t{First Name} as string,\n\t\t{Middle Initial} as string,\n\t\t{Last Name} as string,\n\t\tGender as string,\n\t\t{E Mail} as string,\n\t\t{Father's Name} as string,\n\t\t{Mother's Name} as string,\n\t\t{Mother's Maiden Name} as string,\n\t\t{Date of Birth} as string,\n\t\t{Time of Birth} as string,\n\t\t{Age in Yrs.} as double '##.##',\n\t\t{Weight in Kgs.} as string,\n\t\t{Date of Joining} as string,\n\t\t{Quarter of Joining} as string,\n\t\t{Half of Joining} as string,\n\t\t{Year of Joining} as string,\n\t\t{Month of Joining} as string,\n\t\t{Month Name of Joining} as string,\n\t\t{Short Month} as string,\n\t\t{Day of Joining} as string,\n\t\t{DOW of Joining} as string,\n\t\t{Short DOW} as string,\n\t\t{Age in Company (Years)} as string,\n\t\tSalary as integer,\n\t\t{Last % Hike} as string,\n\t\tSSN as string,\n\t\t{Phone No. } as string,\n\t\t{Place Name} as string,\n\t\tCounty as string,\n\t\tCity as string,\n\t\tState as string,\n\t\tZip as string,\n\t\tRegion as string,\n\t\t{User Name} as string,\n\t\tPassword as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> sourceName"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "dupefolder",
+								"type": "DatasetReference"
+							},
+							"name": "sinkDupes",
+							"script": "CheckForDupes@Duplicates sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionBy('hash', 1),\n\tpartitionFileNames:['dupes.csv']) ~> sinkDupes"
+						},
+						{
+							"dataset": {
+								"referenceName": "dupefolder",
+								"type": "DatasetReference"
+							},
+							"name": "sinkNoDupes",
+							"script": "CheckForDupes@NotDupe sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionBy('hash', 1),\n\tpartitionFileNames:['nodupes.csv']) ~> sinkNoDupes"
+						}
+					],
+					"transformations": [
+						{
+							"name": "FuzzyMatch",
+							"script": "MapNames derive(SoundexValue = soundex(fullname)) ~> FuzzyMatch"
+						},
+						{
+							"name": "groupSoundex",
+							"script": "Orig1 aggregate(groupBy(SoundexValue),\n\tsoundexmatch = sum(1)) ~> groupSoundex"
+						},
+						{
+							"name": "Orig1",
+							"script": "FuzzyMatch select(mapColumn(\n\t\tacctnum,\n\t\tfullname,\n\t\tphone,\n\t\tzip,\n\t\tSoundexValue\n\t))~> Orig1"
+						},
+						{
+							"name": "soundexJoin",
+							"script": "groupSoundex, soundexBranch join(groupSoundex@SoundexValue == soundexBranch@SoundexValue,\n\tjoinType:'inner',\n\tbroadcast: 'none')~> soundexJoin"
+						},
+						{
+							"name": "soundexBranch",
+							"script": "FuzzyMatch select(mapColumn(\n\t\tacctnum,\n\t\tfullname,\n\t\tphone,\n\t\tzip,\n\t\tSoundexValue\n\t))~> soundexBranch"
+						},
+						{
+							"name": "groupPhone",
+							"script": "soundexJoin aggregate(groupBy(phone,\n\t\tsoundexBranch@SoundexValue),\n\tphonematch = sum(1),\n\t\tacctnum_agg = last(acctnum)) ~> groupPhone"
+						},
+						{
+							"name": "phoneBranch",
+							"script": "soundexJoin select(mapColumn(\n\t\tsoundexmatch,\n\t\tacctnum,\n\t\tfullname,\n\t\tphone,\n\t\tzip,\n\t\tSoundexValue = soundexBranch@SoundexValue\n\t))~> phoneBranch"
+						},
+						{
+							"name": "phoneJoin",
+							"script": "groupPhone, phoneBranch join(acctnum_agg == acctnum,\n\tjoinType:'right',\n\tbroadcast: 'none')~> phoneJoin"
+						},
+						{
+							"name": "groupZip",
+							"script": "phoneJoin aggregate(groupBy(zip,\n\t\tphoneBranch@SoundexValue),\n\tzipcount = sum(1),\n\t\tacctnum_agg = last(acctnum_agg)) ~> groupZip"
+						},
+						{
+							"name": "zipBranch",
+							"script": "phoneJoin select(mapColumn(\n\t\tphonematch,\n\t\tsoundexmatch,\n\t\tacctnum,\n\t\tfullname,\n\t\tphone = phoneBranch@phone,\n\t\tzip,\n\t\tSoundexValue = phoneBranch@SoundexValue\n\t))~> zipBranch"
+						},
+						{
+							"name": "zipJoin",
+							"script": "groupZip, zipBranch join(acctnum_agg == acctnum,\n\tjoinType:'right',\n\tbroadcast: 'none')~> zipJoin"
+						},
+						{
+							"name": "setConstants",
+							"script": "zipJoin derive(soundexweight = 50,\n\t\tzipweight = 25,\n\t\tphoneweight = 25,\n\t\tsoundexbool = iif (soundexmatch > 1, 1, 0),\n\t\tzipbool = iif (zipcount > 1, 1, 0),\n\t\tphonebool = iif (phonematch > 1, 1, 0)) ~> setConstants"
+						},
+						{
+							"name": "matchScore",
+							"script": "setConstants derive(matchscore = (soundexbool * 50) + (zipbool * 25) + (phonebool * 25)) ~> matchScore"
+						},
+						{
+							"name": "finalResult",
+							"script": "matchScore select(mapColumn(\n\t\tphone,\n\t\tacctnum,\n\t\tfullname,\n\t\tzip = zipBranch@zip,\n\t\tmatchscore\n\t))~> finalResult"
+						},
+						{
+							"name": "MapNames",
+							"script": "CreateFullName select(mapColumn(\n\t\tphone = {Phone No. },\n\t\tzip = Zip,\n\t\tfullname,\n\t\tacctnum = {Emp ID}\n\t))~> MapNames"
+						},
+						{
+							"name": "CreateFullName",
+							"script": "sourceName derive(fullname = {First Name} + ' ' + {Last Name}) ~> CreateFullName"
+						},
+						{
+							"name": "CheckForDupes",
+							"script": "finalResult split(matchscore > 50,\n\tdisjoint: false) ~> CheckForDupes@(Duplicates, NotDupe)"
+						}
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/names100')]",
+				"[concat(variables('factoryId'), '/datasets/dupefolder')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/names100')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "90 Records.csv",
+						"folderPath": "SampleData/HR",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Emp ID",
+						"type": "String"
+					},
+					{
+						"name": "Name Prefix",
+						"type": "String"
+					},
+					{
+						"name": "First Name",
+						"type": "String"
+					},
+					{
+						"name": "Middle Initial",
+						"type": "String"
+					},
+					{
+						"name": "Last Name",
+						"type": "String"
+					},
+					{
+						"name": "Gender",
+						"type": "String"
+					},
+					{
+						"name": "E Mail",
+						"type": "String"
+					},
+					{
+						"name": "Father's Name",
+						"type": "String"
+					},
+					{
+						"name": "Mother's Name",
+						"type": "String"
+					},
+					{
+						"name": "Mother's Maiden Name",
+						"type": "String"
+					},
+					{
+						"name": "Date of Birth",
+						"type": "String"
+					},
+					{
+						"name": "Time of Birth",
+						"type": "String"
+					},
+					{
+						"name": "Age in Yrs.",
+						"type": "String"
+					},
+					{
+						"name": "Weight in Kgs.",
+						"type": "String"
+					},
+					{
+						"name": "Date of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Quarter of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Half of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Year of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Month of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Month Name of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Short Month",
+						"type": "String"
+					},
+					{
+						"name": "Day of Joining",
+						"type": "String"
+					},
+					{
+						"name": "DOW of Joining",
+						"type": "String"
+					},
+					{
+						"name": "Short DOW",
+						"type": "String"
+					},
+					{
+						"name": "Age in Company (Years)",
+						"type": "String"
+					},
+					{
+						"name": "Salary",
+						"type": "String"
+					},
+					{
+						"name": "Last % Hike",
+						"type": "String"
+					},
+					{
+						"name": "SSN",
+						"type": "String"
+					},
+					{
+						"name": "Phone No. ",
+						"type": "String"
+					},
+					{
+						"name": "Place Name",
+						"type": "String"
+					},
+					{
+						"name": "County",
+						"type": "String"
+					},
+					{
+						"name": "City",
+						"type": "String"
+					},
+					{
+						"name": "State",
+						"type": "String"
+					},
+					{
+						"name": "Zip",
+						"type": "String"
+					},
+					{
+						"name": "Region",
+						"type": "String"
+					},
+					{
+						"name": "User Name",
+						"type": "String"
+					},
+					{
+						"name": "Password",
+						"type": "String"
+					}
+				]
+			}
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dupefolder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "output/dupes",
+						"container": "mycontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			}
+		}
+	]
+}
