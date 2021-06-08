@@ -21,7 +21,7 @@
 			}
 		}
 	},
-    "categories": ["copy"],
+    "categories": ["Copy"],
     "annotations": ["Copy","Data Movement","On premise","Oracle","Azure Synapse Analytics"],
     "services": ["Oracle", "Azure Synapse Analytics"],
 	"documentation": "https://docs.microsoft.com/en-us/azure/data-factory/connector-oracle"

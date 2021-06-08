@@ -50,5 +50,5 @@
     "author": "Microsoft",
     "annotations": ["Data Flow", "Data Movement", "ADLS", "SQL", "AI", "Cognitive Services"],
     "services": [],
-    "categories": ["dataflow"]
+    "categories": ["Data flow"]
 }

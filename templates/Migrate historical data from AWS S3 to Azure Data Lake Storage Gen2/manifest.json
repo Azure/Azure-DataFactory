@@ -40,6 +40,6 @@
 	],
     "documentation": "https://docs.microsoft.com/azure/data-factory/solution-template-migration-s3-azure",
 	"categories": [
-		"copy"
+		"Copy"
 	]
 }

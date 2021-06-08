@@ -22,7 +22,7 @@
         }
     },
     "categories": [
-        "dataflow"
+        "Data flow"
     ],
     "documentation": "https://mssqldude.wordpress.com/2019/04/15/adf-slowly-changing-dimension-type-2-with-mapping-data-flows-complete/",
     "services": [],

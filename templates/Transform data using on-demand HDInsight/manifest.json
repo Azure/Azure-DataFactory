@@ -15,7 +15,7 @@
         }
     },    
     "categories": [
-        "transform"
+        "Transform"
     ],
     "annotations": ["HDInsight","Transform","on-demand"],
     "services": ["Azure HDInsight"],

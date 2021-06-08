@@ -21,7 +21,7 @@
 			}
 		}
     },
-    "categories": ["copy"],
+    "categories": ["Copy"],
     "annotations": ["Copy","Data Movement","On premise","SQL Server","Azure Synapse Analytics"],
     "services": ["SQL Server", "Azure Synapse Analytics"],
 	"documentation": "https://docs.microsoft.com/azure/data-factory/connector-sql-server"

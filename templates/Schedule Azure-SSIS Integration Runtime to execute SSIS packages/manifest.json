@@ -26,7 +26,7 @@
     "annotations": ["SSIS","SSIS Integration Runtime","SSIS IR","SQL Server Integration Services"],
     "services": ["SSIS"],
     "categories": [
-        "ssis"
+        "SSIS"
     ],
 	"scope": ["ADF"]
 
