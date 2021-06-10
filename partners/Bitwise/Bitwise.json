@@ -1,0 +1,10 @@
+{
+    "name": "Bitwise",
+    "description": "ETL Converter is a proprietary migration solution that uses automation to convert any ETL or PL/SQL code to native Azure Data Factory pipelines (data flow).",
+    "link": "https://www.bitwiseglobal.com",
+    "solutionName": "Bitwise Automated ETL Conversion Solution",
+    "solutionType": "Migration",
+    "tags": ["Bitwise", "Migration"],
+    "videoLink": "",
+    "pdfLink": ""
+}
