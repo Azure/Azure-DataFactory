@@ -10,6 +10,11 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 ![Azure Data Factory Extension](./images/3.jpg)
 
+## Demo video
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=GacGa5T0flk
+" target="_blank"><img src="http://img.youtube.com/vi/GacGa5T0flk/0.jpg" 
+alt="IMAGE ALT TEXT HERE" width="480" height="360" border="10" /></a>
+
 ## Prerequisites
 
 - You will require Storage Explorer ***November (Version 1.16.0)*** or later to be able to use the Azure Data Factory extension with it. To download and install the latest version of Storage Explorer, see [Azure Storage Explorer](https://www.storageexplorer.com/).
@@ -83,8 +88,8 @@ In this article, you'll learn how to use the Azure Data Factory extension for mo
 
 4. Who is the plugin for?
 
-   - *For anyone requiring to move data (binary copy) from Amazon S3 to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (www.adf.azure.com).*  
+   - *For anyone requiring to move data (binary copy) from Amazon S3 to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (https://adf.azure.com).*  
 
      *E.g. Many interactive data science experiments may require bringing data from various sources (S3) to Azure storage before running the experiment.* 
 
-   - *For advanced use cases, we suggest using ADF UI (www.adf.azure.com) since we expose many more advanced properties that can be used for various scenarios.* 
+   - *For advanced use cases, we suggest using ADF UI (https://adf.azure.com) since we expose many more advanced properties that can be used for various scenarios.* 

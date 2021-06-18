@@ -22,7 +22,7 @@
         }
     },
     "documentation": "https://docs.microsoft.com/azure/data-factory/how-to-sqldb-to-cosmosdb",
-    "author": "makromer@microsoft.com",
+    "author": "Microsoft",
     "annotations": [
         "Data Flow",
         "Transform"
@@ -31,5 +31,7 @@
         "Azure SQL Database",
         "CosmosDB"
     ],
-    "categories": []
+    "categories": [
+        "Data flow"
+    ]
 }

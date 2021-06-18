@@ -1,0 +1,2483 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+
+  "parameters": {
+    "projectShort": {
+      "type": "string",
+      "maxLength": 8,
+      "metadata": {
+        "description": "A short identifier (up to 8 characters) for your project that will be added to your resource names"
+      }
+    },
+    "userNameDynamics365": {
+      "type": "string",
+      "metadata": {
+        "description": "Username to log into D365"
+      },
+      "defaultValue": "D365UserName"
+    },
+    "passwordDynamics365": {
+      "type": "secureString",
+      "metadata": {
+        "description": "Secure string for password of Dynamics365"
+      },
+      "defaultValue": "Password"
+    },
+    "urlDynamics365": {
+      "type": "string",
+      "metadata": {
+        "description": "URL of your D365 instance"
+      },
+      "defaultValue": "https://yourorg.crm8.dynamics.com"
+    },
+    "utcTimeTriggerDaily": {
+      "type": "string",
+      "defaultValue": "00:00:00",
+      "metadata": {
+        "description": "UTC time at which the ADF will be called, format: HH:mm:ss"
+      }
+    },
+    "utcValue": {
+      "type": "string",
+      "defaultValue": "[utcNow('d')]",
+      "metadata": {
+        "description": "The timestamp format that will be used for creating the tags in your RG - leave at default"
+      }
+    },
+    "MicrosoftOpenTaxiData_sasUri": {
+      "type": "secureString",
+      "metadata": {
+        "description": "Secure string for sasUri of MicrosoftOpenTaxiData, already filled in, leave at default"
+      },
+      "defaultValue": "https://azureopendatastorage.blob.core.windows.net/?sv=blob"
+    },
+    "StorageAccountSasProperties": {
+      "type": "object",
+      "defaultValue": {
+        "signedServices": "b",
+        "signedPermission": "rw",
+        "signedExpiry": "[dateTimeAdd(utcNow('u'), 'P3D')]",
+        "signedResourceTypes": "o"
+      }
+    }
+  },
+  "variables": {
+    "cosmosdbname": "[concat('cosmos-', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "storageAccountName": "[concat('stg', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "synapseAccountName": "[concat('synapse', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "dedicatedPoolName": "[concat('sqldedicated', parameters('projectShort'))]",
+    "dataFactoryName": "[concat('adf-', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', 'adf-', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "managedRGName": "[concat(resourceGroup().name, '-', parameters('projectShort'), '-managed')]",
+    "synapseDedicatedPoolConnectionString": "[concat('Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=', 'synapse', parameters('projectShort'), uniqueString(resourceGroup().id), '.sql.azuresynapse.net;Initial Catalog=', 'sqldedicated', parameters('projectShort'))]",
+    "storageFSUrl": "[concat('https://', 'stg', parameters('projectShort'), uniqueString(resourceGroup().id), '.dfs.core.windows.net')]",
+    "storageBlobUrl": "[concat('https://', 'stg', parameters('projectShort'), uniqueString(resourceGroup().id), '.blob.core.windows.net')]",
+    "presidioAnalyzerAppName": "[concat('app-presidio-analyzer-', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "presidioAnonymizerAppName": "[concat('app-presidio-anonymizer-', parameters('projectShort'), uniqueString(resourceGroup().id))]",
+    "tags": {
+      "createdOn": "[parameters('utcValue')]",
+      "createdBy": "[concat('Automatic deployment for ', parameters('projectShort'))]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts",
+      "apiVersion": "2021-04-15",
+      "name": "[variables('cosmosdbname')]",
+      "location": "West Europe",
+      "tags": "[variables('tags')]",
+      "kind": "GlobalDocumentDB",
+      "identity": {
+        "type": "None"
+      },
+      "properties": {
+        "publicNetworkAccess": "Enabled",
+        "enableAutomaticFailover": false,
+        "enableMultipleWriteLocations": false,
+        "isVirtualNetworkFilterEnabled": false,
+        "virtualNetworkRules": [],
+        "disableKeyBasedMetadataWriteAccess": false,
+        "enableFreeTier": false,
+        "enableAnalyticalStorage": false,
+        "databaseAccountOfferType": "Standard",
+        "defaultIdentity": "FirstPartyIdentity",
+        "networkAclBypass": "None",
+        "consistencyPolicy": {
+          "defaultConsistencyLevel": "Session",
+          "maxIntervalInSeconds": 5,
+          "maxStalenessPrefix": 100
+        },
+        "locations": [
+          {
+            "locationName": "West Europe",
+            "provisioningState": "Succeeded",
+            "failoverPriority": 0,
+            "isZoneRedundant": false
+          }
+        ],
+        "cors": [],
+        "capabilities": [
+          {
+            "name": "EnableServerless"
+          }
+        ],
+        "ipRules": [],
+        "backupPolicy": {
+          "type": "Periodic",
+          "periodicModeProperties": {
+            "backupIntervalInMinutes": 240,
+            "backupRetentionIntervalInHours": 8
+          }
+        },
+        "networkAclBypassResourceIds": []
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "westeurope",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "isHnsEnabled": true,
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "virtualNetworkRules": [],
+          "ipRules": [],
+          "defaultAction": "Allow"
+        },
+        "supportsHttpsTrafficOnly": true,
+        "encryption": {
+          "services": {
+            "file": {
+              "keyType": "Account",
+              "enabled": true
+            },
+            "blob": {
+              "keyType": "Account",
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        },
+        "accessTier": "Hot"
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[variables('synapseAccountName')]",
+      "location": "westeurope",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "encryption": {},
+        "connectivityEndpoints": {
+          "web": "[concat('https://web.azuresynapse.net?workspace=%2fsubscriptions%2f089f575b-8e18-474c-a6bc-299a37b3f20f%2fresourceGroups%2fbkDemoAmit%2fproviders%2fMicrosoft.Synapse%2fworkspaces%2f', variables('synapseAccountName'))]",
+          "dev": "[concat('https://', variables('synapseAccountName'), '.dev.azuresynapse.net')]",
+          "sqlOnDemand": "[concat(variables('synapseAccountName'), '-ondemand.sql.azuresynapse.net')]",
+          "sql": "[concat(variables('synapseAccountName'), '.sql.azuresynapse.net')]"
+        },
+        "managedResourceGroupName": "[variables('managedRGName')]",
+        "defaultDataLakeStorage": {
+          "accountUrl": "[concat('https://', variables('storageAccountName'), '.dfs.core.windows.net')]",
+          "filesystem": "synapsedemo"
+        },
+        "sqlAdministratorLogin": "sqladminuser",
+        "privateEndpointConnections": [],
+        "publicNetworkAccess": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/notebookWorkspaces",
+      "apiVersion": "2021-04-15",
+      "name": "[concat(variables('cosmosdbname'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+      "apiVersion": "2021-04-15",
+      "name": "[concat(variables('cosmosdbname'), '/D365Staging')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+      ],
+      "properties": {
+        "resource": {
+          "id": "D365Staging"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions",
+      "apiVersion": "2021-04-15",
+      "name": "[concat(variables('cosmosdbname'), '/00000000-0000-0000-0000-000000000001')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+      ],
+      "properties": {
+        "roleName": "Cosmos DB Built-in Data Reader",
+        "type": 0,
+        "assignableScopes": [
+          "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+        ],
+        "permissions": [
+          {
+            "dataActions": [
+              "Microsoft.DocumentDB/databaseAccounts/readMetadata",
+              "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/executeQuery",
+              "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/readChangeFeed",
+              "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/read"
+            ],
+            "notDataActions": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions",
+      "apiVersion": "2021-04-15",
+      "name": "[concat(variables('cosmosdbname'), '/00000000-0000-0000-0000-000000000002')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+      ],
+      "properties": {
+        "roleName": "Cosmos DB Built-in Data Contributor",
+        "type": 0,
+        "assignableScopes": [
+          "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+        ],
+        "permissions": [
+          {
+            "dataActions": [
+              "Microsoft.DocumentDB/databaseAccounts/readMetadata",
+              "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/*",
+              "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/*"
+            ],
+            "notDataActions": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2021-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "properties": {
+        "cors": {
+          "corsRules": []
+        },
+        "deleteRetentionPolicy": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices",
+      "apiVersion": "2021-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "cors": {
+          "corsRules": []
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices",
+      "apiVersion": "2021-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "cors": {
+          "corsRules": []
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/auditingSettings",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "properties": {
+        "retentionDays": 0,
+        "auditActionsAndGroups": [],
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/extendedAuditingSettings",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "properties": {
+        "retentionDays": 0,
+        "auditActionsAndGroups": [],
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/firewallRules",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/allowAll')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "255.255.255.255"
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/firewallRules",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/AllowAllWindowsAzureIps')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/integrationruntimes",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/AutoResolveIntegrationRuntime')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "properties": {
+        "type": "Managed",
+        "typeProperties": {
+          "computeProperties": {
+            "location": "AutoResolve"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/securityAlertPolicies",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAddresses": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "retentionDays": 0
+      }
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/sqlPools",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(variables('synapseAccountName'), '/', variables('dedicatedPoolName'))]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', variables('synapseAccountName'))]"
+      ],
+      "sku": {
+        "name": "DW200c",
+        "capacity": 0
+      },
+      "properties": {
+        "status": "Online",
+        "maxSizeBytes": 263882790666240,
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "restorePointInTime": "0001-01-01T00:00:00",
+        "creationDate": "2021-05-30T19:49:10.163Z",
+        "storageAccountType": "GRS",
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+      "apiVersion": "2021-04-15",
+      "name": "[concat(variables('cosmosdbname'), '/D365Staging/Activities')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', variables('cosmosdbname'), 'D365Staging')]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname'))]"
+      ],
+      "properties": {
+        "resource": {
+          "id": "Activities",
+          "indexingPolicy": {
+            "indexingMode": "consistent",
+            "automatic": true,
+            "includedPaths": [
+              {
+                "path": "/*"
+              }
+            ],
+            "excludedPaths": [
+              {
+                "path": "/\"_etag\"/?"
+              }
+            ]
+          },
+          "partitionKey": {
+            "paths": [
+              "/activityid"
+            ],
+            "kind": "Hash"
+          },
+          "uniqueKeyPolicy": {
+            "uniqueKeys": []
+          },
+          "conflictResolutionPolicy": {
+            "mode": "LastWriterWins",
+            "conflictResolutionPath": "/_ts"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2021-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default/exports')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "publicAccess": "None"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2021-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default/synapsedemo')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "publicAccess": "None"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2021-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default/taxidata')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "publicAccess": "Blob"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "presidio-app-services",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "https://raw.githubusercontent.com/microsoft/presidio/main/docs/samples/deployments/app-service/presidio-services.json",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "imageRedactor": {
+            "value": false
+          },
+          "analyzerWebAppName": {
+            "value": "[variables('presidioAnalyzerAppName')]"
+          },
+          "anonymizerWebAppName": {
+            "value": "[variables('presidioAnonymizerAppName')]"
+          },
+          "location": {
+            "value": "[resourceGroup().location]"
+          }
+        }
+      }
+    },
+    { // create the azure data factory
+      "name": "[variables('dataFactoryName')]",
+      "type": "Microsoft.DataFactory/factories",
+      "apiVersion": "2018-06-01",
+      "location": "[resourceGroup().location]",
+      "properties": {},
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "tags": "[variables('tags')]",
+      "resources": [
+        {
+          "name": "[concat(variables('dataFactoryName'), '/01-StageOpenData')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "Copies the parquet files from the Taxidata Microsoft open dataset to the dedicated synapse pool",
+            "activities": [
+              {
+                "name": "Copy data Taxidata Parquet Files",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "source": {
+                    "type": "ParquetSource",
+                    "storeSettings": {
+                      "type": "AzureBlobStorageReadSettings",
+                      "recursive": true,
+                      "enablePartitionDiscovery": false
+                    }
+                  },
+                  "sink": {
+                    "type": "JsonSink",
+                    "storeSettings": {
+                      "type": "AzureBlobFSWriteSettings"
+                    },
+                    "formatSettings": {
+                      "type": "JsonWriteSettings",
+                      "filePattern": "setOfObjects"
+                    }
+                  },
+                  "enableStaging": false
+                },
+                "inputs": [
+                  {
+                    "referenceName": "Taxidata2019Parquet",
+                    "type": "DatasetReference",
+                    "parameters": {}
+                  }
+                ],
+                "outputs": [
+                  {
+                    "referenceName": "TaxidataJSONFiles",
+                    "type": "DatasetReference",
+                    "parameters": {}
+                  }
+                ]
+              }
+            ],
+            "folder": {
+              "name": "OpenDataset"
+            },
+            "annotations": [],
+            "lastPublishTime": "2021-06-07T15:07:23Z"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/Taxidata2019Parquet')]",
+            "[concat(variables('factoryId'), '/datasets/TaxidataJSONFiles')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/01-CopyD365SalesActivityToCosmos')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "This pipeline transfers the sales activities from D365 to the cosmos db",
+            "activities": [
+              {
+                "name": "Copy Sales Activity",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "source": {
+                    "type": "DynamicsSource"
+                  },
+                  "sink": {
+                    "type": "CosmosDbSqlApiSink",
+                    "writeBehavior": "insert",
+                    "disableMetricsCollection": false
+                  },
+                  "enableStaging": false
+                },
+                "inputs": [
+                  {
+                    "referenceName": "D365",
+                    "type": "DatasetReference",
+                    "parameters": {
+                      "EntityName": "activitypointer"
+                    }
+                  }
+                ],
+                "outputs": [
+                  {
+                    "referenceName": "CosmosDbSqlApiCollection",
+                    "type": "DatasetReference",
+                    "parameters": {}
+                  }
+                ]
+              }
+            ],
+            "folder": {
+              "name": "D365"
+            },
+            "annotations": [],
+            "lastPublishTime": "2021-05-30T21:39:41Z"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/D365')]",
+            "[concat(variables('factoryId'), '/datasets/CosmosDbSqlApiCollection')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/02-CopyD365SalesLeadToStorage')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "This pipeline transfers the sales leads from D365 to the Azure Synapse dedicated SQL pool",
+            "activities": [
+              {
+                "name": "Copy D365",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "source": {
+                    "type": "DynamicsSource"
+                  },
+                  "sink": {
+                    "type": "DelimitedTextSink",
+                    "storeSettings": {
+                      "type": "AzureBlobStorageWriteSettings"
+                    },
+                    "formatSettings": {
+                      "type": "DelimitedTextWriteSettings",
+                      "quoteAllText": true,
+                      "fileExtension": ".txt"
+                    }
+                  },
+                  "enableStaging": false
+                },
+                "inputs": [
+                  {
+                    "referenceName": "D365",
+                    "type": "DatasetReference",
+                    "parameters": {
+                      "EntityName": "lead"
+                    }
+                  }
+                ],
+                "outputs": [
+                  {
+                    "referenceName": "CSVD365Leads",
+                    "type": "DatasetReference"
+                  }
+                ]
+              }
+            ],
+            "folder": {
+              "name": "D365"
+            },
+            "annotations": [],
+            "lastPublishTime": "2021-06-14T07:49:09Z"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/D365')]",
+            "[concat(variables('factoryId'), '/datasets/CSVD365Leads')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/03-CopyD365SalesLeadToSQL')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "This pipeline transfers the sales leads from D365 to the Azure Synapse dedicated SQL pool",
+            "activities": [
+              {
+                "name": "Copy D365",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "source": {
+                    "type": "DynamicsSource"
+                  },
+                  "sink": {
+                    "type": "SqlDWSink",
+                    "tableOption": "autoCreate"
+                  },
+                  "enableStaging": false
+                },
+                "inputs": [
+                  {
+                    "referenceName": "D365",
+                    "type": "DatasetReference",
+                    "parameters": {
+                      "EntityName": "lead"
+                    }
+                  }
+                ],
+                "outputs": [
+                  {
+                    "referenceName": "AzureSynapseAnalyticsTable1",
+                    "type": "DatasetReference",
+                    "parameters": {
+                      "tablename": "d365lead"
+                    }
+                  }
+                ]
+              }
+            ],
+            "folder": {
+              "name": "D365"
+            },
+            "annotations": [],
+            "lastPublishTime": "2021-05-30T21:41:57Z"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/D365')]",
+            "[concat(variables('factoryId'), '/datasets/AzureSynapseAnalyticsTable1')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/TaxidataJSONFiles')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "linkedServiceName": {
+              "referenceName": "AzureDataLakeStorage",
+              "type": "LinkedServiceReference"
+            },
+            "annotations": [],
+            "type": "Json",
+            "typeProperties": {
+              "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": "rawdata.json",
+                "fileSystem": "taxidata"
+              }
+            },
+            "folder": "OpenDataSet",
+            "schema": {}
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/DFMoveTaxiData')]",
+          "type": "Microsoft.DataFactory/factories/dataflows",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "type": "MappingDataFlow",
+            "typeProperties": {
+              "sources": [
+                {
+                  "dataset": {
+                    "referenceName": "TaxidataJSONFiles",
+                    "type": "DatasetReference"
+                  },
+                  "name": "Taxidata"
+                }
+              ],
+              "sinks": [
+                {
+                  "dataset": {
+                    "referenceName": "AzureSynapseAnalyticsTable1",
+                    "type": "DatasetReference"
+                  },
+                  "name": "ToSynapse"
+                }
+              ],
+              "transformations": [
+                {
+                  "name": "DistanceQualifier"
+                }
+              ],
+              "script": "source(output(\n\t\tdoLocationId as integer,\n\t\tendLat as string,\n\t\tendLon as string,\n\t\textra as decimal(2,1),\n\t\tfareAmount as decimal(4,2),\n\t\timprovementSurcharge as decimal(1,1),\n\t\tmtaTax as decimal(1,1),\n\t\tpassengerCount as integer,\n\t\tpaymentType as integer,\n\t\tpuLocationId as integer,\n\t\trateCodeId as integer,\n\t\tstartLat as string,\n\t\tstartLon as string,\n\t\tstoreAndFwdFlag as boolean,\n\t\ttipAmount as double,\n\t\ttollsAmount as decimal(4,2),\n\t\ttotalAmount as decimal(5,2),\n\t\ttpepDropoffDateTime as string,\n\t\ttpepPickupDateTime as string,\n\t\ttripDistance as double,\n\t\tvendorID as integer\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: true,\n\tlimit: 100,\n\tignoreNoFilesFound: false,\n\trowUrlColumn: 'filename',\n\tdocumentForm: 'documentPerLine',\n\tdateFormats: ['yyyy/MM/dd'],\n\ttimestampFormats: ['MM/dd/yyyy HH:mm:ss'],\n\tpreferredIntegralType: 'integer',\n\tpreferredFractionalType: 'decimal',\n\twildcardPaths:['rawdata.json']) ~> Taxidata\nTaxidata derive(distanceQualifyer = iif(tripDistance < 2, 'short', iif(tripDistance < 7, 'middle', 'long'))) ~> DistanceQualifier\nDistanceQualifier sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tstaged: true,\n\tallowCopyCommand: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> ToSynapse"
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/TaxidataJSONFiles')]",
+            "[concat(variables('factoryId'), '/datasets/AzureSynapseAnalyticsTable1')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/Taxidata2019Parquet')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "folder": "OpenDataSet",
+            "linkedServiceName": {
+              "referenceName": "MicrosoftOpenTaxiData",
+              "type": "LinkedServiceReference"
+            },
+            "annotations": [],
+            "type": "Parquet",
+            "typeProperties": {
+              "location": {
+                "type": "AzureBlobStorageLocation",
+                "fileName": "part-00000-tid-8898858832658823408-a1de80bd-eed3-4d11-b9d4-fa74bfbd47bc-426339-126.c000.snappy.parquet",
+                "folderPath": "yellow/puYear=2019/puMonth=1/",
+                "container": "nyctlc"
+              },
+              "compressionCodec": "snappy"
+            },
+            "schema": [
+              {
+                "name": "vendorID",
+                "type": "UTF8"
+              },
+              {
+                "name": "tpepPickupDateTime",
+                "type": "INT96"
+              },
+              {
+                "name": "tpepDropoffDateTime",
+                "type": "INT96"
+              },
+              {
+                "name": "passengerCount",
+                "type": "INT32"
+              },
+              {
+                "name": "tripDistance",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "puLocationId",
+                "type": "UTF8"
+              },
+              {
+                "name": "doLocationId",
+                "type": "UTF8"
+              },
+              {
+                "name": "startLon",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "startLat",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "endLon",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "endLat",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "rateCodeId",
+                "type": "INT32"
+              },
+              {
+                "name": "storeAndFwdFlag",
+                "type": "UTF8"
+              },
+              {
+                "name": "paymentType",
+                "type": "UTF8"
+              },
+              {
+                "name": "fareAmount",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "extra",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "mtaTax",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "improvementSurcharge",
+                "type": "UTF8"
+              },
+              {
+                "name": "tipAmount",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "tollsAmount",
+                "type": "DOUBLE"
+              },
+              {
+                "name": "totalAmount",
+                "type": "DOUBLE"
+              }
+            ]
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/MicrosoftOpenTaxiData')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/CSVD365Leads')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "linkedServiceName": {
+              "referenceName": "AzureBlobStorage",
+              "type": "LinkedServiceReference"
+            },
+            "annotations": [],
+            "type": "DelimitedText",
+            "typeProperties": {
+              "location": {
+                "type": "AzureBlobStorageLocation",
+                "folderPath": {
+                  "value": "@concat('/leads/', formatDateTime(adddays(utcnow(),-1),'yyyy'), '/', formatDateTime(adddays(utcnow(),-1),'MM'), '/', formatDateTime(adddays(utcnow(),-1),'dd'))",
+                  "type": "Expression"
+                },
+                "container": "d365data"
+              },
+              "columnDelimiter": ",",
+              "escapeChar": "\\",
+              "quoteChar": "\""
+            },
+            "schema": [
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              },
+              {
+                "type": "String"
+              }
+            ]
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/FileContent')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "linkedServiceName": {
+              "referenceName": "AzureBlobStorage",
+              "type": "LinkedServiceReference"
+            },
+            "annotations": [],
+            "type": "DelimitedText",
+            "typeProperties": {
+              "location": {
+                "type": "AzureBlobStorageLocation"
+              },
+              "columnDelimiter": ",",
+              "escapeChar": "\\",
+              "quoteChar": "\""
+            },
+            "schema": []
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/AzureSynapseAnalyticsTable1')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "linkedServiceName": {
+              "referenceName": "AzureSynapseAnalytics",
+              "type": "LinkedServiceReference"
+            },
+            "parameters": {
+              "tablename": {
+                "type": "string",
+                "defaultValue": "taxidata"
+              }
+            },
+            "annotations": [],
+            "type": "AzureSqlDWTable",
+            "schema": [],
+            "typeProperties": {
+              "schema": "dbo",
+              "table": {
+                "value": "@dataset().tablename",
+                "type": "Expression"
+              }
+            },
+            "folder": "Common"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/AzureSynapseAnalytics')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/CosmosDbSqlApiCollection')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "linkedServiceName": {
+              "referenceName": "CosmosDb",
+              "type": "LinkedServiceReference"
+            },
+            "annotations": [],
+            "type": "CosmosDbSqlApiCollection",
+            "schema": {},
+            "typeProperties": {
+              "collectionName": "Activities"
+            },
+            "folder": "Common"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/CosmosDb')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/D365')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "Activity Table in D365",
+            "linkedServiceName": {
+              "referenceName": "Dynamics365",
+              "type": "LinkedServiceReference"
+            },
+            "parameters": {
+              "EntityName": {
+                "type": "string",
+                "defaultValue": "Activity"
+              }
+            },
+            "folder": "D365",
+            "annotations": [],
+            "type": "DynamicsEntity",
+            "schema": [],
+            "typeProperties": {
+              "entityName": {
+                "value": "@dataset().EntityName",
+                "type": "Expression"
+              }
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/Dynamics365')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/MicrosoftOpenTaxiData')]",
+          "type": "Microsoft.DataFactory/factories/linkedServices",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "Linked service for Microsoft open Datasets",
+            "annotations": [],
+            "type": "AzureBlobStorage",
+            "typeProperties": {
+              "sasUri": "[parameters('MicrosoftOpenTaxiData_sasUri')]"
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/AzureSynapseAnalytics')]",
+          "type": "Microsoft.DataFactory/factories/linkedServices",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "Linked Service for Synapse Analytics Workspace in demo",
+            "annotations": [],
+            "type": "AzureSqlDW",
+            "typeProperties": {
+              "connectionString": "[variables('synapseDedicatedPoolConnectionString')]"
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/Dynamics365')]",
+          "type": "Microsoft.DataFactory/factories/linkedServices",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "annotations": [],
+            "type": "Dynamics",
+            "typeProperties": {
+              "deploymentType": "Online",
+              "serviceUri": "[parameters('urlDynamics365')]",
+              "authenticationType": "Office365",
+              "username": "[parameters('userNameDynamics365')]",
+              "password": {
+                "type": "SecureString",
+                "value": "[parameters('passwordDynamics365')]"
+              }
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/CosmosDb')]",
+          "type": "Microsoft.DataFactory/factories/linkedServices",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "annotations": [],
+            "type": "CosmosDb",
+            "typeProperties": {
+              "connectionString": "[concat('AccountEndpoint=https://', variables('cosmosdbname'), '.documents.azure.com:443/;Database=D365Staging;AccountKey=', listKeys(variables('cosmosdbname'), '2019-12-12').primaryMasterKey, ';')]"
+              //"[listConnectionStrings(resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosdbname')), '2019-12-12').connectionStrings[0].connectionString]"
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]"
+          ]
+        },
+        {
+          "type": "Microsoft.DataFactory/factories/linkedServices",
+          "apiVersion": "2018-06-01",
+          "name": "[concat(variables('dataFactoryName'), '/AzureBlobStorage')]",
+          "properties": {
+            "type": "AzureBlobStorage",
+            "typeProperties": {
+              "connectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listKeys(variables('storageAccountName'), '2019-06-01').keys[0].value)]"
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[variables('storageAccountName')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/AzureDataLakeStorage')]",
+          "type": "Microsoft.DataFactory/factories/linkedServices",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "annotations": [],
+            "type": "AzureBlobFS",
+            "typeProperties": {
+              "url": "[variables('storageFSUrl')]",
+              "accountKey": {
+                "type": "SecureString",
+                "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2018-07-01').keys[0].value]"
+              }
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/DFActivitiesAndLeads')]",
+          "type": "Microsoft.DataFactory/factories/dataflows",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "type": "MappingDataFlow",
+            "typeProperties": {
+              "sources": [
+                {
+                  "dataset": {
+                    "referenceName": "CosmosDbSqlApiCollection",
+                    "type": "DatasetReference"
+                  },
+                  "name": "CosmosActivitities"
+                },
+                {
+                  "dataset": {
+                    "referenceName": "AzureSynapseAnalyticsTable1",
+                    "type": "DatasetReference"
+                  },
+                  "name": "SQLLeads"
+                }
+              ],
+              "sinks": [
+                {
+                  "linkedService": {
+                    "referenceName": "AzureDataLakeStorage",
+                    "type": "LinkedServiceReference"
+                  },
+                  "name": "CDMActivitiesWithLeads"
+                },
+                {
+                  "linkedService": {
+                    "referenceName": "AzureDataLakeStorage",
+                    "type": "LinkedServiceReference"
+                  },
+                  "name": "CDMActivitiesWithoutLeads"
+                }
+              ],
+              "transformations": [
+                {
+                  "name": "LeftJoinActivitiesLeads"
+                },
+                {
+                  "name": "HasLead"
+                },
+                {
+                  "name": "SplitByLeads"
+                }
+              ],
+              "script": "source(output(\n\t\tactivityadditionalparams as string,\n\t\tactivityid as string,\n\t\tactivitytypecode as string,\n\t\tactualdurationminutes as integer,\n\t\tactualend as timestamp,\n\t\tactualstart as timestamp,\n\t\tcommunity as string,\n\t\tcreatedby as string,\n\t\tcreatedbyname as string,\n\t\tcreatedbyyominame as string,\n\t\tcreatedon as timestamp,\n\t\tcreatedonbehalfby as string,\n\t\tcreatedonbehalfbyname as string,\n\t\tcreatedonbehalfbyyominame as string,\n\t\tdeliverylastattemptedon as string,\n\t\tdeliveryprioritycode as integer,\n\t\tdescription as string,\n\t\texchangeitemid as string,\n\t\texchangerate as integer,\n\t\texchangeweblink as string,\n\t\tinstancetypecode as integer,\n\t\tisbilled as boolean,\n\t\tismapiprivate as boolean,\n\t\tisregularactivity as boolean,\n\t\tisworkflowcreated as boolean,\n\t\tlastonholdtime as string,\n\t\tleftvoicemail as boolean,\n\t\tmodifiedby as string,\n\t\tmodifiedbyname as string,\n\t\tmodifiedbyyominame as string,\n\t\tmodifiedon as timestamp,\n\t\tmodifiedonbehalfby as string,\n\t\tmodifiedonbehalfbyname as string,\n\t\tmodifiedonbehalfbyyominame as string,\n\t\tonholdtime as string,\n\t\townerid as string,\n\t\towneridname as string,\n\t\towneridtype as string,\n\t\towneridyominame as string,\n\t\towningbusinessunit as string,\n\t\towningteam as string,\n\t\towninguser as string,\n\t\tpostponeactivityprocessinguntil as string,\n\t\tprioritycode as integer,\n\t\tprocessid as string,\n\t\tregardingobjectid as string,\n\t\tregardingobjectidname as string,\n\t\tregardingobjectidyominame as string,\n\t\tregardingobjecttypecode as string,\n\t\tscheduleddurationminutes as integer,\n\t\tscheduledend as timestamp,\n\t\tscheduledstart as timestamp,\n\t\tsendermailboxid as string,\n\t\tsendermailboxidname as string,\n\t\tsenton as string,\n\t\tseriesid as string,\n\t\tserviceid as string,\n\t\tserviceidname as string,\n\t\tslaid as string,\n\t\tslainvokedid as string,\n\t\tslainvokedidname as string,\n\t\tslaname as string,\n\t\tsortdate as string,\n\t\tstageid as string,\n\t\tstatecode as integer,\n\t\tstatuscode as integer,\n\t\tsubject as string,\n\t\ttimezoneruleversionnumber as integer,\n\t\ttransactioncurrencyid as string,\n\t\ttransactioncurrencyidname as string,\n\t\ttraversedpath as string,\n\t\tutcconversiontimezonecode as string,\n\t\tversionnumber as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tlimit: 100,\n\tformat: 'document') ~> CosmosActivitities\nsource(output(\n\t\taccountid as string,\n\t\taccountidname as string,\n\t\taccountidyominame as string,\n\t\taddress1_addressid as string,\n\t\taddress1_addresstypecode as integer,\n\t\taddress1_city as string,\n\t\taddress1_composite as string,\n\t\taddress1_country as string,\n\t\taddress1_county as string,\n\t\taddress1_fax as string,\n\t\taddress1_latitude as double,\n\t\taddress1_line1 as string,\n\t\taddress1_line2 as string,\n\t\taddress1_line3 as string,\n\t\taddress1_longitude as double,\n\t\taddress1_name as string,\n\t\taddress1_postalcode as string,\n\t\taddress1_postofficebox as string,\n\t\taddress1_shippingmethodcode as integer,\n\t\taddress1_stateorprovince as string,\n\t\taddress1_telephone1 as string,\n\t\taddress1_telephone2 as string,\n\t\taddress1_telephone3 as string,\n\t\taddress1_upszone as string,\n\t\taddress1_utcoffset as integer,\n\t\taddress2_addressid as string,\n\t\taddress2_addresstypecode as integer,\n\t\taddress2_city as string,\n\t\taddress2_composite as string,\n\t\taddress2_country as string,\n\t\taddress2_county as string,\n\t\taddress2_fax as string,\n\t\taddress2_latitude as double,\n\t\taddress2_line1 as string,\n\t\taddress2_line2 as string,\n\t\taddress2_line3 as string,\n\t\taddress2_longitude as double,\n\t\taddress2_name as string,\n\t\taddress2_postalcode as string,\n\t\taddress2_postofficebox as string,\n\t\taddress2_shippingmethodcode as integer,\n\t\taddress2_stateorprovince as string,\n\t\taddress2_telephone1 as string,\n\t\taddress2_telephone2 as string,\n\t\taddress2_telephone3 as string,\n\t\taddress2_upszone as string,\n\t\taddress2_utcoffset as integer,\n\t\tbudgetamount as decimal(38,18),\n\t\tbudgetamount_base as decimal(38,18),\n\t\tbudgetstatus as integer,\n\t\tbusinesscard as string,\n\t\tbusinesscardattributes as string,\n\t\tcampaignid as string,\n\t\tcampaignidname as string,\n\t\tcompanyname as string,\n\t\tconfirminterest as boolean,\n\t\tcontactid as string,\n\t\tcontactidname as string,\n\t\tcontactidyominame as string,\n\t\tcreatedby as string,\n\t\tcreatedbyname as string,\n\t\tcreatedbyyominame as string,\n\t\tcreatedon as timestamp,\n\t\tcreatedonbehalfby as string,\n\t\tcreatedonbehalfbyname as string,\n\t\tcreatedonbehalfbyyominame as string,\n\t\tcustomerid as string,\n\t\tcustomeridname as string,\n\t\tcustomeridtype as string,\n\t\tcustomeridyominame as string,\n\t\tdecisionmaker as boolean,\n\t\tdescription as string,\n\t\tdonotbulkemail as boolean,\n\t\tdonotemail as boolean,\n\t\tdonotfax as boolean,\n\t\tdonotphone as boolean,\n\t\tdonotpostalmail as boolean,\n\t\tdonotsendmm as boolean,\n\t\temailaddress1 as string,\n\t\temailaddress2 as string,\n\t\temailaddress3 as string,\n\t\tentityimage_timestamp as long,\n\t\tentityimage_url as string,\n\t\tentityimageid as string,\n\t\testimatedamount as decimal(38,18),\n\t\testimatedamount_base as decimal(38,18),\n\t\testimatedclosedate as timestamp,\n\t\testimatedvalue as double,\n\t\tevaluatefit as boolean,\n\t\texchangerate as decimal(38,18),\n\t\tfax as string,\n\t\tfirstname as string,\n\t\tfollowemail as boolean,\n\t\tfullname as string,\n\t\timportsequencenumber as integer,\n\t\tindustrycode as integer,\n\t\tinitialcommunication as integer,\n\t\tisautocreate as boolean,\n\t\tisprivate as boolean,\n\t\tjobtitle as string,\n\t\tlastname as string,\n\t\tlastonholdtime as timestamp,\n\t\tlastusedincampaign as timestamp,\n\t\tleadid as string,\n\t\tleadqualitycode as integer,\n\t\tleadsourcecode as integer,\n\t\tmasterid as string,\n\t\tmasterleadidname as string,\n\t\tmasterleadidyominame as string,\n\t\tmerged as boolean,\n\t\tmiddlename as string,\n\t\tmobilephone as string,\n\t\tmodifiedby as string,\n\t\tmodifiedbyname as string,\n\t\tmodifiedbyyominame as string,\n\t\tmodifiedon as timestamp,\n\t\tmodifiedonbehalfby as string,\n\t\tmodifiedonbehalfbyname as string,\n\t\tmodifiedonbehalfbyyominame as string,\n\t\tmsdyn_gdproptout as boolean,\n\t\tmsdyn_ordertype as integer,\n\t\tneed as integer,\n\t\tnumberofemployees as integer,\n\t\tonholdtime as integer,\n\t\toriginatingcaseid as string,\n\t\toriginatingcaseidname as string,\n\t\toverriddencreatedon as timestamp,\n\t\townerid as string,\n\t\towneridname as string,\n\t\towneridtype as string,\n\t\towneridyominame as string,\n\t\towningbusinessunit as string,\n\t\towningteam as string,\n\t\towninguser as string,\n\t\tpager as string,\n\t\tparentaccountid as string,\n\t\tparentaccountidname as string,\n\t\tparentaccountidyominame as string,\n\t\tparentcontactid as string,\n\t\tparentcontactidname as string,\n\t\tparentcontactidyominame as string,\n\t\tparticipatesinworkflow as boolean,\n\t\tpreferredcontactmethodcode as integer,\n\t\tprioritycode as integer,\n\t\tprocessid as string,\n\t\tpurchaseprocess as integer,\n\t\tpurchasetimeframe as integer,\n\t\tqualificationcomments as string,\n\t\tqualifyingopportunityid as string,\n\t\tqualifyingopportunityidname as string,\n\t\trelatedobjectid as string,\n\t\trelatedobjectidname as string,\n\t\trevenue as decimal(38,18),\n\t\trevenue_base as decimal(38,18),\n\t\tsalesstage as integer,\n\t\tsalesstagecode as integer,\n\t\tsalutation as string,\n\t\tschedulefollowup_prospect as timestamp,\n\t\tschedulefollowup_qualify as timestamp,\n\t\tsic as string,\n\t\tslaid as string,\n\t\tslainvokedid as string,\n\t\tslainvokedidname as string,\n\t\tslaname as string,\n\t\tstageid as string,\n\t\tstatecode as integer,\n\t\tstatuscode as integer,\n\t\tsubject as string,\n\t\tteamsfollowed as integer,\n\t\ttelephone1 as string,\n\t\ttelephone2 as string,\n\t\ttelephone3 as string,\n\t\ttimespentbymeonemailandmeetings as string,\n\t\ttimezoneruleversionnumber as integer,\n\t\ttransactioncurrencyid as string,\n\t\ttransactioncurrencyidname as string,\n\t\ttraversedpath as string,\n\t\tutcconversiontimezonecode as integer,\n\t\tversionnumber as long,\n\t\twebsiteurl as string,\n\t\tyomicompanyname as string,\n\t\tyomifirstname as string,\n\t\tyomifullname as string,\n\t\tyomilastname as string,\n\t\tyomimiddlename as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tlimit: 100,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tquery: 'select * from dbo.D365lead',\n\tformat: 'query',\n\tstaged: false) ~> SQLLeads\nCosmosActivitities, SQLLeads join(regardingobjectid <=> leadid,\n\tjoinType:'left',\n\tbroadcast: 'both')~> LeftJoinActivitiesLeads\nLeftJoinActivitiesLeads derive(ActivityHasLead = not( isNull( leadid ) )) ~> HasLead\nHasLead split(ActivityHasLead,\n\tdisjoint: false) ~> SplitByLeads@(ActivitiesWithLead, ActivitiesWithoutLead)\nSplitByLeads@ActivitiesWithLead sink(allowSchemaDrift: false,\n\tvalidateSchema: false,\n\tinput(\n\t\tcreatedOn as timestamp,\n\t\tcreatedBy as string,\n\t\tmodifiedOn as timestamp,\n\t\tmodifiedBy as string,\n\t\tcreatedOnBehalfBy as string,\n\t\tmodifiedOnBehalfBy as string,\n\t\townerId as string,\n\t\townerIdType as string,\n\t\towningBusinessUnit as string,\n\t\towningUser as string,\n\t\towningTeam as string,\n\t\ttimeZoneRuleVersionNumber as integer,\n\t\tUTCConversionTimeZoneCode as integer,\n\t\tversionNumber as long,\n\t\tactivityId as string,\n\t\tactivityTypeCode as string,\n\t\tisBilled as boolean,\n\t\tisRegularActivity as boolean,\n\t\tisWorkflowCreated as boolean,\n\t\tpriorityCode as integer,\n\t\tpriorityCode_display as string,\n\t\tregardingObjectId as string,\n\t\tregardingObjectTypeCode as string,\n\t\tscheduledEnd as timestamp,\n\t\tscheduledStart as timestamp,\n\t\tsortDate as timestamp,\n\t\tsubject as string,\n\t\tscheduledDurationMinutes as integer,\n\t\tactualDurationMinutes as integer,\n\t\tactualEnd as timestamp,\n\t\tactualStart as timestamp,\n\t\tactivityAdditionalParams as string,\n\t\tinstanceTypeCode as integer,\n\t\tinstanceTypeCode_display as string,\n\t\tisMapiPrivate as boolean,\n\t\tseriesId as string,\n\t\tsentOn as timestamp,\n\t\tsenderMailboxId as string,\n\t\tdeliveryPriorityCode as integer,\n\t\tdeliveryPriorityCode_display as string,\n\t\tcommunity as integer,\n\t\tcommunity_display as string,\n\t\tleftVoiceMail as boolean,\n\t\tdeliveryLastAttemptedOn as timestamp,\n\t\texchangeItemId as string,\n\t\texchangeWebLink as string,\n\t\tpostponeActivityProcessingUntil as timestamp,\n\t\tdescription as string,\n\t\tstateCode as integer,\n\t\tstateCode_display as string,\n\t\tstatusCode as integer,\n\t\tstatusCode_display as string,\n\t\ttransactionCurrencyId as string,\n\t\texchangeRate as decimal(18,2),\n\t\tallActivityParties as string,\n\t\ttraversedPath as string,\n\t\tprocessId as string,\n\t\tstageId as string,\n\t\tSLAId as string,\n\t\tSLAInvokedId as string,\n\t\tonHoldTime as integer,\n\t\tlastOnHoldTime as timestamp\n\t),\n\tentity: 'core/applicationCommon/Activity.cdm.json/Activity',\n\tformat: 'cdm',\n\tmanifestType: 'manifest',\n\tfolderPath: (concat(\"cdm/activities_with_leads/\", toString(year(currentDate())), \"/\", toString(month(currentDate())), \"/\", toString(dayOfMonth(currentDate())), \"/\")),\n\tfileSystem: 'exports',\n\tcolumnDelimiter: ',',\n\tcolumnNamesAsHeader: false,\n\ttruncate: false,\n\tumask: 0022,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CDMActivitiesWithLeads\nSplitByLeads@ActivitiesWithoutLead sink(allowSchemaDrift: false,\n\tvalidateSchema: false,\n\tinput(\n\t\tcreatedOn as timestamp,\n\t\tcreatedBy as string,\n\t\tmodifiedOn as timestamp,\n\t\tmodifiedBy as string,\n\t\tcreatedOnBehalfBy as string,\n\t\tmodifiedOnBehalfBy as string,\n\t\townerId as string,\n\t\townerIdType as string,\n\t\towningBusinessUnit as string,\n\t\towningUser as string,\n\t\towningTeam as string,\n\t\ttimeZoneRuleVersionNumber as integer,\n\t\tUTCConversionTimeZoneCode as integer,\n\t\tversionNumber as long,\n\t\tactivityId as string,\n\t\tactivityTypeCode as string,\n\t\tisBilled as boolean,\n\t\tisRegularActivity as boolean,\n\t\tisWorkflowCreated as boolean,\n\t\tpriorityCode as integer,\n\t\tpriorityCode_display as string,\n\t\tregardingObjectId as string,\n\t\tregardingObjectTypeCode as string,\n\t\tscheduledEnd as timestamp,\n\t\tscheduledStart as timestamp,\n\t\tsortDate as timestamp,\n\t\tsubject as string,\n\t\tscheduledDurationMinutes as integer,\n\t\tactualDurationMinutes as integer,\n\t\tactualEnd as timestamp,\n\t\tactualStart as timestamp,\n\t\tactivityAdditionalParams as string,\n\t\tinstanceTypeCode as integer,\n\t\tinstanceTypeCode_display as string,\n\t\tisMapiPrivate as boolean,\n\t\tseriesId as string,\n\t\tsentOn as timestamp,\n\t\tsenderMailboxId as string,\n\t\tdeliveryPriorityCode as integer,\n\t\tdeliveryPriorityCode_display as string,\n\t\tcommunity as integer,\n\t\tcommunity_display as string,\n\t\tleftVoiceMail as boolean,\n\t\tdeliveryLastAttemptedOn as timestamp,\n\t\texchangeItemId as string,\n\t\texchangeWebLink as string,\n\t\tpostponeActivityProcessingUntil as timestamp,\n\t\tdescription as string,\n\t\tstateCode as integer,\n\t\tstateCode_display as string,\n\t\tstatusCode as integer,\n\t\tstatusCode_display as string,\n\t\ttransactionCurrencyId as string,\n\t\texchangeRate as decimal(18,2),\n\t\tallActivityParties as string,\n\t\ttraversedPath as string,\n\t\tprocessId as string,\n\t\tstageId as string,\n\t\tSLAId as string,\n\t\tSLAInvokedId as string,\n\t\tonHoldTime as integer,\n\t\tlastOnHoldTime as timestamp\n\t),\n\tentity: 'core/applicationCommon/Activity.cdm.json/Activity',\n\tformat: 'cdm',\n\tmanifestType: 'manifest',\n\tfolderPath: (concat(\"cdm/activities_without_leads/\", toString(year(currentDate())), \"/\", toString(month(currentDate())), \"/\", toString(dayOfMonth(currentDate())), \"/\")),\n\tfileSystem: 'exports',\n\tcolumnDelimiter: ',',\n\tcolumnNamesAsHeader: false,\n\ttruncate: false,\n\tumask: 0022,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CDMActivitiesWithoutLeads"
+            }
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/CosmosDbSqlApiCollection')]",
+            "[concat(variables('factoryId'), '/datasets/AzureSynapseAnalyticsTable1')]",
+            "[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/CSVActivities')]",
+          "type": "Microsoft.DataFactory/factories/datasets",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "linkedServiceName": {
+              "referenceName": "AzureDataLakeStorage",
+              "type": "LinkedServiceReference"
+            },
+            "parameters": {
+              "filename": {
+                "type": "string",
+                "defaultValue": "with_leads.csv"
+              }
+            },
+            "folder": "D365",
+            "annotations": [],
+            "type": "DelimitedText",
+            "typeProperties": {
+              "location": {
+                "type": "AzureBlobStorageLocation",
+                "folderPath": "activities",
+                "container": "exporteddata"
+              },
+              "columnDelimiter": ",",
+              "escapeChar": "\\",
+              "firstRowAsHeader": true,
+              "quoteChar": "\""
+            },
+            "schema": []
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/02-TransformTaxiData')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "Pipeline calls the dataflow that transforms the data from the New York taxi open dataset",
+            "activities": [
+              {
+                "name": "Run Data flow",
+                "type": "ExecuteDataFlow",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "1.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "dataflow": {
+                    "referenceName": "DFMoveTaxiData",
+                    "type": "DataFlowReference",
+                    "datasetParameters": {
+                      "ToSynapse": {
+                        "tablename": "taxidata"
+                      }
+                    }
+                  },
+                  "staging": {
+                    "linkedService": {
+                      "referenceName": "AzureDataLakeStorage",
+                      "type": "LinkedServiceReference"
+                    },
+                    "folderPath": "taxidata"
+                  },
+                  "compute": {
+                    "coreCount": 8,
+                    "computeType": "General"
+                  },
+                  "traceLevel": "Fine"
+                }
+              }
+            ],
+            "folder": {
+              "name": "OpenDataset"
+            },
+            "annotations": []
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/dataflows/DFMoveTaxiData')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/05-TransformDynamicsData')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "This pipeline calls the dataflow that transforms the data from two D365 sources, joins it and then stores it in CDM entities",
+            "activities": [
+              {
+                "name": "Run D365 Dataflow",
+                "type": "ExecuteDataFlow",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "1.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "dataflow": {
+                    "referenceName": "DFActivitiesAndLeads",
+                    "type": "DataFlowReference",
+                    "datasetParameters": {
+                      "SQLLeads": {
+                        "tablename": "D365lead"
+                      }
+                    }
+                  },
+                  "compute": {
+                    "coreCount": 8,
+                    "computeType": "General"
+                  },
+                  "traceLevel": "Fine"
+                }
+              }
+            ],
+            "folder": {
+              "name": "D365"
+            },
+            "annotations": [],
+            "lastPublishTime": "2021-06-08T12:56:42Z"
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/dataflows/DFActivitiesAndLeads')]"
+
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/04-AnonymizeSalesLeads')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "activities": [
+              {
+                "name": "GetFileList",
+                "description": "Get the list of file",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "dataset": {
+                    "referenceName": "CSVD365Leads",
+                    "type": "DatasetReference"
+                  },
+                  "fieldList": [
+                    "childItems"
+                  ],
+                  "storeSettings": {
+                    "type": "AzureBlobStorageReadSettings",
+                    "enablePartitionDiscovery": false
+                  },
+                  "formatSettings": {
+                    "type": "DelimitedTextReadSettings"
+                  }
+                }
+              },
+              {
+                "name": "ForEachFile",
+                "description": "Iterate each file, and move them one by one.",
+                "type": "ForEach",
+                "dependsOn": [
+                  {
+                    "activity": "FilterFiles",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                  "items": {
+                    "value": "@activity('FilterFiles').output.value",
+                    "type": "Expression"
+                  },
+                  "isSequential": false,
+                  "batchCount": 20,
+                  "activities": [
+                    {
+                      "name": "Execute Pipeline1",
+                      "type": "ExecutePipeline",
+                      "dependsOn": [],
+                      "userProperties": [],
+                      "typeProperties": {
+                        "pipeline": {
+                          "referenceName": "04-01-DataAnonymizationSingleFile",
+                          "type": "PipelineReference"
+                        },
+                        "waitOnCompletion": true,
+                        "parameters": {
+                          "filename": {
+                            "value": "@item().name",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "FilterFiles",
+                "description": "filter only files, source folders will not be selected.",
+                "type": "Filter",
+                "dependsOn": [
+                  {
+                    "activity": "GetFileList",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                  "items": {
+                    "value": "@activity('GetFileList').output.childItems",
+                    "type": "Expression"
+                  },
+                  "condition": {
+                    "value": "@equals(item().type, 'File')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ],
+            "folder": {
+              "name": "D365"
+            },
+            "annotations": []
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/pipelines/04-01-DataAnonymizationSingleFile')]",
+            "[concat(variables('factoryId'), '/datasets/CSVD365Leads')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/04-01-DataAnonymizationSingleFile')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+
+          "properties": {
+            "activities": [
+              {
+                "name": "LoadFileContent",
+                "type": "Lookup",
+                "dependsOn": [
+                  {
+                    "activity": "Create Append Blob",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "source": {
+                    "type": "DelimitedTextSource",
+                    "storeSettings": {
+                      "type": "AzureBlobStorageReadSettings",
+                      "recursive": false,
+                      "wildcardFolderPath": {
+                        "value": "@concat('/d365data/leads/', formatDateTime(adddays(utcnow(),-1),'yyyy'), '/', formatDateTime(adddays(utcnow(),-1),'MM'), '/', formatDateTime(adddays(utcnow(),-1),'dd'))",
+                        "type": "Expression"
+                      },
+                      "wildcardFileName": {
+                        "value": "@pipeline().parameters.filename",
+                        "type": "Expression"
+                      },
+                      "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                      "type": "DelimitedTextReadSettings"
+                    }
+                  },
+                  "dataset": {
+                    "referenceName": "FileContent",
+                    "type": "DatasetReference"
+                  },
+                  "firstRowOnly": false
+                }
+              },
+              {
+                "name": "For Each Row in File",
+                "type": "ForEach",
+                "dependsOn": [
+                  {
+                    "activity": "LoadFileContent",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                  "items": {
+                    "value": "@activity('LoadFileContent').output.value",
+                    "type": "Expression"
+                  },
+                  "isSequential": false,
+                  "activities": [
+                    {
+                      "name": "Append data to blob",
+                      "type": "WebActivity",
+                      "dependsOn": [
+                        {
+                          "activity": "PresidioAnonymize",
+                          "dependencyConditions": [
+                            "Succeeded"
+                          ]
+                        }
+                      ],
+                      "policy": {
+                        "timeout": "7.00:00:00",
+                        "retry": 3,
+                        "retryIntervalInSeconds": 15,
+                        "secureOutput": false,
+                        "secureInput": false
+                      },
+                      "userProperties": [],
+                      "typeProperties": {
+                        "url": {
+                          "value": "[concat('@concat(''https://', variables('storageAccountName'), '.blob.core.windows.net/d365data/leads_anonymized/data.csv'', ''?', listAccountSas(variables('storageAccountName'), '2018-07-01', parameters('StorageAccountSasProperties')).accountSasToken, '&comp=appendblock'')')]",
+                          "type": "Expression"
+                        },
+                        "method": "PUT",
+                        "headers": {
+                          "x-ms-blob-type": "AppendBlob"
+                        },
+                        "body": {
+                          "value": "@string(activity('PresidioAnonymize').output)",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    {
+                      "name": "PresidioAnalyze",
+                      "description": "Analyze text with presidio",
+                      "type": "WebActivity",
+                      "dependsOn": [],
+                      "policy": {
+                        "timeout": "7.00:00:00",
+                        "retry": 3,
+                        "retryIntervalInSeconds": 15,
+                        "secureOutput": false,
+                        "secureInput": false
+                      },
+                      "userProperties": [],
+                      "typeProperties": {
+                        "url": "[concat('https://', variables('presidioAnalyzerAppName'), '.azurewebsites.net/analyze')]",
+                        "method": "POST",
+                        "headers": {
+                          "Content-Type": "application/json"
+                        },
+                        "body": {
+                          "value": "@concat('{\"text\":\"',replace(replace(string(item()), '\\\"', ''), '\"', ''''),'\",\"language\":\"en\"}')",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    {
+                      "name": "PresidioAnonymize",
+                      "description": "Anonymize text with presidio",
+                      "type": "WebActivity",
+                      "dependsOn": [
+                        {
+                          "activity": "PresidioAnalyze",
+                          "dependencyConditions": [
+                            "Succeeded"
+                          ]
+                        }
+                      ],
+                      "policy": {
+                        "timeout": "7.00:00:00",
+                        "retry": 3,
+                        "retryIntervalInSeconds": 15,
+                        "secureOutput": false,
+                        "secureInput": false
+                      },
+                      "userProperties": [],
+                      "typeProperties": {
+                        "url": "[concat('https://', variables('presidioAnonymizerAppName') ,'.azurewebsites.net/anonymize')]",
+                        "method": "POST",
+                        "headers": {
+                          "Content-Type": "application/json"
+                        },
+                        "body": {
+                          "value": "@concat('{\"text\":\"',replace(replace(string(item()), '\\\"', ''), '\"', ''''), '\",\"anonymizers\": {\"DEFAULT\": { \"type\": \"replace\", \"new_value\": \"ANONYMIZED\" }},\"analyzer_results\": ', activity('PresidioAnalyze').output. Response,'}')\n",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "Create Append Blob",
+                "type": "WebActivity",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "url": {
+                    "value": "[concat('@concat(''https://', variables('storageAccountName'),'.blob.core.windows.net/d365data/leads_anonymized/data.csv'', ''?', listAccountSas(variables('storageAccountName'), '2018-07-01', parameters('StorageAccountSasProperties')).accountSasToken, ''')')]",
+                    "type": "Expression"
+                  },
+                  "method": "PUT",
+                  "headers": {
+                    "x-ms-blob-type": "AppendBlob"
+                  },
+                  "body": " "
+                }
+              }
+            ],
+            "parameters": {
+              "filename": {
+                "type": "string",
+                "defaultValue": "leads.csv"
+              }
+            },
+            "variables": {
+              "firstblob": {
+                "type": "Boolean",
+                "defaultValue": true
+              }
+            },
+            "folder": {
+              "name": "D365"
+            },
+            "annotations": []
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/datasets/FileContent')]",
+            "[concat(variables('factoryId'), '/datasets/AzureSynapseAnalyticsTable1')]"
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/00-ControlPipeline')]",
+          "type": "Microsoft.DataFactory/factories/pipelines",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "description": "This is the master pipeline that will be called daily to run all required pipelines. ",
+            "activities": [
+              {
+                "name": "Execute D365 01 Copy",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "01-CopyD365SalesActivityToCosmos",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              },
+              {
+                "name": "Execute D365 02 Copy Storage",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "02-CopyD365SalesLeadToStorage",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              },
+              {
+                "name": "Execute D365 03 Copy SQL",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "03-CopyD365SalesLeadToSQL",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              },
+              {
+                "name": "Execute D365 04 Anonymize",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                  {
+                    "activity": "Execute D365 01 Copy",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  },
+                  {
+                    "activity": "Execute D365 02 Copy Storage",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "04-AnonymizeSalesLeads",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              },
+              {
+                "name": "Execute D365 05 Transform",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                  {
+                    "activity": "Execute D365 01 Copy",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  },
+                  {
+                    "activity": "Execute D365 03 Copy SQL",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "05-TransformDynamicsData",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              },
+              {
+                "name": "Execute OpenData 01 Copy",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "01-StageOpenData",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              },
+              {
+                "name": "Execute OpenData 02 Transform",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                  {
+                    "activity": "Execute OpenData 01 Copy",
+                    "dependencyConditions": [
+                      "Succeeded"
+                    ]
+                  }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                  "pipeline": {
+                    "referenceName": "02-TransformTaxiData",
+                    "type": "PipelineReference"
+                  },
+                  "waitOnCompletion": true
+                }
+              }
+            ],
+            "annotations": []
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/pipelines/01-CopyD365SalesActivityToCosmos')]",
+            "[concat(variables('factoryId'), '/pipelines/02-CopyD365SalesLeadToStorage')]",
+            "[concat(variables('factoryId'), '/pipelines/03-CopyD365SalesLeadToSQL')]",
+            "[concat(variables('factoryId'), '/pipelines/04-AnonymizeSalesLeads')]",
+            "[concat(variables('factoryId'), '/pipelines/05-TransformDynamicsData')]",
+            "[concat(variables('factoryId'), '/pipelines/01-StageOpenData')]",
+            "[concat(variables('factoryId'), '/pipelines/02-TransformTaxiData')]"
+
+          ]
+        },
+        {
+          "name": "[concat(variables('dataFactoryName'), '/DailyTrigger')]",
+          "type": "Microsoft.DataFactory/factories/triggers",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "name": "DailyTrigger",
+            "type": "ScheduleTrigger",
+            "typeProperties": {
+              "recurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "startTime": "[concat('2021-01-01T', parameters('utcTimeTriggerDaily'), 'Z')]",
+                "timeZone": "UTC"
+              }
+            },
+            "pipelines": [
+              {
+                "pipelineReference": {
+                  "type": "PipelineReference",
+                  "referenceName": "00-ControlPipeline"
+                },
+                "parameters": {}
+              }
+            ]
+          },
+          "dependsOn": [
+            "[variables('dataFactoryName')]",
+            "[concat(variables('factoryId'), '/pipelines/00-ControlPipeline')]"
+          ]
+        }
+      ]
+    }
+
+  ]
+}

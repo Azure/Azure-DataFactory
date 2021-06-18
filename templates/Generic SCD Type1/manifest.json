@@ -23,8 +23,8 @@
 	},
 	"documentation": "https://techcommunity.microsoft.com/t5/Azure-Data-Factory/Create-Generic-SCD-Pattern-in-ADF-Mapping-Data-Flows/ba-p/918519",
 	"annotations": [
-		"data flow"
+		"Data flow"
 	],
 	"services": [],
-	"categories": ["dataflow"]
+	"categories": ["Data flow"]
 }

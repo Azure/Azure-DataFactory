@@ -140,8 +140,8 @@
         }
     },
     "categories": [
-        "transform",
-        "dataflow"
+        "Transform",
+        "Data flow"
     ],
     "annotations": [
         "Data Flow",

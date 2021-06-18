@@ -36,7 +36,7 @@
         "Azure Databricks"
     ],
     "categories": [
-        "transform"
+        "Transform"
     ],
 	"scope": ["ADF"]
 }

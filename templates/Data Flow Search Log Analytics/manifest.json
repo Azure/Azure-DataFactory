@@ -21,7 +21,7 @@
 			}
 		}
 	},
-    "documentation": "",
-    "services": [],
-    "categories": ["dataflow"]
+	"documentation": "",
+	"services": [],
+	"categories": ["Data flow"]
 }
