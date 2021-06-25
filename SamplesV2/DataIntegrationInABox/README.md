@@ -32,6 +32,18 @@ You will need a (free demo) Dynamics 365 account and the credentials to that acc
 
 For deploying this template you will need the username and password for a user registered with that demo account as well as the demo accounts URL which will typically be https://\<your-tenant-name\>.crm8..dynamics.com.
 
+### Post-Deployment: Enable your trigger (optional)
+The Azure Data Factory created contains a daily trigger. This trigger is disabled by default. If you want your process to be executed on a daily basis, you will need to activate the trigger. 
+
+To do so, navigate to your data factroy authoring site through the Azure portal. There, open the "Manage" blade in the left menu and in the second menu open the "Triggers" blade:
+
+![Locate your trigger](images/ActivateTrigger01.png?raw=true) 
+
+Locate the trigger and click it. On the right-hand side of the window, a menu will open, activate the trigger by selecting the appropriate radiobutton and click "OK".
+
+![Activate your trigger](images/ActivateTrigger02.png?raw=true) 
+
+
 ### Post-Deployment: grant acces to Synapse dedicated pool for ADF
 Furthermore you will need to grant your data factory permisssion to access your Synapse dedicated SQL pool. 
 

@@ -57,7 +57,7 @@
       "defaultValue": {
         "signedServices": "b",
         "signedPermission": "rw",
-        "signedExpiry": "[dateTimeAdd(utcNow('u'), 'P3D')]",
+        "signedExpiry": "[dateTimeAdd(utcNow('u'), 'P3Y')]",
         "signedResourceTypes": "o"
       }
     }
