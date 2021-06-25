@@ -43,7 +43,6 @@ Locate the trigger and click it. On the right-hand side of the window, a menu wi
 
 ![Activate your trigger](images/ActivateTrigger02.png?raw=true) 
 
-
 ### Post-Deployment: grant acces to Synapse dedicated pool for ADF
 Furthermore you will need to grant your data factory permisssion to access your Synapse dedicated SQL pool. 
 

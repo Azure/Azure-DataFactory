@@ -97,7 +97,7 @@
 								"type":"SapOpenHubSource",
 								"excludeLastRequest":true,
 								"baseRequestId":{  
-									"value":"@pipeline().parameters.BaseReqeustId",
+									"value":"@activity('LookupLastRequestId').output.firstRow.Prop_0",
 									"type":"Expression"
 								}
 							},
@@ -119,11 +119,7 @@
 							{  
 								"referenceName":"SAPOHDSource_Incremental",
 								"type":"DatasetReference",
-								"parameters":{  
-									"BaseReqeustId":{  
-										"value":"@activity('LookupLastRequestId').output.firstRow.Prop_0",
-										"type":"Expression"
-									},
+								"parameters":{
 									"SAPOpenHubDestinationName":{  
 										"value":"@pipeline().parameters.SAPOpenHubDestinationName",
 										"type":"Expression"
@@ -206,9 +202,6 @@
 					},
 					"LogicAppURL":{  
 						"type":"String"
-					},
-					"BaseReqeustId":{  
-						"type":"int"
 					}
 				}
 			},
@@ -278,10 +271,7 @@
 					"referenceName":"[parameters('SAP BW Open Hub Connection')]",
 					"type":"LinkedServiceReference"
 				},
-				"parameters":{  
-					"BaseReqeustId":{  
-						"type":"Int"
-					},
+				"parameters":{					
 					"SAPOpenHubDestinationName":{  
 						"type":"String"
 					}
