@@ -673,7 +673,7 @@
           "type": "Microsoft.DataFactory/factories/pipelines",
           "apiVersion": "2018-06-01",
           "properties": {
-            "description": "This pipeline transfers the sales leads from D365 to the Azure Synapse dedicated SQL pool",
+            "description": "This pipeline transfers the sales leads from D365 to the Azure Data Lake Gen2",
             "activities": [
               {
                 "name": "Copy D365",

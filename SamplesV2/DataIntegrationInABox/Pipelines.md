@@ -1,4 +1,4 @@
-# The pipelines of the data integration in a box. 
+# Data Integration Pipelines 
 
 The Data Factory that you can deploy with this solution will contain several pipelines that showcase different activities.
 
@@ -95,4 +95,3 @@ The solution contains two dataflows that transform the data:
     After running this dataflow, you will find a taxidata table in your dedicated synapse pool containg the original data and the distance qualification from the derived column in the dataflow. 
 
     ![TaxidataTransformed](images/TaxidataTransformed.png?raw=true)
-    
