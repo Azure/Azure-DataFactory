@@ -6,7 +6,7 @@ The following solution template (ARM) deploys `Azure Data Factory`, `Azure Cosmo
 
 This repository will deploy the above resources to your Azure subscription. You will need to have an active Azure subscription to run this sample. 
 
-[![Deploy to Azure](https://raw.githubusercontent.com/nabhishek/Azure-DataFactory/master/SamplesV2/DataIntegrationInABox/images/adf-in-a-box-icon.png)](https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-DataFactory%2Fmain%2FSamplesV2%2FDataIntegrationInABox%2Ftemplate.json)
+[![Deploy to Azure](https://raw.githubusercontent.com/nabhishek/Azure-DataFactory/master/SamplesV2/DataIntegrationInABox/images/adf-in-a-box-icon.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-DataFactory%2Fmain%2FSamplesV2%2FDataIntegrationInABox%2Ftemplate.json)
 
 
 
