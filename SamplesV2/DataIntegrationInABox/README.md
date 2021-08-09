@@ -1,4 +1,4 @@
-# Data integration in a box
+# Quick-start with Dynamics 365 Sales leads and NYC Taxi analytics
 
 The solution packages templatized data engineering pipelines and the respective azure resources for a quick start into your data engineering journey. It should take only 5-minutes and an Azure subscription to get started with everything you need to analyse the data!
 
