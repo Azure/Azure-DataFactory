@@ -1,0 +1,212 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "deploymentTla": {
+            "type": "string",
+            "defaultValue": "csa",
+            "metadata": {
+                "description": "Short Prefix (10 characters or less) for all resources created by this template"
+            }
+        },
+        "deploymentType": {
+            "type": "string",
+            "defaultValue": "acceler",
+            "allowedValues": [
+                "devtest",
+                "acceler",
+                "prod",
+                "shared"
+                ],
+            "metadata": {
+                "description": "Specify deployment type: DevTest, AnalyticsAccelerator, Prod, Shared. This will also be used in the naming convention."
+                }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Enter location. If you leave this field blank resource group location would be used."
+            }
+        }, 
+        "sqlAdministratorLogin": {
+            "metadata": {
+                "description": "SQL server admin username"
+            },
+            "type": "string"
+        },
+        "sqlAdministratorLoginPassword": {
+            "metadata": {
+                "description": "SQL server admin password"
+            },
+            "type": "securestring"
+        } 
+    },
+    "variables": {
+        "uniqueNamePrefix": "[toLower(concat(resourceGroup().name, uniqueString(subscription().subscriptionId)))]",
+        "sqlVersion": "2014-04-01",
+        "sqlServerName": "[concat(parameters('deploymentTla'),variables('uniqueNamePrefix'),'srv')]",
+        "sqlDatabaseName": "[concat(parameters('deploymentTla'),variables('uniqueNamePrefix'),'db')]",
+        "sqlAdministratorLogin": "[parameters('sqlAdministratorLogin')]",
+        "sqlServerVersion": "12.0",
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "255.255.255.255",
+        "edition": "Basic",
+        "databaseTier": "Basic",
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "maxSizeBytes": "2147483648",
+        "sampleName": "AdventureWorksLT",
+        "sqlServerResourceId": "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]",
+        "dlsName": "[toLower(concat(parameters('deploymentTla'),parameters('deploymentType'),uniqueString(resourceGroup().id)))]",
+        "dlsFsName": "[toLower(concat(variables('dlsName'),'fs1'))]",
+        "adbworkspaceName": "[concat(parameters('deploymentTla'), uniqueString(subscription().subscriptionId))]",
+        "adbtier": "premium",
+        "managedResourceGroupName": "[concat('databricks-rg-', variables('adbworkspaceName'), '-', uniqueString(variables('adbworkspaceName'), resourceGroup().id))]",
+        "managedResourceGroupId": "[concat(subscription().id, '/resourceGroups/', variables('managedResourceGroupName'))]",
+        "adfApiVersion": "2018-06-01",
+        "adfName":"[concat(parameters('deploymentTla'),variables('uniqueNamePrefix'),'adf')]"
+    },
+    "resources": [{
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "2019-06-01",
+        "name": "[variables('dlsName')]",
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "Standard_LRS"
+        },
+        "kind": "StorageV2",
+        "properties": {
+          "accessTier": "Hot",
+          "supportsHttpsTrafficOnly": true,
+          "isHnsEnabled": true
+        },
+        "resources": [
+          {
+            "name": "[concat('default/', variables('dlsFsName'))]",
+            "type": "blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+              "[variables('dlsName')]"
+            ],
+            "properties": {
+              "publicAccess": "None"
+            }
+          },
+          {
+            "name": "[concat('default/', 'bronze')]",
+            "type": "blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+              "[variables('dlsName')]"
+            ],
+            "properties": {
+              "publicAccess": "None"
+            }
+          },
+          {
+            "name": "[concat('default/', 'silver')]",
+            "type": "blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+              "[variables('dlsName')]"
+            ],
+            "properties": {
+              "publicAccess": "None"
+            }
+          },
+          {
+            "name": "[concat('default/', 'gold')]",
+            "type": "blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+              "[variables('dlsName')]"
+            ],
+            "properties": {
+              "publicAccess": "None"
+            }
+          }
+        ]
+      },
+        {
+        "name": "[variables('sqlServerName')]",
+        "type": "Microsoft.Sql/servers",
+        "location": "[parameters('location')]",
+        "apiVersion": "[variables('sqlVersion')]",
+        "properties": {
+            "administratorLogin": "[parameters('sqlAdministratorLogin')]",
+            "administratorLoginPassword": "[parameters('sqlAdministratorLoginPassword')]",
+            "version": "[variables('sqlServerVersion')]"
+        },
+        "resources": [{
+            "name": "[variables('sqlDatabaseName')]",
+            "type": "databases",
+            "location": "[parameters('location')]",
+            "apiVersion": "[variables('sqlVersion')]",
+            "dependsOn": [
+                "[variables('sqlServerResourceId')]"
+            ],
+            "properties": {
+                "edition": "[variables('edition')]",
+                "requestedServiceObjectiveName": "[variables('databaseTier')]",
+                "collation": "[variables('collation')]",
+                "maxSizeBytes": "[variables('maxSizeBytes')]",
+                "sampleName": "[variables('sampleName')]"
+            }
+        }, {
+            "apiVersion": "[variables('sqlVersion')]",
+            "type": "firewallrules",
+            "location": "[parameters('location')]",
+            "name": "AllowAllWindowsAzureIps",
+            "dependsOn": [
+                "[variables('sqlServerResourceId')]"
+            ],
+            "properties": {
+                "startIpAddress": "[variables('startIpAddress')]",
+                "endIpAddress": "[variables('endIpAddress')]"
+            }
+        }]
+    }, 
+    {
+        "apiVersion": "2018-04-01",
+        "location": "[parameters('location')]",
+        "name": "[variables('adbworkspaceName')]",
+        "sku": {
+            "name": "[variables('adbtier')]"
+        },
+        "properties": {
+            "ManagedResourceGroupId": "[variables('managedResourceGroupId')]"
+        },
+        "type": "Microsoft.Databricks/workspaces"
+    },
+    {
+        "type": "Microsoft.DataFactory/factories",
+        "apiVersion": "[variables('adfApiVersion')]",
+        "name": "[variables('adfName')]",
+        "location": "[parameters('location')]",
+        "identity": {
+            "type": "SystemAssigned"
+        },
+        "properties": {}
+    }
+    ],
+    "outputs": {
+        "sqlServerName": {
+            "type": "string",
+            "value": "[variables('sqlServerName')]"
+        },
+        "sqlDatabaseName": {
+            "type": "string",
+            "value": "[variables('sqlDatabaseName')]"
+        },
+        "sqlAdministratorLogin": {
+            "type": "string",
+            "value": "[variables('sqlAdministratorLogin')]"
+        },
+        "sqlConnectionString": {
+            "type": "string",
+            "value": "[concat('Server=tcp:',variables('sqlServerName'),'.database.windows.net,1433;Database=',variables('sqlDatabaseName'),';User ID=',parameters('sqlAdministratorLogin'),';Password=',parameters('sqlAdministratorLoginPassword'),';Trusted_Connection=False;Encrypt=True;Connection Timeout=30')]"
+        },
+        "databricksOverviewUrl": { "type": "string", "value": "[concat('https://portal.azure.com/#resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Databricks/workspaces/', variables('adbworkspaceName'),'/overview')]"
+        }
+    }
+}
