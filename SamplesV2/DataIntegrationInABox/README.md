@@ -48,7 +48,16 @@ You will need a (free demo) Dynamics 365 account and the credentials to that acc
 
 For deploying this template you will need the **username** and **password** for a user registered with that demo account as well as the demo accounts URL which will typically be **https://\<your-demo-tenant-name\>.crm8.dynamics.com**.
 
+### Deployment: Create resources using the ARM template 
+
+Click on the 'Data Integration in the box' button on the top of this page to create all the required resources on your Azure subscription. Provide the below highligted fields. 
+
+*Note: If you do not add Dynamics user credentials, the creation will still go through. The Dynapmics pipelines will not work and you will need to update the credentials later.* 
+
+![ARM template](./images/get-started.png)
+
 ### Post-Deployment: grant acces to Synapse dedicated pool for Azure Data Factory
+
 Furthermore you will need to grant your data factory permisssion to access your Synapse dedicated SQL pool. 
 
 You can do this by running the following SQL after logging into your dedicated SQL pool via the Azure Synapse workspace:
@@ -108,7 +117,11 @@ Locate the trigger and click it. On the right-hand side of the window, a menu wi
 
 ## Running the data pipelines
 
-Once you have completed the prerequisites, you can execute the **'00-ControlPipeline'** using  **'Trigger -> Trigger now'** button.  
+Once you have completed the prerequisites, launch the data factory.
+
+![launch-data-factory](./images/launch-data-factory.png)
+
+You can execute the **'00-ControlPipeline'** using  **'Trigger -> Trigger now'** button.  
 
 ![Pipeline overview](./images/data-pipelines-snapshot-with-description.png)
 
