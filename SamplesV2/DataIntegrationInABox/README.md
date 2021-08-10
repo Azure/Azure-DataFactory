@@ -1,31 +1,31 @@
-# Quick-start: Dynamics 365 Sales leads and NYC Taxi analytics
+# Data Integration in a box
 
-The solution packages templatized data engineering pipelines and the respective azure resources for a quick start into your data engineering journey. It should take only 5-minutes and an Azure subscription to get started with everything you need to analyse the data!
+The data integration in a box empowers you to experience the best of data integration on Azure and how you can load the data into Azure Synapse Analytics.
 
-The following solution template (ARM) deploys `Azure Data Factory`, `Azure Cosmos DB`, `Synapse Analytics Workspace with a dedicated SQL Pool`, `Azure Storage account`, `App Service plan`. 
-
-This repository will deploy the above resources to your Azure subscription. You will need to have an active Azure subscription to run this sample. 
+***Monitor and analyze your Dynamics 365 sales leads and activities using Azure Data Factory and Azure Synapse analytics in just a few clicks.*** 
 
 [![Deploy to Azure](https://raw.githubusercontent.com/nabhishek/Azure-DataFactory/master/SamplesV2/DataIntegrationInABox/images/adf-in-a-box-icon.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-DataFactory%2Fmain%2FSamplesV2%2FDataIntegrationInABox%2Ftemplate.json)
 
 
 
-## Purpose
-
-The purpose of 'Data Integration in a box' is to quickly demonstrate Data Integration value-prop with real-world use cases in just minutes. The target audience for this is anyone who intends to use Azure Data Factory or present real-world demos to customers/ team members. 
-
-
-
 ## What's in the solution
+
+**Azure Data Factory** is Azure's cloud ETL service for scale-out serverless data integration and data transformation. It offers a code-free UI for intuitive authoring and single-pane-of-glass monitoring and management. 
+
+**Presidio** is data protection and ananomyzation SDK (an open source project) that allows organizations to preserve privacy in a simpler way by democratizing de-identification technologies and introducing transparency in decisions. It facilitate both fully automated and semi-automated PII de-identification flows across multiple platforms.
+
+**Azure Synapse analytics** is a limitless analytics service that brings together data integration, enterprise data warehousing, and big data analytics. 
+
+*This ‘Data integration in a box’ solution provides several essential tables for sales and user activities tracking from Dynamics 365 to gauge their sales pipeline health. It generates the respective tables, implies the schema, and creates separate tables with cleansed data in the data warehouse.*
 
 The solution uses two differnt data sources: 
 
 1. **Dynamics 365** (*activitypointer entity* [[schema](https://docs.microsoft.com/dynamics365/customer-engagement/web-api/activitypointer?view=dynamics-ce-odata-9)], *lead entity* [[schema](https://docs.microsoft.com/dynamics365/customer-engagement/web-api/lead?view=dynamics-ce-odata-9)])
 2. **NYC Taxi data** from [Microsoft Open Datasets](https://docs.microsoft.com/azure/open-datasets/dataset-taxi-yellow?tabs=azureml-opendatasets)
 
-Dynamics It **extracts** sales lead and activity from Dynamics 365 into **Synapse DW** and **CosmosDB**. It also anonymizes/ masks sensitive data using Presidio APIs as part of transformation task. It then uses **data flows** to join the two entities and filters activities generated with leads from ones without leads for further analysis. Finally it writes the two streams into Common Data Model (CDM) format for further consumption into the data lake.
-
 ![data flow diagram](./images/data-flow-diagram-view.png)
+
+The Data Integration in a box solution **extracts** sales lead and activity from Dynamics 365 into **Azure Synapse Analytics** and **Azure CosmosDB** using Azure Data Factory pipeline. It also *anonymizes/ masks sensitive data* using **Presidio APIs** as part of transformation task. It then uses visual **Azure Data Factory Data flows** to join the two entities and filters activities generated with leads from ones without leads for further analysis. Finally it writes the two streams into standardized **Common Data Model (CDM)** format into the data lake for further consumption.
 
 The data integration in the box solution contains: 
 
@@ -38,6 +38,16 @@ The data integration in the box solution contains:
 For details refer [Data Integration Pipelines](Pipelines.md). 
 
 
+
+## How does Azure Data Factory help 
+
+1. Azure Data Factory provides **serverless, scalable** and **cost-effective** data integration using **98+ out of box connectors**. In this solution we everage the Dynamics 365, Azur Datalake Gen2, Azure CosmosDB and Azure Synapse Analytics connectors. 
+2. It offers **visual ‘no code’ transformations** using **Data flows** and **Power Query** interface that can scale to big-data needs and manage the on-demand infrastructure. 
+3. It standardizes the data into Common Data Model (CDM) format for downstream consumption. 
+4. It **anonymizes** PII data from Dynamics 365 using **Microsoft’s Presidio** library. 
+5. It helps you **automate** the data pipelines to incrementally extract and transform the Dynamics data with cadence ranging from '1' minutes. 
+
+ 
 
 ## Prerequisite
 
