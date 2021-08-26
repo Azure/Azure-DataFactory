@@ -1,0 +1,13 @@
+{
+  "name": "LS_Storage",
+  "properties": {
+    "parameters": {},
+    "type": "AzureStorage",
+    "typeProperties": {
+      "connectionString": {
+        "type": "SecureString",
+        "value": "DefaultEndpointsProtocol=https;AccountName=abc;AccountKey=Rand7i8g58dRTZxKL+7ySf4oeUMwGQghP6w2vJpmGK5OsowW8DRrVsRQm1wXGu8Hhuv5EGpjWcGclAxSVdHycg=="
+      }
+    }
+  }
+}

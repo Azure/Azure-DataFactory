@@ -1,0 +1,14 @@
+{
+  "name": "adf_FileSystemInput",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_FileServer",
+      "type": "LinkedServiceReference"
+    },
+    "schema": [],
+    "type": "FileShare",
+    "typeProperties": {
+      "folderPath": "FTFData\\conduent\\"
+    }
+  }
+}

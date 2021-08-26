@@ -1,0 +1,13 @@
+{
+  "name": "LS_AzureSQL",
+  "properties": {
+    "parameters": {},
+    "type": "AzureSqlDatabase",
+    "typeProperties": {
+      "connectionString": {
+        "type": "SecureString",
+        "value": "Server=tcp:foo.database.windows.net,1433;Database=bar;User ID=user@foo;Password=abcd;Trusted_Connection=False;Encrypt=True;Connection Timeout=30"
+      }
+    }
+  }
+}

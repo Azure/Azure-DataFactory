@@ -1,0 +1,16 @@
+{
+  "name": "LS_FileServer",
+  "properties": {
+    "connectVia": {
+      "referenceName": "mygateway",
+      "type": "IntegrationRuntimeReference"
+    },
+    "parameters": {},
+    "type": "FileServer",
+    "typeProperties": {
+      "host": "\\\\test.company.com",
+      "password": "123456",
+      "userid": "Admin"
+    }
+  }
+}

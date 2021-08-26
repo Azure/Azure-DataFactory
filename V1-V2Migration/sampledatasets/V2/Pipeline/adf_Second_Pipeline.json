@@ -1,0 +1,102 @@
+{
+  "name": "adf_Second_Pipeline",
+  "properties": {
+    "activities": [
+      {
+        "name": "SprocStage",
+        "policy": {
+          "retry": 3,
+          "timeout": "02:00:00"
+        },
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "schema.sproc",
+          "storedProcedureParameters": {
+            "param1": "value1"
+          }
+        }
+      },
+      {
+        "name": "Validate_adf_file_Dataset_activity",
+        "type": "Validation",
+        "typeProperties": {
+          "dataset": {
+            "referenceName": "adf_file_Dataset",
+            "type": "DatasetReference"
+          },
+          "minimumSize": 0,
+          "sleep": 10,
+          "timeout": "7.00:00:00"
+        }
+      },
+      {
+        "dependsOn": [
+          {
+            "activity": "Validate_adf_file_Dataset_activity",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "SprocStage",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "description": "Copy the data from Blob to Azure sql server.",
+        "inputs": [
+          {
+            "referenceName": "adf_file_Dataset",
+            "type": "DatasetReference"
+          },
+          {
+            "referenceName": "adf_stage_Dataset_truncated_",
+            "type": "DatasetReference"
+          }
+        ],
+        "name": "CopyDataToStage",
+        "outputs": [
+          {
+            "referenceName": "adf_stage_Dataset",
+            "type": "DatasetReference"
+          }
+        ],
+        "policy": {
+          "retry": 3,
+          "timeout": "02:00:00"
+        },
+        "type": "Copy",
+        "typeProperties": {
+          "sink": {
+            "type": "SqlSink",
+            "writeBatchSize": 0,
+            "writeBatchTimeout": "00:00:00"
+          },
+          "source": {
+            "type": "BlobSource"
+          }
+        }
+      },
+      {
+        "dependsOn": [
+          {
+            "activity": "CopyDataToStage",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "name": "Sproc2",
+        "policy": {
+          "retry": 3,
+          "timeout": "02:00:00"
+        },
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "schema.sproc2"
+        }
+      }
+    ]
+  }
+}

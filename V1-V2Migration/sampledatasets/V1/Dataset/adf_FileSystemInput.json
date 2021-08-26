@@ -1,0 +1,26 @@
+{
+  "name": "adf_FileSystemInput",
+  "properties": {
+    "published": false,
+    "type": "FileShare",
+    "linkedServiceName": "LS-FileServer",
+    "typeProperties": {
+      "folderPath": "FTFData\\conduent\\"
+    },
+    "availability": {
+      "frequency": "Day",
+      "interval": 1,
+      "offset": "06:00:00",
+      "style": "StartOfInterval"
+    },
+    "external": true,
+    "policy": {
+      "externalData": {
+        "retryInterval": "00:01:00",
+        "retryTimeout": "00:10:00",
+        "maximumRetry": 3
+      }
+    }
+  },
+  "$schema": "http://datafactories.schema.management.azure.com/schemas/2015-09-01/Microsoft.DataFactory.Table.json"
+}

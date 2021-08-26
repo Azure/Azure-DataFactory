@@ -1,0 +1,117 @@
+{
+  "name": "adf_Second_Pipeline",
+  "properties": {
+    "description": "Load data into Stage and merge into Final",
+    "activities": [
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "schema.sproc",
+          "storedProcedureParameters": {
+            "param1": "value1"
+          }
+        },
+        "inputs": [
+          {
+            "name": "adf_AzureBlobOutput"
+          },
+          {
+            "name": "adf_file_Dataset"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "adf_stage_Dataset[truncated]"
+          }
+        ],
+        "policy": {
+          "timeout": "02:00:00",
+          "concurrency": 1,
+          "retry": 3
+        },
+        "scheduler": {
+          "frequency": "Day",
+          "interval": 1,
+          "offset": "06:00:00",
+          "style": "StartOfInterval"
+        },
+        "name": "SprocStage",
+      },
+      {
+        "type": "Copy",
+        "typeProperties": {
+          "source": {
+            "type": "BlobSource"
+          },
+          "sink": {
+            "type": "SqlSink",
+            "writeBatchSize": 0,
+            "writeBatchTimeout": "00:00:00"
+          }
+        },
+        "inputs": [
+          {
+            "name": "adf_file_Dataset"
+          },
+          {
+            "name": "adf_stage_Dataset[truncated]"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "adf_stage_Dataset"
+          }
+        ],
+        "policy": {
+          "timeout": "02:00:00",
+          "concurrency": 1,
+          "retry": 3
+        },
+        "scheduler": {
+          "frequency": "Day",
+          "interval": 1,
+          "offset": "06:00:00",
+          "style": "StartOfInterval"
+        },
+        "name": "CopyDataToStage",
+        "description": "Copy the data from Blob to Azure sql server."
+      },
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "schema.sproc2",
+          "storedProcedureParameters": {}
+        },
+        "inputs": [
+          {
+            "name": "adf_stage_Dataset"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "adf_Final_Dataset"
+          }
+        ],
+        "policy": {
+          "timeout": "02:00:00",
+          "concurrency": 1,
+          "retry": 3
+        },
+        "scheduler": {
+          "frequency": "Day",
+          "interval": 1,
+          "offset": "06:00:00",
+          "style": "StartOfInterval"
+        },
+        "name": "Sproc2",
+      }
+    ],
+    "start": "2019-10-29T00:00:00Z",
+
+    "end": "2019-10-29T00:00:00Z",
+
+    "isPaused": true,
+    "pipelineMode": "Scheduled"
+  },
+  "$schema": "http://datafactories.schema.management.azure.com/schemas/2015-09-01/Microsoft.DataFactory.Pipeline.json"
+}

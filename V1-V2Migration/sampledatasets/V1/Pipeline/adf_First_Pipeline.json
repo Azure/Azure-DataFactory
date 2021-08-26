@@ -1,0 +1,48 @@
+{
+  "name": "adf_First_Pipeline",
+  "properties": {
+    "description": "Pipeline for copy activity",
+    "activities": [
+      {
+        "type": "Copy",
+        "typeProperties": {
+          "source": {
+            "type": "FileSystemSource"
+          },
+          "sink": {
+            "type": "BlobSink",
+            "writeBatchSize": 0,
+            "writeBatchTimeout": "00:00:00"
+          }
+        },
+        "inputs": [
+          {
+            "name": "adf_FileSystemInput"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "adf_AzureBlobOutput"
+          }
+        ],
+        "policy": {
+          "timeout": "01:00:00",
+          "concurrency": 1
+        },
+        "scheduler": {
+          "frequency": "Day",
+          "interval": 1,
+          "offset": "06:00:00",
+          "style": "StartOfInterval"
+        },
+        "name": "FileSystemtoBlob",
+        "description": "copy activity"
+      }
+    ],
+    "start": "2019-10-29T00:00:00Z",
+    "end": "2019-10-29T00:00:00Z",
+    "isPaused": true,
+    "pipelineMode": "Scheduled"
+  },
+  "$schema": "http://datafactories.schema.management.azure.com/schemas/2015-09-01/Microsoft.DataFactory.Pipeline.json"
+}

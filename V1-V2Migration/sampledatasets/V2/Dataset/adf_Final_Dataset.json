@@ -1,0 +1,14 @@
+{
+  "name": "adf_Final_Dataset",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_AzureSQL",
+      "type": "LinkedServiceReference"
+    },
+    "schema": [],
+    "type": "AzureSqlTable",
+    "typeProperties": {
+      "tableName": "schema.table"
+    }
+  }
+}
