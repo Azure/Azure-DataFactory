@@ -1,0 +1,58 @@
+{
+  "name": "adf_First_Pipeline",
+  "properties": {
+    "activities": [
+      {
+        "name": "Validate_adf_FileSystemInput_activity",
+        "type": "Validation",
+        "typeProperties": {
+          "dataset": {
+            "referenceName": "adf_FileSystemInput",
+            "type": "DatasetReference"
+          },
+          "minimumSize": 0,
+          "sleep": 60,
+          "timeout": "00:10:00"
+        }
+      },
+      {
+        "dependsOn": [
+          {
+            "activity": "Validate_adf_FileSystemInput_activity",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "description": "copy activity",
+        "inputs": [
+          {
+            "referenceName": "adf_FileSystemInput",
+            "type": "DatasetReference"
+          }
+        ],
+        "name": "FileSystemtoBlob",
+        "outputs": [
+          {
+            "referenceName": "adf_AzureBlobOutput",
+            "type": "DatasetReference"
+          }
+        ],
+        "policy": {
+          "timeout": "01:00:00"
+        },
+        "type": "Copy",
+        "typeProperties": {
+          "sink": {
+            "type": "BlobSink",
+            "writeBatchSize": 0,
+            "writeBatchTimeout": "00:00:00"
+          },
+          "source": {
+            "type": "FileSystemSource"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "adf_AzureBlobOutput",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_Storage",
+      "type": "LinkedServiceReference"
+    },
+    "schema": [],
+    "type": "AzureBlob",
+    "typeProperties": {
+      "folderPath": "test-new/",
+      "format": {
+        "firstRowAsHeader": false,
+        "rowDelimiter": "\n",
+        "type": "TextFormat"
+      }
+    }
+  }
+}

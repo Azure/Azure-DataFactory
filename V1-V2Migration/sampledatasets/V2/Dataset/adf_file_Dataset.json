@@ -1,0 +1,19 @@
+{
+  "name": "adf_file_Dataset",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_Storage",
+      "type": "LinkedServiceReference"
+    },
+    "schema": [],
+    "type": "AzureBlob",
+    "typeProperties": {
+      "fileName": "test.txt",
+      "folderPath": "test-new/",
+      "format": {
+        "columnDelimiter": "|",
+        "type": "TextFormat"
+      }
+    }
+  }
+}

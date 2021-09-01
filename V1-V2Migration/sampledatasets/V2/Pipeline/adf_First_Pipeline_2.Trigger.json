@@ -1,0 +1,19 @@
+{
+  "name": "adf_First_Pipeline_Trigger",
+  "properties": {
+    "pipeline": {
+      "pipelineReference": {
+        "referenceName": "adf_First_Pipeline",
+        "type": "PipelineReference"
+      }
+    },
+    "type": "TumblingWindowTrigger",
+    "typeProperties": {
+      "endTime": "2022-08-26T19:15:43.6792502Z",
+      "frequency": "Hour",
+      "interval": 24,
+      "maxConcurrency": 1,
+      "startTime": "2021-08-26T19:15:43.6792502Z"
+    }
+  }
+}

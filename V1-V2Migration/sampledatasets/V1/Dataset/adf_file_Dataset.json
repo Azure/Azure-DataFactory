@@ -1,0 +1,25 @@
+{
+  "name": "adf_file_Dataset",
+  "properties": {
+    "published": false,
+    "type": "AzureBlob",
+    "linkedServiceName": "LS-Storage",
+    "typeProperties": {
+      "fileName": "test.txt",
+      "folderPath": "test-new/",
+      "format": {
+        "type": "TextFormat",
+        "columnDelimiter": "|"
+      }
+    },
+    "availability": {
+      "frequency": "Day",
+      "interval": 1,
+      "offset": "06:00:00",
+      "style": "StartOfInterval"
+    },
+    "external": true,
+    "policy": {}
+  },
+  "$schema": "http://datafactories.schema.management.azure.com/schemas/2015-09-01/Microsoft.DataFactory.Table.json"
+}

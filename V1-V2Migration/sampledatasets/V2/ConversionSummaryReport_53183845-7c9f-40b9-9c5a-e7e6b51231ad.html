@@ -1,0 +1,132 @@
+<html><style>
+h1 { font-size: 1.5em; }
+h2 { font-size: 1.25em; padding: 13px 0px 0px 0px;}
+h3 { font-size: 1em; padding: 5px 0px 0px 0px; margin : 0 0 0 0}
+.typeLabel { padding: 5px 0px 0px 10px; }
+.rejectedFileLabel { padding: 2px 0px 10px 10px; }
+.changeSummaryLine { padding: 2px 0px 10px 15px; }
+.rejectedFileTextMessage { padding: 0px 0px 10px 0px; }
+.table { padding: 5px 0px 5px 10px;}
+.changeDetail { padding: 3px 0px 0px 0px}
+.odd { }
+.even {}
+</style>
+<body>
+<h1>Conversion Summary Report</h1>
+<div class="typeLabel">Conversion ID: 53183845-7c9f-40b9-9c5a-e7e6b51231ad</div>
+<h2> Summary of Transformations </h2>
+<div class="changeSummaryLine">
+<b style="color:#FF0000;">MORE INFORMATION NEEDED!</b>
+1 integration runtimes need to be created to replace v1 gateways.</div><div class="changeSummaryLine">
+2 times we changed the name of an object to remove underscores, which are not supported in v2.</div><div class="changeSummaryLine">
+1 times we changed the type of a linked service to match new type names in v2.</div><div class="changeSummaryLine">
+1 times we changed the name of an object to remove square brackets, which are not supported in v2.</div><div class="changeSummaryLine">
+2 times we created a new Validation Activity to validate the availability of an external dataset.</div><div class="changeSummaryLine">
+11 times we converted the 'linkedServiceName' property to use the new reference specification syntax.</div><div class="changeSummaryLine">
+2 ConnectionStrings were converted to use the new SecureString specification syntax.</div><div class="changeSummaryLine">
+4 different properties were removed and reconfigured inside of a Trigger</div><div class="changeSummaryLine">
+5 different properties were removed because they are no longer required.</div><div class="changeSummaryLine">
+2 times we converted a scheduler on an activity or dataset. In tumbling window triggers, only hours and minutes are allowed.</div><div class="changeSummaryLine">
+2 times we converted the External Dataset's policy default values to the V2 Validation Activity default values. Note that V2 validation defaults result in less frequent dataset polling</div><h2>Linked Services</h2>
+<h3>LS_AzureSQL</h3>
+<div class="typeLabel">Conversion ID: 121388c1-7912-4db0-b662-6a7288b290e8</div>
+<div class="typeLabel">Type: AzureSqlDatabase</div>
+<div class="table">
+<div class="changeDetail odd">Changed name to remove underscores, which are not supported in ADF v2.</div>
+<div class="changeDetail even">Converted the connectionString property to use a SecureString specification.</div>
+</div>
+<h3>LS_FileServer</h3>
+<div class="typeLabel">Conversion ID: 0f48381f-e73f-449a-935b-8a8d770b1894</div>
+<div class="typeLabel">Type: FileServer</div>
+<div class="table">
+<div class="changeDetail odd">Changed linked service type to v2 equivalent.</div>
+<div class="changeDetail even">Converted gateway reference to integration runtime reference. You must create the referenced Integration Runtime.</div>
+</div>
+<h3>LS_Storage</h3>
+<div class="typeLabel">Conversion ID: 5fcb46dd-f6d8-4661-bfa2-cc9d18728a2d</div>
+<div class="typeLabel">Type: AzureStorage</div>
+<div class="table">
+<div class="changeDetail odd">Changed name to remove underscores, which are not supported in ADF v2.</div>
+<div class="changeDetail even">Converted the connectionString property to use a SecureString specification.</div>
+</div>
+<h2>Datasets</h2>
+<h3>adf_AzureBlobOutput</h3>
+<div class="typeLabel">Conversion ID: 22345a48-44b3-4fb8-bda5-6f4c994f8137</div>
+<div class="typeLabel">Type: AzureBlob</div>
+<div class="table">
+<div class="changeDetail odd">Converted the linkedServiceName property to use the new reference specification syntax.</div>
+</div>
+<h3>adf_file_Dataset</h3>
+<div class="typeLabel">Conversion ID: d46f46b3-9e54-4945-b369-963f1802e3a3</div>
+<div class="typeLabel">Type: AzureBlob</div>
+<div class="table">
+<div class="changeDetail odd">Converted the linkedServiceName property to use the new reference specification syntax.</div>
+</div>
+<h3>adf_FileSystemInput</h3>
+<div class="typeLabel">Conversion ID: 899b7083-9049-4946-9f62-3a62cfd8f5ba</div>
+<div class="typeLabel">Type: FileShare</div>
+<div class="table">
+<div class="changeDetail odd">Converted the linkedServiceName property to use the new reference specification syntax.</div>
+</div>
+<h3>adf_Final_Dataset</h3>
+<div class="typeLabel">Conversion ID: 26bf3d27-1db4-42aa-a02f-a650e8f96265</div>
+<div class="typeLabel">Type: AzureSqlTable</div>
+<div class="table">
+<div class="changeDetail odd">Converted the linkedServiceName property to use the new reference specification syntax.</div>
+</div>
+<h3>adf_stage_Dataset</h3>
+<div class="typeLabel">Conversion ID: 33ccc40d-4690-4a81-8e90-a1c6f770c453</div>
+<div class="typeLabel">Type: AzureSqlTable</div>
+<div class="table">
+<div class="changeDetail odd">Converted the linkedServiceName property to use the new reference specification syntax.</div>
+</div>
+<h3>adf_stage_Dataset_truncated_</h3>
+<div class="typeLabel">Conversion ID: cd44ddcc-87bc-4280-9376-a20edab4a651</div>
+<div class="typeLabel">Type: AzureSqlTable</div>
+<div class="table">
+<div class="changeDetail odd">Changed name to remove square brackets, which are not supported in ADF v2.</div>
+<div class="changeDetail even">Converted the linkedServiceName property to use the new reference specification syntax.</div>
+</div>
+<h2>Pipelines</h2>
+<h3>adf_First_Pipeline</h3>
+<div class="typeLabel">Conversion ID: b9844604-0d8e-4821-9328-510718bd9b87</div>
+<div class="table">
+<div class="changeDetail odd">FileSystemtoBlob: Converted the input name property to use the new reference specification syntax.</div>
+<div class="changeDetail even">FileSystemtoBlob: Converted the output name property to use the new reference specification syntax.</div>
+<div class="changeDetail odd">FileSystemtoBlob: Removed scheduler property and moved configuration to trigger.</div>
+<div class="changeDetail even">Added Validation Activity for External Dataset: adf_FileSystemInput</div>
+</div>
+<h3>adf_Second_Pipeline</h3>
+<div class="typeLabel">Conversion ID: 333f8397-805d-4cb5-a66c-b72a6b453115</div>
+<div class="table">
+<div class="changeDetail odd">SprocStage: Removed inputs property, which is no longer required for this activity type.</div>
+<div class="changeDetail even">SprocStage: Removed inputs property, which is no longer required for this activity type.</div>
+<div class="changeDetail odd">SprocStage: SprocStage reference's a dataset that was not included in the transformation. Unable to determine the Linked Service property for this activity.</div>
+<div class="changeDetail even">SprocStage: Removed outputs property, which is no longer required for this activity type.</div>
+<div class="changeDetail odd">SprocStage: Removed scheduler property and moved configuration to trigger.</div>
+<div class="changeDetail even">CopyDataToStage: Converted the input name property to use the new reference specification syntax.</div>
+<div class="changeDetail odd">CopyDataToStage: Converted the input name property to use the new reference specification syntax.</div>
+<div class="changeDetail even">CopyDataToStage: Converted the output name property to use the new reference specification syntax.</div>
+<div class="changeDetail odd">CopyDataToStage: Removed scheduler property and moved configuration to trigger.</div>
+<div class="changeDetail even">Sproc2: Removed inputs property, which is no longer required for this activity type.</div>
+<div class="changeDetail odd">Sproc2: Sproc2 reference's a dataset that was not included in the transformation. Unable to determine the Linked Service property for this activity.</div>
+<div class="changeDetail even">Sproc2: Removed outputs property, which is no longer required for this activity type.</div>
+<div class="changeDetail odd">Sproc2: Removed scheduler property and moved configuration to trigger.</div>
+<div class="changeDetail even">Added Validation Activity for External Dataset: adf_file_Dataset</div>
+<div class="changeDetail odd">Validate_adf_file_Dataset_activity: Converted the V1 External Dataset Policy default values to match the V2 Validation Activity default values. Note that V2 validation defaults result in less frequent dataset polling.</div>
+<div class="changeDetail even">Validate_adf_file_Dataset_activity: Converted the V1 External Dataset Policy default values to match the V2 Validation Activity default values. Note that V2 validation defaults result in less frequent dataset polling.</div>
+</div>
+<h2>Triggers</h2>
+<h3>adf_First_Pipeline_Trigger</h3>
+<div class="typeLabel">Conversion ID: ab1dff98-34b5-475e-892d-f775914753ab</div>
+<div class="typeLabel">Type: trigger</div>
+<div class="table">
+<div class="changeDetail odd">Converted Day to Hour to match Tumbling Window Trigger frequency specification. As a result we changed the interval from 1 to 24. Please verify that these changes work for your workflow.</div>
+</div>
+<h3>adf_Second_Pipeline_Trigger</h3>
+<div class="typeLabel">Conversion ID: 5c51e927-4528-4755-9e42-71c23efc6f1b</div>
+<div class="typeLabel">Type: trigger</div>
+<div class="table">
+<div class="changeDetail odd">Converted Day to Hour to match Tumbling Window Trigger frequency specification. As a result we changed the interval from 1 to 24. Please verify that these changes work for your workflow.</div>
+</div>
+</body></html>
