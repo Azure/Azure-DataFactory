@@ -7,7 +7,10 @@
 
 **APPLIES TO:** ![img](https://docs.microsoft.com/en-us/azure/data-factory/media/applies-to/yes.png) Azure Data Factory Version 1
 
-This tutorial describes how to migrate your V1 Azure Data Factory to V2 Azure Data Factory using the migration tool. There are 3 ways you can achieve this. 
+This tutorial describes how to migrate your V1 Azure Data Factory to V2 Azure Data Factory using the migration tool. 
+Please note that the tool is not a one-click solution and may require manual steps to complete the migration. This is the best effort from our end to support you with the migration. For any queries please reach out to us at [ADF V1 Customer Migration DL](adfcustomermigrate@microsoft.com)
+
+There are 3 ways you can achieve this. 
 
 1. Offline conversion of V1 artifacts to V2 (Datasets, Linked Services and Pipelines)
 
@@ -117,12 +120,11 @@ There is a change Log box at the bottom of the screen to provide more details on
 
 
 You can view the conversion summary report by either clicking on the Conversion Summary Report hyperlink in the screen shown above or find it generated in the V2 assets folder. You can reach your V2 target folder by clicking the Target Directory hyperlink in the Conversion complete screen.
+  &nbsp;   
 
 11) The next step would be to upload your V2 assets to Data Factory using PowerShell and view them on [Azure portal](https://portal.azure.com/)
 
-12) You can share your feedback by clicking on Contact US hyperlink in the Conversion Complete Screen. You can choose to include or exclude your source files when sharing the feedback.
-
-![Feedback](.attachments/feedback1.png)
+12) For any feedback or queries please reach out to us at [ADF V1 Customer Migration DL](adfcustomermigrate@microsoft.com).
 
 
 
