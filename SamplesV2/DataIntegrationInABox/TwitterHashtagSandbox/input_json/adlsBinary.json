@@ -1,0 +1,42 @@
+{
+    "name": "adlsBinary",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "twitterhashtagsandbox-WorkspaceDefaultStorage",
+            "type": "LinkedServiceReference"
+        },
+        "folder": {
+            "name": "hashtag"
+        },
+        "parameters": {
+            "container": {
+                "type": "string"
+            },
+            "folder": {
+                "type": "string"
+            },
+            "filename": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "Binary",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": {
+                    "value": "@dataset().filename",
+                    "type": "Expression"
+                },
+                "folderPath": {
+                    "value": "@dataset().folder",
+                    "type": "Expression"
+                },
+                "fileSystem": {
+                    "value": "@dataset().container",
+                    "type": "Expression"
+                }
+            }
+        }
+    }
+}
