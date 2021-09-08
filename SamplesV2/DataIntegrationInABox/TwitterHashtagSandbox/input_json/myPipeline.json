@@ -1,0 +1,142 @@
+{
+    "name": "myPipeline",
+    "properties": {
+        "activities": [
+            {
+                "name": "mynotebookactivity",
+                "type": "SynapseNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebook": {
+                        "referenceName": "myNotebook",
+                        "type": "NotebookReference"
+                    },
+                    "parameters": {
+                        "account_name": {
+                            "value": {
+                                "value": "@pipeline().parameters.account_name",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "container_name": {
+                            "value": {
+                                "value": "@pipeline().parameters.container_name",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "hashtag": {
+                            "value": {
+                                "value": "@pipeline().parameters.hashtag",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "mycopy",
+                "type": "Copy",
+                "dependsOn": [
+                    {
+                        "activity": "mynotebookactivity",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "BinarySource",
+                        "storeSettings": {
+                            "type": "AzureBlobFSReadSettings",
+                            "recursive": true,
+                            "wildcardFolderPath": {
+                                "value": "@concat('myfolder/',formatDateTime(utcnow(),'yyyyMMdd'))",
+                                "type": "Expression"
+                            },
+                            "wildcardFileName": "*.csv",
+                            "deleteFilesAfterCompletion": false
+                        },
+                        "formatSettings": {
+                            "type": "BinaryReadSettings"
+                        }
+                    },
+                    "sink": {
+                        "type": "BinarySink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "adlsBinary",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "container": {
+                                "value": "@pipeline().parameters.container_name",
+                                "type": "Expression"
+                            },
+                            "folder": "myfolder",
+                            "filename": "test.csv"
+                        }
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "adlsBinary",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "container": {
+                                "value": "@pipeline().parameters.container_name",
+                                "type": "Expression"
+                            },
+                            "folder": "myfolder",
+                            "filename": "pbi_dataset.csv"
+                        }
+                    }
+                ]
+            }
+        ],
+        "parameters": {
+            "account_name": {
+                "type": "string",
+                "defaultValue": "twitterhashtagsandbox"
+            },
+            "container_name": {
+                "type": "string",
+                "defaultValue": "workspace"
+            },
+            "hashtag": {
+                "type": "string",
+                "defaultValue": "#AzureDataFactory"
+            }
+        },
+        "folder": {
+            "name": "hashtag"
+        },
+        "annotations": [],
+        "lastPublishTime": "2021-09-02T05:59:42Z"
+    },
+    "type": "Microsoft.Synapse/workspaces/pipelines"
+}

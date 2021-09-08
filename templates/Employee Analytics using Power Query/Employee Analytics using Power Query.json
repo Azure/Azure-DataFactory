@@ -1,0 +1,237 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"EmployeeDataLinkedService": {
+			"type": "string"
+		},
+		"LS_BLOB_KEY": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/EmployeeDemo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Calculate average salary from employee data using Power Query",
+				"activities": [
+					{
+						"name": "AverageEmployeeSalary",
+						"description": "Calculate average salary from employee data",
+						"type": "ExecuteWranglingDataflow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "EmployeeSalaryDemo",
+								"type": "DataFlowReference"
+							},
+                            "sinks": {
+                                "UserQuery": {
+                                    "name": "EmployeeSink",
+                                    "dataset": {
+                                        "referenceName": "EmployeeSink",
+                                        "type": "DatasetReference"
+                                    },
+                                    "script": "sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['SanitizedEmployeeData'],\n\ttruncate: true) ~> EmployeeSink"
+                                }
+                            }
+						}
+					}
+				],
+                "folder": {
+					"name": "EmployeeDemo"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/EmployeeSalaryDemo')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EmployeeSalaryDemo')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "WranglingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"name": "EmployeeInfo",
+							"script": "",
+							"dataset": {
+								"referenceName": "EmployeeInfo",
+								"type": "DatasetReference"
+							},
+							"typeProperties": {
+								"readMode": null
+							}
+						},
+						{
+							"name": "EmployeeSalary",
+							"script": "",
+							"dataset": {
+								"referenceName": "EmployeeSalary",
+								"type": "DatasetReference"
+							},
+							"typeProperties": {
+								"readMode": null
+							}
+						}
+					],
+					"script": "section Section1;\r\nshared EmployeeInfo = let\r\n  AdfDoc = AzureStorage.BlobContents(\"https://mablumenadfstorage.blob.core.windows.net/empstore/EmployeeInfo.csv\"),\r\n  Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.Csv]),\r\n  PromotedHeaders = Table.PromoteHeaders(Csv, [PromoteAllScalars = true]),\r\n  TrimmedHeaders = Table.TransformColumnNames(PromotedHeaders, (columnName as text) as text => Text.Trim(columnName))\r\nin\r\n  TrimmedHeaders;\r\nshared EmployeeSalary = let\r\n  AdfDoc = AzureStorage.BlobContents(\"https://mablumenadfstorage.blob.core.windows.net/empstore/EmployeeSalary.csv\"),\r\n  Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.Csv]),\r\n  PromotedHeaders = Table.PromoteHeaders(Csv, [PromoteAllScalars = true]),\r\n  TrimmedHeaders = Table.TransformColumnNames(PromotedHeaders, (columnName as text) as text => Text.Trim(columnName))\r\nin\r\n  TrimmedHeaders;\r\nshared UserQuery = let\r\n  Source = EmployeeInfo,\r\n  JoinTransformation = Table.NestedJoin(Source, {\"EmployeeId\"}, EmployeeSalary, {\"EmployeeId\"}, \"EmployeeSalary\", JoinKind.Inner),\r\n  ExpandColumns = Table.ExpandTableColumn(JoinTransformation, \"EmployeeSalary\", {\"BasePay\"}, {\"EmployeeSalary.BasePay\"}),\r\n  RemoveColumns = Table.RemoveColumns(ExpandColumns, {\"EmployeeId\"}),\r\n  ReplacedQuotes = Table.ReplaceValue(RemoveColumns, \"\"\"\", \"\", Replacer.ReplaceText, {\"FirstName\", \"LastName\", \"City\", \"ZIP\", \"Email\", \"State\"}),\r\n  ConvertToNumber = Table.TransformColumnTypes(ReplacedQuotes, {{\"ZIP\", type number}}),\r\n  AddConditionColumnReplaceNullWithZero = Table.AddColumn(ConvertToNumber, \"SanitizedZip\", each if [ZIP] = null then 0 else [ZIP]),\r\n  #\"Removed columns\" = Table.RemoveColumns(AddConditionColumnReplaceNullWithZero, {\"ZIP\"}),\r\n  #\"Inserted conditional column\" = Table.AddColumn(#\"Removed columns\", \"SanitizedEmail\", each if not Text.Contains([Email], \"@\") then \"\" else if not Text.Contains([Email], \".\") then \"\" else [Email]),\r\n  RemoveEmailColumn = Table.RemoveColumns(#\"Inserted conditional column\", {\"Email\"}),\r\n  MergeColumn = Table.AddColumn(RemoveEmailColumn, \"Name\", each [FirstName] & \" \" & [LastName]),\r\n  RemoveFirstLastName = Table.RemoveColumns(MergeColumn, {\"FirstName\", \"LastName\"}),\r\n  ConvertToDate = Table.TransformColumnTypes(RemoveFirstLastName, {{\"DateOfJoining\", type date}}),\r\n  ConditionColumnEmpType = Table.AddColumn(ConvertToDate, \"EmployeeType\", each if [DateOfJoining] <= #date(2008, 2, 5) then \"Senior\" else \"Junior\"),\r\n  #\"Reordered columns\" = Table.ReorderColumns(ConditionColumnEmpType, {\"Name\", \"SanitizedEmail\", \"DateOfJoining\", \"EmployeeType\", \"EmployeeSalary.BasePay\", \"SanitizedZip\", \"City\", \"State\"}),\r\n  ConvertIdToNumber = Table.TransformColumnTypes(#\"Reordered columns\", {{\"EmployeeSalary.BasePay\", type number}}),\r\n  RemoveRowsWithEmptyEmail = Table.SelectRows(ConvertIdToNumber, each [SanitizedEmail] <> null and [SanitizedEmail] <> \"\"),\r\n  AverageSalaryByCity = Table.Group(RemoveRowsWithEmptyEmail, {\"City\"}, {{\"AverageSalary\", each List.Average([EmployeeSalary.BasePay]), type number}}),\r\n  #\"Filtered rows\" = Table.SelectRows(AverageSalaryByCity, each [AverageSalary] <= 200000)\r\nin\r\n  #\"Filtered rows\";\r\n"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/EmployeeInfo')]",
+				"[concat(variables('factoryId'), '/datasets/EmployeeSalary')]",
+				"[concat(variables('factoryId'), '/datasets/EmployeeSink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EmployeeInfo')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('EmployeeDataLinkedService')]",
+					"type": "LinkedServiceReference"
+				},
+                "folder": {
+					"name": "EmployeeDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "EmployeeInfo.csv",
+						"container": "empstore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "EmployeeId",
+						"type": "String"
+					},
+					{
+						"name": "FirstName",
+						"type": "String"
+					},
+					{
+						"name": "LastName",
+						"type": "String"
+					},
+					{
+						"name": "City",
+						"type": "String"
+					},
+					{
+						"name": "ZIP",
+						"type": "String"
+					},
+					{
+						"name": "Email",
+						"type": "String"
+					},
+					{
+						"name": "State",
+						"type": "String"
+					},
+					{
+						"name": "DateOfJoining",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EmployeeSalary')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('EmployeeDataLinkedService')]",
+					"type": "LinkedServiceReference"
+				},
+                "folder": {
+					"name": "EmployeeDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "EmployeeSalary.csv",
+						"container": "empstore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "EmployeeId",
+						"type": "String"
+					},
+					{
+						"name": "BasePay",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EmployeeSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('LS_BLOB_KEY')]",
+					"type": "LinkedServiceReference"
+				},
+                "folder": {
+					"name": "EmployeeDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "output",
+						"container": "empstore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": false,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}

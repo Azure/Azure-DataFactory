@@ -1,0 +1,176 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"ADLSGen2": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SplitColumnDemo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Splitting movie genre by \"|\" using Power Query",
+				"activities": [
+					{
+						"name": "SplitColumnOnMovieGenre",
+						"description": "Splitting movie genre by \"|\"",
+						"type": "ExecuteWranglingDataflow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "SplitColumnDemo",
+								"type": "DataFlowReference"
+							},
+							"compute": {
+								"computeType": "General",
+								"coreCount": 8
+							}, 
+                            "sinks": {
+                                "UserQuery": {
+                                    "name": "SplitColumnSink",
+                                    "dataset": {
+                                        "referenceName": "SplitColumnSink",
+                                        "type": "DatasetReference"
+                                    },
+                                    "script": ""
+                                }
+                            }
+						}
+					}
+				],
+				"folder": {
+					"name": "SplitColumnDemo"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/SplitColumnDemo')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SplitColumnDemo')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "WranglingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"name": "SplitColumnData",
+							"script": "",
+							"dataset": {
+								"referenceName": "SplitColumnData",
+								"type": "DatasetReference"
+							},
+							"typeProperties": {
+								"readMode": null
+							}
+						}
+					],
+					"script": "section Section1;\r\nshared SplitColumnData = let\r\n  AdfDoc = AzureStorage.BlobContents(\"https://mablumenadfstorage.blob.core.windows.net/ministore/moviesDB_mini.csv\"),\r\n  Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.Csv]),\r\n  PromotedHeaders = Table.PromoteHeaders(Csv, [PromoteAllScalars = true])\r\nin\r\n  PromotedHeaders;\r\nshared UserQuery = let\r\n  Source = SplitColumnData,\r\n  FindPoint1 = Table.AddColumn(Source, \"pointIndex1\", each Text.PositionOf([genres], \"|\")),\r\n  SplitColumn1 = Table.AddColumn(FindPoint1, \"genres.1\", each if [pointIndex1] > 0 then Text.Start([genres], [pointIndex1]) else [genres]),\r\n  FindRemaining = Table.AddColumn(SplitColumn1, \"tempRemaining\", each Text.Replace([genres], [genres.1], \"\")),\r\n  FindPoint2 = Table.AddColumn(FindRemaining, \"pointIndex2\", each Text.PositionOf([tempRemaining], \"|\")),\r\n  TrimRemaining = Table.AddColumn(FindPoint2, \"remainingTrimmed\", each if [pointIndex2] >= 0 then Text.ReplaceRange([tempRemaining], [pointIndex2], 1, \"\") else \"\"),\r\n  FindPoint3 = Table.AddColumn(TrimRemaining, \"pointIndex3\", each if Value.Equals([remainingTrimmed], null) then null else Text.PositionOf([remainingTrimmed], \"|\")),\r\n  SplitColumn2 = Table.AddColumn(FindPoint3, \"genres.2\", each if Value.Equals([remainingTrimmed], \"\") then null else if [pointIndex3] > 0 then Text.Start([remainingTrimmed], [pointIndex3]) else [remainingTrimmed]),\r\n  RemoveTempColumns = Table.RemoveColumns(SplitColumn2, {\"pointIndex1\", \"tempRemaining\", \"pointIndex2\", \"remainingTrimmed\", \"pointIndex3\", \"genres\"}),\r\n  ColumnTypesToString = Table.TransformColumnTypes(RemoveTempColumns, {{\"genres.1\", type text}, {\"genres.2\", type text}}),\r\n  ReorderColumns = Table.ReorderColumns(ColumnTypesToString, {\"title\", \"genres.1\", \"genres.2\", \"year\", \"Rating\", \"RottenTomato\"})\r\nin\r\n  ReorderColumns;\r\n"
+       	 		}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SplitColumnData')]",
+				"[concat(variables('factoryId'), '/datasets/SplitColumnSink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SplitColumnData')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "SplitColumnDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "moviesDB.csv",
+						"fileSystem": "moviestore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "title",
+						"type": "String"
+					},
+					{
+						"name": "genres",
+						"type": "String"
+					},
+					{
+						"name": "year",
+						"type": "String"
+					},
+					{
+						"name": "Rating",
+						"type": "String"
+					},
+					{
+						"name": "RottenTomato",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SplitColumnSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "SplitColumnDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "output",
+						"fileSystem": "moviestore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}
