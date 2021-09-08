@@ -1,0 +1,11 @@
+{
+    "name": "mylsKeyVault",
+    "type": "Microsoft.Synapse/workspaces/linkedservices",
+    "properties": {
+        "annotations": [],
+        "type": "AzureKeyVault",
+        "typeProperties": {
+            "baseUrl": "https://akv.vault.azure.net/"
+        }
+    }
+}
