@@ -3,7 +3,7 @@
 - 08/26/2021
 - 10 minutes to read
 
-&nbsp;
+&nbsp; &nbsp;
 
 **APPLIES TO:** ![img](https://docs.microsoft.com/en-us/azure/data-factory/media/applies-to/yes.png) Azure Data Factory Version 1
 
