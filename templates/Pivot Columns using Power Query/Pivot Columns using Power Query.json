@@ -1,0 +1,176 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"ADLSGen2": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/MovieDemo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Calculating average movie rating by genre and year using Power Query",
+				"activities": [
+					{
+						"name": "AverageMovieRating",
+						"description": "Calculating average movie rating by genre and year",
+						"type": "ExecuteWranglingDataflow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "MovieDemo",
+								"type": "DataFlowReference"
+							},
+							"compute": {
+								"computeType": "General",
+								"coreCount": 8
+							}, 
+                            "sinks": {
+                                "UserQuery": {
+                                    "name": "MovieSink",
+                                    "dataset": {
+                                        "referenceName": "MovieSink",
+                                        "type": "DatasetReference"
+                                    },
+                                    "script": ""
+                                }
+                            }
+						}
+					}
+				],
+				"folder": {
+					"name": "MovieDemo"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/MovieDemo')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MovieDemo')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "WranglingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"name": "MovieData",
+							"script": "",
+							"dataset": {
+								"referenceName": "MovieData",
+								"type": "DatasetReference"
+							},
+							"typeProperties": {
+								"readMode": null
+							}
+						}
+					],
+					"script": "section Section1;\r\nshared MovieData = let\r\n  AdfDoc = AzureStorage.DataLakeContents(\"https://nnarateststore.dfs.core.windows.net/moviestore/moviesDB.csv\"),\r\n  Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.Csv]),\r\n  PromotedHeaders = Table.PromoteHeaders(Csv, [PromoteAllScalars = true])\r\nin\r\n  PromotedHeaders;\r\nshared UserQuery = let\r\n  Source = MovieData,\r\n  #\"Uppercased text\" = Table.TransformColumns(Source, {{\"genres\", each Text.Upper(_), type text}}),\r\n  #\"Changed column type\" = Table.TransformColumnTypes(#\"Uppercased text\", {{\"RottenTomato\", Int64.Type}}),\r\n  #\"Sorted rows\" = Table.Sort(#\"Changed column type\", {{\"RottenTomato\", Order.Descending}}),\r\n  #\"Filtered rows\" = Table.SelectRows(#\"Sorted rows\", each [genres] = \"COMEDY\" or [genres] = \"DOCUMENTARY\" or [genres] = \"DRAMA\" or [genres] = \"HORROR\" or [genres] = \"MUSICAL\"),\r\n  #\"Removed columns\" = Table.RemoveColumns(#\"Filtered rows\", {\"title\", \"RottenTomato\"}),\r\n  #\"Changed column type 1\" = Table.TransformColumnTypes(#\"Removed columns\", {{\"Rating\", Int64.Type}}),\r\n  #\"Pivoted column\" = Table.Pivot(Table.TransformColumnTypes(#\"Changed column type 1\", {{\"genres\", type text}}), {\"DRAMA\", \"HORROR\", \"COMEDY\", \"MUSICAL\", \"DOCUMENTARY\"}, \"genres\", \"Rating\", List.Average)\r\nin\r\n  #\"Pivoted column\";\r\n"
+        		}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/MovieData')]",
+				"[concat(variables('factoryId'), '/datasets/MovieSink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MovieData')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "MovieDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "moviesDB.csv",
+						"fileSystem": "moviestore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "title",
+						"type": "String"
+					},
+					{
+						"name": "genres",
+						"type": "String"
+					},
+					{
+						"name": "year",
+						"type": "String"
+					},
+					{
+						"name": "Rating",
+						"type": "String"
+					},
+					{
+						"name": "RottenTomato",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MovieSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ADLSGen2')]",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "MovieDemo"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "output",
+						"fileSystem": "moviestore"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}
