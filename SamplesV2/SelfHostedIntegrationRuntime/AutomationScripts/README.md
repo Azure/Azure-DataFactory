@@ -24,13 +24,13 @@ The script can be used to install self-hosted integration runtime node and regis
 
 
 ## [script-update-gateway.ps1](./script-update-gateway.ps1)
-The script can be used to install the latest or update an existing self-hosted integration runtime to the latest version. It accepts an argument for specifying version number (example: *-version 5.9.7894.1*). When no version is specified, it always updates the self-hosted IR to the latest version found in the [downloads](https://www.microsoft.com/download/details.aspx?id=39717).
-   
-*<u>Note</u>: Only last 3 versions can be specified. Ideally this is used to update an existing node to the latest version. **IT ASSUMES THAT YOU HAVE A REGISTERED SELF HOSTED IR** *
+The script can be used to install the specific version or update an existing self-hosted integration runtime to the specific version. It accepts an argument for specifying version number (example: *-version 5.9.7894.1*). When no version is specified, it always updates the self-hosted IR to the latest auto-update version. You can understand the auto-update version [here](https://docs.microsoft.com/en-us/azure/data-factory/self-hosted-integration-runtime-auto-update#auto-update-version-vs-latest-version).
+
+*<u>Note</u>: Only last 3 versions can be specified. Ideally this is used to update an existing node to the auto-update version. **IT ASSUMES THAT YOU HAVE A REGISTERED SELF HOSTED IR** *
 
 <u>Usage Examples:</u>
 
-* **Download and install latest self-hosted IR**
+* **Download and install the auto-update version of self-hosted IR**
   ```PowerShell
   PS > .\script-update-gateway.ps1
   ```
