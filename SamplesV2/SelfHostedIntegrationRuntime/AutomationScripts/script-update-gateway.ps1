@@ -1,15 +1,15 @@
-﻿# This script is used to udpate/ install + register latest self-hosted integration runtime.
+﻿# This script is used to udpate/ install + register latest Microsoft Integration Runtime.
 # And the steps are like this:
-# 1. check current self-hosted IR version
-# 2. Get latest version or specified version from argument
+# 1. check current Microsoft Integration Runtime version
+# 2. Get auto-update version or specified version from argument
 # 3. if there is newer version than current version  
-#    3.1 download self-hosted IR msi
+#    3.1 download Microsoft Integration Runtime msi
 #    3.2 upgrade it
 
 ## And here is the usage:
-## 1. Download and install latest gateway
+## 1. Download and install latest Microsoft Integration Runtime
 ## PS > .\script-update-gateway.ps1
-## 2. Download and install gateway of specified version
+## 2. Download and install Microsoft Integration Runtime of specified version
 ## PS > .\script-update-gateway.ps1 -version 2.11.6380.20
 
 param(
@@ -29,7 +29,7 @@ function Get-CurrentGatewayVersion()
     if (Test-Path $filePath)
     {
         $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($filePath).FileVersion
-        $msg = "Current gateway: " + $version
+        $msg = "Current version: " + $version
         Write-Host $msg
     }
     
@@ -42,7 +42,7 @@ function Get-LatestGatewayVersion()
     $item = $latestGateway.split("/") | Select-Object -Last 1
     if ($item -eq $null -or $item -notlike "IntegrationRuntime*")
     {
-        throw "Can't get latest gateway info"
+        throw "Can't get latest Microsoft Integration Runtime info"
     }
 
     $regexp = '^IntegrationRuntime_(\d+\.\d+\.\d+\.\d+)\s*\.msi$'
@@ -50,10 +50,10 @@ function Get-LatestGatewayVersion()
     $version = [regex]::Match($item, $regexp).Groups[1].Value
     if ($version -eq $null)
     {
-        throw "Can't get version from gateway download uri"
+        throw "Can't get version from Microsoft Integration Runtime download uri"
     }
 
-    $msg = "Latest gateway: " + $version
+    $msg = "Auto-update version: " + $version
     Write-Host $msg
     return $version
 }
@@ -109,7 +109,7 @@ function Download-GatewayInstaller
         throw "Cannot download specified MSI"
     }
 
-    $msg = "New gateway MSI has been downloaded to " + $output
+    $msg = "New Microsoft Integration Runtime MSI has been downloaded to " + $output
     Write-Host $msg
     return $output
 }
@@ -142,12 +142,12 @@ function Install-Gateway
     }
 
 
-    Write-Host "Start to install gateway ..."
+    Write-Host "Start to install Microsoft Integration Runtime ..."
 
     $arg = "/i " + $msi + " /quiet /norestart"
     Start-Process -FilePath "msiexec.exe" -ArgumentList $arg -Wait -Passthru -NoNewWindow
     
-    Write-Host "Gateway has been successfully updated!"
+    Write-Host "Microsoft Integration Runtime has been successfully updated!"
 }
 
 function New-TempDirectory {
@@ -174,7 +174,7 @@ If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 $currentVersion = Get-CurrentGatewayVersion
 if ($currentVersion -eq $null)
 {
-    Write-Host "There is no gateway found on your machine, exiting ..."
+    Write-Host "There is no Microsoft Integration Runtime found on your machine, exiting ..."
     break
 }
 
@@ -186,7 +186,7 @@ if ([string]::IsNullOrEmpty($versionToInstall))
 
 if ([System.Version]$currentVersion -ge [System.Version]$versionToInstall)
 {
-    Write-Host "Your gateway is latest, no update need..."
+    Write-Host "Your Microsoft Integration Runtime is latest, no update need..."
 }
 else
 {
