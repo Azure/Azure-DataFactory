@@ -31,7 +31,7 @@
                         ],
                         "parameters": {
                             "ControlTableSQLQuery": {
-                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionID} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
+                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionId} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
                                 "type": "Expression"
                             },
                             "SourceSQLQuery": {
@@ -46,7 +46,7 @@
                         ],
                         "parameters": {
                             "ControlTableOracleQuery": {
-                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionID} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
+                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionId} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
                                 "type": "Expression"
                             },
                             "SourceOracleQuery": {
@@ -68,7 +68,7 @@
                         ],
                         "parameters": {
                             "ControlTableQuery": {
-                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionID} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
+                                "value": "select @{pipeline().parameters.ControlTableSchemaPartitionId} as PartitionID, @{pipeline().parameters.ControlTableSchemaSourceQuery} as SourceQuery, @{pipeline().parameters.ControlTableSchemaADXTableName} as ADXTableName from @{pipeline().parameters.ControlTableName}",
                                 "type": "Expression"
                             },
                             "SourceQuery": {
