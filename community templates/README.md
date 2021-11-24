@@ -1,16 +1,14 @@
-# Azure Data Factory Samples #
+# Community pipeline templates #
 
-The samples for the Azure Data Factory follow ARM templates standard. For more information about ARM templates, see [https://go.microsoft.com/fwlink/?linkid=2181481](https://go.microsoft.com/fwlink/?linkid=2181481)
+Pipeline templates should follow ARM templates syntax. For more information about ARM templates, see [https://go.microsoft.com/fwlink/?linkid=2181481](https://go.microsoft.com/fwlink/?linkid=2181481)
 
-manifest.json must contain a property named "contributorType" set to "Community". Meanwhile, "author" property can be configured as the contributor of the sample.
+Notes for manifest.json:
+1. It must contain a property named "contributorType" set to "Community".
+2. "author" property can be configured as the contributor of the template.
 
-The sample file name should be unique both in this folder and templates folder.
+# Test your templates #
 
-An example is "A Community Template Sample" in this folder.
-
-# Test samples #
-
-To make sure the sample is correct, please go to Azure Data Factory and import the sample file to see if a pipeline can be created from it correctly.
+To make sure the template is correct, please go to [Azure Data Factory](https://adf.azure.com) and import the template file to see if a pipeline can be created from it correctly.
 
 To do so, execute the following steps: 
 
@@ -22,16 +20,16 @@ To do so, execute the following steps:
 
 ![Open pipeline menu](images/open-authoring-pane02.png?raw=true)
 
-3. Click on the 'Import from pipeline template' button in the submenu. Then select the local sample file you want to check in the file selection dialog box. The sample file should be in zip format.
+3. Click on the 'Import from pipeline template' button in the submenu. Then select the local template file you want to check in the file selection dialog box. The template file should be in zip format.
 
 ![Import your template](images/import-local-templates.png?raw=true)
 
 
-4. Once the sample file is imported successfully, a pane with one or more input elements for linked services which are configured in the sample file will be triggered. Select a linked service for each input.
+4. Once the template file is imported successfully, a pane will be triggered. If the pane contains one or more input elements for linked services which are configured in the template file, select a linked service for each input.
 
 ![Configure your template](images/use-template01.png?raw=true)
 
-If the template is incorrect, an error hint will show in the top of pane and the "Use this template" button will be disabled.
+If the template is incorrect, an error hint will show in the top of pane and "Use this template" button will be disabled.
 
 ![Invalid template](images/invalid-template.png?raw=true)
 
@@ -40,6 +38,6 @@ If the template is incorrect, an error hint will show in the top of pane and the
 ![Use your template](images/use-template02.png?raw=true)
 
 
-6. If the sample file is correct, a pipeline will be created from it automatically.
+6. If the template is correct, a pipeline will be created from it automatically.
 
 ![Create a pipeline](images/pipeline-from-template.png?raw=true)
