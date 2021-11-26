@@ -9,17 +9,13 @@ Notes for "manifest.json":
 # Create templates from pipelines #
 
 In addition to writing a template file directly, you can also get a template from a pipeline in [Azure Data Factory](https://adf.azure.com). 
-For details about pipelines please refer [Data Integration Pipelines](https://go.microsoft.com/fwlink/?linkid=2181927).  
+For details about pipelines, please refer [Data Integration Pipelines](https://go.microsoft.com/fwlink/?linkid=2181927).  
 
 To create a template from a pipeline, please go to [Azure Data Factory](https://adf.azure.com) and excute the following steps:
 
 1. Navigate to your data factroy, in the left side menu choose "Author" to open the authoring blade.
 
    ![Open authoring pane](images/open-authoring-pane01.png?raw=true)
-
-2. Set up your [code repository](https://go.microsoft.com/fwlink/?linkid=2181834) if a repository is not configured in your data factory or switch to your existing configured git repository beacuse creating a template from a pipeline is only enabled in git mode.
-
-   ![Open authoring pane](images/source-control.png?raw=true)
 
 2. In the authoring blade, click the plus symbol and then click "Pipeline" to open the submenu.
 
@@ -29,17 +25,11 @@ To create a template from a pipeline, please go to [Azure Data Factory](https://
 
    ![Create a pipeline](images/create-pipeline.png?raw=true)
 
-4. After your pipeline is ready, click on the "Save as template" button in the top of the blade to open a pane which title is "Save as template".
-
-   ![Save your tempalte](images/save-template-from-pipeline.png?raw=true)
-
-5. After the template is fully configured, click "OK" to save the template. It will navigate back to the authoring blade automatically.
-
-    ![Save your tempalte](images/save-template.png?raw=true)
-
-6. At last, click on the "Export template" button in the right side of the authoring blade to export the saved template.
+4. After your pipeline is ready, click on the "Export template" button in the right side of the authoring blade to export a template.
 
     ![Export your template](images/export-template.png?raw=true)
+
+5. At last, in the template file obtained in the previous steps, you need to add "contributorType" and "author" in "manifest.json" and you can add new properties or modify it as well.
 
 # Test your templates #
 
