@@ -69,6 +69,6 @@ To do so, execute the following steps:
 
 # Submit your templates #
 
-  You're very welcomed to provide your templates to [Azure-DataFactory](https://github.com/Azure/Azure-DataFactory) ！
+  You're very welcomed to provide your templates to [Azure-DataFactory](https://github.com/Azure/Azure-DataFactory)！
 
   Put your templates in the "community templates" folder and create a pull request. We will review your templates, once they are verified to be correct, we will deploy them to the Azure Data Factory.
