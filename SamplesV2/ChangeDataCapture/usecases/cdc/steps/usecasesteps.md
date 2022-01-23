@@ -4,9 +4,9 @@
 
 Use the following SQL script [ControlTableForSourceToSink.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/ControlTableForSourceToSink.sql) to create the ControlTableForSourceToSink table in the database deployed by the ARM template in the Deploy an Azure Databricks Workspace Azure Analytics Accelerator.
 
-![Step 1 table](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1sproc.png)
+![Step 1 table](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1table.png)
 
-Use the following SQL script [spUpdateWatermark.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/spUpdateWatermark.sql) to create the spUpdateWatermark stored procedure in the database deployed by the ARM template in the Deploy an Azure Databricks Workspace Azure Analytics Accelerator.
+Use the following SQL script [spUpdateWatermark.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/spUpdateWatermark.sql) to create the spUpdateWatermark stored procedure in the database deployed by the ARM template.
 
 ![Step 1 sproc](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1sproc.png)
 
