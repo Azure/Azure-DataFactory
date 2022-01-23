@@ -6,7 +6,7 @@ The following accelerator can be used to deploy `Azure Data Factory`, `Azure Dat
 
 The purpose of this Analytics Accelerator is to help you learn and grow through Hands-on common use cases that show you how to use things like ADF pipelines, Databricks notebooks, and SQL scripts.
 
-This [GitHub Sample](https://github.com/DataSnowman/Azure-DataFactory/tree/dardev/SamplesV2/ChangeDataCapture) along with an Azure Subscription [No Azure Subscription click here](https://azure.microsoft.com/en-us/free/) should allow you to accelerate:
+This [GitHub Sample](https://github.com/Azure/Azure-DataFactory/tree/main/SamplesV2/ChangeDataCapture) along with an Azure Subscription [No Azure Subscription click here](https://azure.microsoft.com/en-us/free/) should allow you to accelerate:
 
 * Business Value
 * Time-to-insight
