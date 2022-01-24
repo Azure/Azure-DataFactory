@@ -2,7 +2,9 @@
 
 ### Step 1 Create Control Table and Stored Procedure used by Azure Data Factory
 
-Use the following SQL script [ControlTableForSourceToSink.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/ControlTableForSourceToSink.sql) to create the ControlTableForSourceToSink table in the database deployed by the ARM template in the Deploy an Azure Databricks Workspace Azure Analytics Accelerator.
+You can create the tables by connecting to the Azure SQL Database deployed by the ARM template using a tool like [Azure Data Studio](https://docs.microsoft.com/en-us/sql/azure-data-studio/download-azure-data-studio?view=sql-server-ver15)
+
+Use the following SQL script [ControlTableForSourceToSink.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/ControlTableForSourceToSink.sql) to create the ControlTableForSourceToSink table in the database deployed by the ARM template.
 
 ![Step 1 table](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1table.png)
 
@@ -10,7 +12,7 @@ Use the following SQL script [spUpdateWatermark.sql](https://github.com/Azure/Az
 
 ![Step 1 sproc](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1sproc.png)
 
-Use the following SQL script [CreateStudent.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/CreateStudent.sql) to create the studentMath table in the database deployed by the ARM template in the Deploy an Azure Databricks Workspace Azure Analytics Accelerator.
+Use the following SQL script [CreateStudent.sql](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/sqlscripts/CreateStudent.sql) to create the studentMath table in the database deployed by the ARM template.
 
 ![Step 1 student](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1student.png)
 
@@ -20,15 +22,11 @@ Download [ADF Template zip](https://github.com/Azure/Azure-DataFactory/tree/main
 
 ![adftemplatezip](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adftemplatezip.png)
 
-Open up the ADF deployed by the ARM template in the Deploy an Azure Databricks Workspace Azure Analytics Accelerator.  Select Pipeline from template 
+Open up the ADF deployed by the ARM template.  Select Pipeline > Import from pipeline template 
 
 ![adfplfromtemplate](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfplfromtemplate.png)
 
-Select Use local template
-
-![adfUseLocalTemplate](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfUseLocalTemplate.png)
-
-Open local template
+Click on the zip file and click Open
 
 ![adfOpenLocalTemplate](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfOpenLocalTemplate.png)
 
@@ -36,7 +34,7 @@ It should look like this
 
 ![adftemplateUserinputs](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adftemplateUserinputs.png)
 
-Select +New in the first User input and create an Azure SQL Database Linked Service to the database deployed by the ARM template in the Deploy an Azure Databricks Workspace Azure Analytics Accelerator
+Select +New in the first User input and create an Azure SQL Database Linked Service to the database deployed by the ARM template.
 
 ![adfDatabaseLinkedService](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfDatabaseLinkedService.png)
 
@@ -73,7 +71,7 @@ Once the pipeline runs successfully it should look like this
 
 ![adfSuccessfulRun](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfSuccessfulRun.png)
 
-Check that the files have been created in Storage using Azure Storage Explorer of Azure Portal in the browser.  The files should be in bronze container at a path like `CDC/Sales/Microsoft/AdventureWorksLT/SalesLT/Address/`
+Check that the files have been created in Storage using [Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/) or the Azure Portal in the browser.  The files should be in bronze container at a path like `CDC/Sales/Microsoft/AdventureWorksLT/SalesLT/Address/`
 
 ![adfFileInStorage](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfFileInStorage.png)
 
@@ -90,7 +88,7 @@ You can now save the pipeline by clicking on Publish all
 
 ![adfPublishAll](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfPublishAll.png)
 
-### Step 4 Import, configure, and run the Databrick notebook
+### Step 4 Import, configure, and run the Databricks notebook
 
 #### Requirements
 
@@ -108,7 +106,7 @@ Open up you Databricks workspace and navigate to your user, select the dropdown 
 
 ![adbworkspace](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbworkspace.png)
 
-Import from file if you cloned the repo locally or enter the URL to the Notebook in GitHub Repo [autoloadersp.ipynb](https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/notebooks/autoloadersp.ipynb) and click Import
+Import from file if you cloned the repo locally or enter the URL `https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/notebooks/autoloadersp.ipynb` to the Notebook in GitHub Repo [autoloadersp.ipynb](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/notebooks/autoloadersp.ipynb) and click Import
 
 ![adbnotebookimport](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbnotebookimport.png)
 
@@ -116,7 +114,7 @@ You should now have a notebook that looks like this:
 
 ![adbnotebook](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbnotebook.png)
 
-Change the value of the adlsAccountName = "dataccelerr267cb5wtgfxg" in cell one to the adlsAccountName of in your deployment
+Change the value of the adlsAccountName = "dataccelerr267cb5wtgfxg" in cell one to the ADLS AccountName of in your deployment
 
 In my chase my deployment has a Storage account name of `adfacceler7kdgtkhj5mpoa`
 
@@ -154,7 +152,7 @@ Note that it is a good idea to name the application with something unique to you
 
 5. Copy the Directory (tenant) ID and store it to use to create an application secret.
 
-6. Copy the Application (clinet) ID and store it to use to create an application secret.
+6. Copy the Application (client) ID and store it to use to create an application secret.
 
 ![adbappids](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbappids.png)
 
@@ -163,8 +161,7 @@ Note that it is a good idea to name the application with something unique to you
 7. At storage account level assign this app the following roles to the storage account in which the input path resides:
 
     `Contributor`: This role is for setting up resources in your storage account, such as queues and event subscriptions.
-    `Storage Queue Data Contributor`: This role is for performing queue operations such as retrieving and deleting messages from the queues. This role is required in Databricks Runtime 8.1 and above only when you provide a service principal without a connection string.|
-    `Storage Blob Data Contributor` to access storage
+    `Storage Queue Data Contributor`: This role is for performing queue operations such as retrieving and deleting messages from the queues. This role is required in Databricks Runtime 8.1 and above only when you provide a service principal without a connection string. `Storage Blob Data Contributor` to access storage
 
 ![adbstorageiam](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbstorageiam.png)
 
@@ -184,7 +181,7 @@ Note that it is a good idea to name the application with something unique to you
 
 - Select Client secrets -> New client secret.
 
-- Provide a description of the secret, and a duration. When done, select Add.
+- Provide a description `appsecret` of the secret, and a duration. When done, select Add.
 
 ![adbappsecret](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbappsecret.png)
 
@@ -240,7 +237,27 @@ ServicePrincipalSecret = dbutils.secrets.get("c-change-autoloader","appsecret")
 ResourceGroup = dbutils.secrets.get("c-change-autoloader","ResourceGroup")
 BlobConnectionKey = dbutils.secrets.get("c-change-autoloader","adls2-secret")
 ```
+
+```
+#Secret Names#
+
+SubscriptionID
+
+DirectoryID
+
+ServicePrincipalAppID
+
+appsecret (already created above)
+
+ResourceGroup
+
+adls2-secret
+```
+
 The adls2-secrect is created using the storage key
+
+![secrets](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/secrets.png)
+
 
 **Create an Azure Key Vault-backed secret scope using the UI** [Reference](https://docs.microsoft.com/en-us/azure/databricks/security/secrets/secret-scopes#create-an-azure-key-vault-backed-secret-scope-using-the-ui)
 
