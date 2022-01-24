@@ -1,6 +1,6 @@
-## Change Data Capture
+# Change Data Capture Steps
 
-### Step 1 Create Control Table and Stored Procedure used by Azure Data Factory
+## Step 1 Create Control Table and Stored Procedure used by Azure Data Factory
 
 You can create the tables by connecting to the Azure SQL Database deployed by the ARM template using a tool like [Azure Data Studio](https://docs.microsoft.com/en-us/sql/azure-data-studio/download-azure-data-studio?view=sql-server-ver15)
 
@@ -16,9 +16,9 @@ Use the following SQL script [CreateStudent.sql](https://github.com/Azure/Azure-
 
 ![Step 1 student](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/cdcstep1student.png)
 
-### Step 2 Create Azure Data Factory Pipeline from local Template
+## Step 2 Create Azure Data Factory Pipeline from local Template
 
-Download [ADF Template zip](https://github.com/Azure/Azure-DataFactory/tree/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/adfTemplates)
+Download [ADF Template zip](https://github.com/Azure/Azure-DataFactory/tree/main/SamplesV2/ChangeDataCapture/usecases/cdc/code/adfTemplates) or find it in your cloned GitHub Repo.
 
 ![adftemplatezip](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adftemplatezip.png)
 
@@ -60,7 +60,7 @@ It should look like this when it is imported
 
 ![adfTemplateImported](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfTemplateImported.png)
 
-### Step 3 Debug the DeltaCopyAndFullCopyfromDB_using_ControlTable Pipeline 
+## Step 3 Debug the DeltaCopyAndFullCopyfromDB_using_ControlTable Pipeline 
 
 Click on Debug, enter the name of the Control table `ControlTableForSourceToSink`
 Click OK
@@ -88,9 +88,9 @@ You can now save the pipeline by clicking on Publish all
 
 ![adfPublishAll](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfPublishAll.png)
 
-### Step 4 Import, configure, and run the Databricks notebook
+## Step 4 Import, configure, and run the Databricks notebook
 
-#### Requirements
+### Requirements
 
 - Databricks Runtime 8.3 or above when you create your cluster
 
@@ -100,7 +100,7 @@ You can now save the pipeline by clicking on Publish all
 
 *Steps*
 
-#### Import the Databricks notebook
+### Import the Databricks notebook
 
 Open up you Databricks workspace and navigate to your user, select the dropdown and select import
 
@@ -114,21 +114,30 @@ You should now have a notebook that looks like this:
 
 ![adbnotebook](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbnotebook.png)
 
-Change the value of the adlsAccountName = "dataccelerr267cb5wtgfxg" in cell one to the ADLS AccountName of in your deployment
+Change the value of the adlsAccountName = "<EnterStorageAccountNameHere>" in cell one to the ADLS AccountName of in your deployment
 
-In my chase my deployment has a Storage account name of `adfacceler7kdgtkhj5mpoa`
+In my chase my deployment has a Storage account name of `adfacceler7kdgtkhj5mpoa` so the first row of the cell would read:
+
+```
+adlsAccountName = "adfacceler7kdgtkhj5mpoa"
+```
 
 ![adbrgservices](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbrgservices.png)
 
-Change the values for `sourceAdlsFolderName` and `sinkAdlsFolderName` to `CDC/Sales/Microsoft/AdventureWorksLT/SalesLT/Address` to match the value in the columns in the `ControlTableForSourceToSink` table.  Note if you change any column values in the `ControlTableForSourceToSink` table make the appropriate changes.
+Note if you change any column values in the `ControlTableForSourceToSink` table make the appropriate changes.
 
 ![adbfolderpath](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbfolderpath.png)
 
 The notebook would now look like this:
 
+```
+sourceAdlsFolderName = CDC/Sales/Microsoft/AdventureWorksLT/SalesLT/Address
+sinkAdlsFolderName = CDC/Sales/Microsoft/AdventureWorksLT/SalesLT/Address
+```
+
 ![adbadlsacctname](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbadlsacctname.png)
 
-#### Configure Service Principal and Permissions
+### Configure Service Principal and Permissions
 
 *Create a Service principal* [Reference](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal#register-an-application-with-azure-ad-and-create-a-service-principal)
 
@@ -161,7 +170,10 @@ Note that it is a good idea to name the application with something unique to you
 7. At storage account level assign this app the following roles to the storage account in which the input path resides:
 
     `Contributor`: This role is for setting up resources in your storage account, such as queues and event subscriptions.
-    `Storage Queue Data Contributor`: This role is for performing queue operations such as retrieving and deleting messages from the queues. This role is required in Databricks Runtime 8.1 and above only when you provide a service principal without a connection string. `Storage Blob Data Contributor` to access storage
+
+    `Storage Queue Data Contributor`: This role is for performing queue operations such as retrieving and deleting messages from the queues. This role is required in Databricks Runtime 8.1 and above only when you provide a service principal without a connection string. 
+    
+    `Storage Blob Data Contributor` to access storage
 
 ![adbstorageiam](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbstorageiam.png)
 
@@ -181,7 +193,7 @@ Note that it is a good idea to name the application with something unique to you
 
 - Select Client secrets -> New client secret.
 
-- Provide a description `appsecret` of the secret, and a duration. When done, select Add.
+- Provide a description `AppSecret` of the secret, and a duration. When done, select Add.
 
 ![adbappsecret](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbappsecret.png)
 
@@ -189,7 +201,7 @@ After saving the client secret, the value of the client secret is displayed. Cop
 
 ![adbappsecretval](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbappsecretval.png)
 
-#### Deploy a Key Vault and setup secrets
+### Deploy a Key Vault and setup secrets
 
 Create a Key Vault in the Resource group by clicking Create
 
@@ -227,15 +239,15 @@ It should look like this:
 
 *Create the rest of the secrets you need for the notebook*
 
-Create the rest of the secrets in cell 4 of the notebook
+Create the rest of the secrets in cell 4 of the notebook.  The secret names are at the end of each line after EnterDatabrickSecretScopeHere
 
 ```
-SubscriptionID = dbutils.secrets.get("c-change-autoloader","SubscriptionID")
-DirectoryID = dbutils.secrets.get("c-change-autoloader","DirectoryID")
-ServicePrincipalAppID = dbutils.secrets.get("c-change-autoloader","ServicePrincipalAppID")
-ServicePrincipalSecret = dbutils.secrets.get("c-change-autoloader","appsecret")
-ResourceGroup = dbutils.secrets.get("c-change-autoloader","ResourceGroup")
-BlobConnectionKey = dbutils.secrets.get("c-change-autoloader","adls2-secret")
+SubscriptionID = dbutils.secrets.get("<EnterDatabrickSecretScopeHere>","SubscriptionID")
+DirectoryID = dbutils.secrets.get("<EnterDatabrickSecretScopeHere>","DirectoryID")
+ServicePrincipalAppID = dbutils.secrets.get("<EnterDatabrickSecretScopeHere>","ServicePrincipalAppID")
+ServicePrincipalSecret = dbutils.secrets.get("<EnterDatabrickSecretScopeHere>","AppSecret")
+ResourceGroup = dbutils.secrets.get("<EnterDatabrickSecretScopeHere>","ResourceGroup")
+BlobConnectionKey = dbutils.secrets.get("<EnterDatabrickSecretScopeHere>","Adls2-KeySecret")
 ```
 
 ```
@@ -247,14 +259,14 @@ DirectoryID
 
 ServicePrincipalAppID
 
-appsecret (already created above)
+AppSecret (already created above)
 
 ResourceGroup
 
-adls2-secret
+Adls2-KeySecret
 ```
 
-The adls2-secrect is created using the storage key
+The Adls2-KeySecret is created using the storage account key
 
 ![secrets](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/secrets.png)
 
@@ -263,7 +275,7 @@ The adls2-secrect is created using the storage key
 
 Verify that you have Contributor permission on the Azure Key Vault instance that you want to use to back the secret scope.
 
-Go to https://<databricks-instance>#secrets/createScope. This URL is case sensitive; scope in createScope must be uppercase.
+Go to https://<databricks-instance>#secrets/createScope. This URL is case sensitive; The "S" in scope in createScope must be uppercase.
 
 https://<databricks-instance>#secrets/createScope
 
@@ -273,7 +285,7 @@ You can find the databricks-instance in the URL of your workspace
 
 ![adbinstance](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbinstance.png)
 
-Enter Scope Name: I choose something like `c-change-autoloader` which is what I used in the notebook
+Enter Scope Name: I choose something like `demo-autoloader` which is what I used in the notebook
 
 Manage Principal:  `All Users`
 
@@ -291,7 +303,7 @@ Click Create
 ![adbsecretscope](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbsecretscope.png)
 
 
-#### Create a Databricks Cluster and attach to notebook
+### Create a Databricks Cluster and attach to notebook
 
 Create a cluster using the Runtime 8.3 or above
 
@@ -299,7 +311,30 @@ Enter Cluster Name, Runtime Version, Set Terminate after, Min Workers, Max Worke
 
 ![adbcreatecluster](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcreatecluster.png)
 
-#### Run the notebook one cell at a time (at least the first time)
+### Add the Scopes into Cells 2 and 4
+
+Change the value of "<EnterDatabrickSecretScopeHere>" in cell 2 and 4 to the Scope name you created earlier.
+
+In my chase `demo-autoloader` so the 2 cell would read:
+
+```
+spark.conf.set(
+    "fs.azure.account.key." + adlsAccountName + ".dfs.core.windows.net",
+    dbutils.secrets.get(scope="demo-autoloader",key="Adls2-KeySecret"))
+```
+
+The 4 cell would read:
+
+```
+SubscriptionID = dbutils.secrets.get("demo-autoloader","SubscriptionID")
+DirectoryID = dbutils.secrets.get("demo-autoloader","DirectoryID")
+ServicePrincipalAppID = dbutils.secrets.get("demo-autoloader","ServicePrincipalAppID")
+ServicePrincipalSecret = dbutils.secrets.get("demo-autoloader","AppSecret")
+ResourceGroup = dbutils.secrets.get("demo-autoloader","ResourceGroup")
+BlobConnectionKey = dbutils.secrets.get("demo-autoloader","Adls2-KeySecret")
+```
+
+### Run the notebook one cell at a time (at least the first time)
 
 Once the cluster is started you will be able to run the code in the cells
 
@@ -313,7 +348,7 @@ You can skip cell 6 the first time because nothing has been mounted.  You may ge
 
 ![adbunmount](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbunmount.png)
 
-Just move on to cell 7 to mount the Source and Sink file system
+When running the Notebook the first time, just move on to cell 7 to mount the Source and Sink file system
 
 The first time to run cell 16 comment out the 2 lines it references by putting # at beginning of each line.
 
@@ -324,7 +359,11 @@ The first time to run cell 16 comment out the 2 lines it references by putting #
 
 ![adbcell16](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcell16.png)
 
-After you run this the first time uncomment the 2 lines because you will want the upsert to run
+After you run this the first time uncomment the 2 lines because you will want the upsert to run.  If you cancel the streaming and then run the cell again it will continue to stream as long as trigger once is commented out.
+
+```
+#.trigger(once=True)
+```
 
 Also notice that running the notebook has created a `Event Grid System Topic` in the resources
 
@@ -334,7 +373,7 @@ When you run the last cell 19 you should see 3 records for Everett WA
 
 ![adbcell19](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcell19.png)
 
-#### Go make a change to the Address table in Azure SQL Database, Run ADF Pipeline, and rerun cell 16 and 19
+### Go make a change to the Address table in Azure SQL Database, Run ADF Pipeline, and rerun cell 16 and 19
 
 In a SQL Editor like Azure Data Studio or the browser run the following SQL to insert a new row
 
@@ -353,9 +392,9 @@ Click on Debug, enter the name of the Control table `ControlTableForSourceToSink
 
 ![adfDebugPipelineRun](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfDebugPipelineRun.png)
 
-Rerun cell 16 and 19 in the `autoloadersp` notebook
+Rerun cell 16 (if not already streaming) and 19 in the `autoloadersp` notebook
 
-Make sure rows 4 and 5 of the code are uncommented so that the upsertToDelta function runs
+Make sure rows 4 and 5 of the code are uncommented so that the upsertToDelta function runs for updates
 
 ![adbcell16again](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcell16again.png)
 
@@ -363,3 +402,17 @@ This time you should see that new record
 
 ![adbcell19again](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcell19again.png)
 
+If you want to try an insert and update try these.  Remember that you need to run the ADF pipeline after the insert, check that the insert happens in the Delta table, and then ADF pipeline again after the update.  Note you might have to change the AddressID = 11383 to a different AddressID if records got inserted in a different order.
+
+```
+INSERT INTO [SalesLT].[Address]
+        ([AddressLine1], [AddressLine2], [City], [StateProvince] ,[CountryRegion], [PostalCode])
+ 		VALUES
+		('2nd Demo Drive', NULL, 'Everett', 'WA', 'USA', '98208')
+```
+
+```
+Update [SalesLT].[Address] set AddressLine1 = 'Second Demo Drive', ModifiedDate = getdate() where AddressID = 11383
+```
+
+![adbcell19yetagain](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcell19yetagain.png)

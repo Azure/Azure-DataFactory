@@ -38,3 +38,7 @@ This template deploys the following:
 - Azure Databricks Workspace
 - Azure Data Lake Storage Gen2
 - Azure SQL Database
+
+## Post Deployment Steps
+
+One you have complete the deployment please go to [Next Steps](https://github.com/Azure/Azure-DataFactory/tree/main/SamplesV2/ChangeDataCapture/usecases/cdc/steps/usecasesteps.md) to configure and run the Change Data Capture of changes made to the Azure SQL Database which ADF copies and Azure Databricks autoloads.
