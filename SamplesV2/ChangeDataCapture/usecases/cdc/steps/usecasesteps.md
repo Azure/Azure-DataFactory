@@ -1,5 +1,7 @@
 # Change Data Capture Steps
 
+Please follow these steps to configure the sample
+
 ## Step 1 Create Control Table and Stored Procedure used by Azure Data Factory
 
 You can create the tables by connecting to the Azure SQL Database deployed by the ARM template using a tool like [Azure Data Studio](https://docs.microsoft.com/en-us/sql/azure-data-studio/download-azure-data-studio?view=sql-server-ver15)
