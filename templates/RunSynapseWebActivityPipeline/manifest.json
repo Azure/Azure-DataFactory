@@ -10,7 +10,12 @@
     "linkedservices": {}
   },
   "author": "praagar@microsoft.com",
-  "annotations": [],
+  "annotations": [
+	"Synapse Spark Application",
+	"Synapse Livy"
+  ],
   "services": [],
-  "categories": []
+  "categories": [
+	"Synapse"
+  ]
 }
