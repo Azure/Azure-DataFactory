@@ -59,6 +59,7 @@
 	  "Azure Data Lake Storage"
 	],
 	"categories": [
-	  "Copy"
+	  "Copy", 
+	  "SAP"
 	]
   }
