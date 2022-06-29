@@ -1,0 +1,364 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"AzureDataLakeStorage1": {
+			"type": "string"
+		},
+		"SapCDC1": {
+			"type": "string"
+		},
+		"AzureSynapseAnalytics1": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SapDataReplicationSynapse')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "FetchSapDeltaChanges",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SapCDCSource",
+								"extractionMode": "Delta",
+								"subscriberProcess": {
+									"value": "@{pipeline().parameters.subscriberProcess}",
+									"type": "Expression"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"parallelCopies": 4
+						},
+						"inputs": [
+							{
+								"referenceName": "SapCDCDataset1",
+								"type": "DatasetReference",
+								"parameters": {
+									"context": {
+										"value": "@pipeline().parameters.context",
+										"type": "Expression"
+									},
+									"objectName": {
+										"value": "@pipeline().parameters.objectName",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "SapStagingDataset1",
+								"type": "DatasetReference",
+								"parameters": {
+									"folderPath": {
+										"value": "@concat(pipeline().Pipeline,'/',formatDateTime(pipeline().TriggerTime,'yyyyMMddTHHmmss'))",
+										"type": "Expression"
+									},
+									"fileName": {
+										"value": "@pipeline().parameters.objectName",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "TriggerDataflow",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "FetchSapDeltaChanges",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greater(int(activity('FetchSapDeltaChanges').output.filesWritten),0)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ApplyToSynapse",
+									"type": "ExecuteDataFlow",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "1.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataflow": {
+											"referenceName": "sapcdcapplychange",
+											"type": "DataFlowReference",
+											"parameters": {
+												"folderPath": {
+													"value": "'@{concat(pipeline().Pipeline,'/',formatDateTime(pipeline().TriggerTime,'yyyyMMddTHHmmss'))}'",
+													"type": "Expression"
+												},
+												"keyColumns": {
+													"value": "@pipeline().parameters.keyColumns",
+													"type": "Expression"
+												}
+											},
+											"datasetParameters": {
+												"sapcdcdeltachange": {
+													"folderPath": {
+														"value": "@concat(pipeline().Pipeline,'/',formatDateTime(pipeline().TriggerTime,'yyyyMMddTHHmmss'))",
+														"type": "Expression"
+													},
+													"fileName": {
+														"value": "@pipeline().parameters.objectName",
+														"type": "Expression"
+													}
+												},
+												"ApplyToSink": {
+													"schema": {
+														"value": "@pipeline().parameters.sqlSchema",
+														"type": "Expression"
+													},
+													"table": {
+														"value": "@pipeline().parameters.sqlTable",
+														"type": "Expression"
+													}
+												}
+											}
+										},
+										"staging": {
+											"linkedService": {
+												"referenceName": "[parameters('AzureDataLakeStorage1')]",
+												"type": "LinkedServiceReference"
+											},
+											"folderPath": "sapcdc/staging"
+										},
+										"compute": {
+											"coreCount": 8,
+											"computeType": "General"
+										},
+										"traceLevel": "Fine"
+									}
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"context": {
+						"type": "string"
+					},
+					"objectName": {
+						"type": "string"
+					},
+					"keyColumns": {
+						"type": "array"
+					},
+					"subscriberProcess": {
+						"type": "string"
+					},
+					"sqlSchema": {
+						"type": "string"
+					},
+					"sqlTable": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SapCDCDataset1')]",
+				"[concat(variables('factoryId'), '/datasets/SapStagingDataset1')]",
+				"[concat(variables('factoryId'), '/dataflows/sapcdcapplychange')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SapCDCDataset1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SapCDC1')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"context": {
+						"type": "string"
+					},
+					"objectName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SapCDCDataset",
+				"schema": [],
+				"typeProperties": {
+					"context": {
+						"value": "@dataset().context",
+						"type": "Expression"
+					},
+					"objectName": {
+						"value": "@dataset().objectName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SapStagingDataset1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureDataLakeStorage1')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folderPath": {
+						"type": "string"
+					},
+					"fileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@concat('deltachange/', dataset().folderPath)",
+							"type": "Expression"
+						},
+						"fileSystem": "sapcdc"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/sapcdcapplychange')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "SapStagingDataset1",
+								"type": "DatasetReference"
+							},
+							"name": "sapcdcdeltachange"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "SynapseSinkDataset",
+								"type": "DatasetReference"
+							},
+							"name": "ApplyToSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AlterRowForSynapse"
+						},
+						{
+							"name": "RemoveSystemColumns"
+						},
+						{
+							"name": "getDataFlowKeyColumns"
+						},
+						{
+							"name": "PartitionByKeyColumns"
+						},
+						{
+							"name": "MergeOperation"
+						}
+					],
+					"script": "parameters{\n\tfolderPath as string,\n\tkeyColumns as string[]\n}\nsource(output(\n\t\tODQ_CHANGEMODE as string,\n\t\tODQ_ENTITYCNTR as boolean,\n\t\t{_SEQUENCENUMBER} as decimal(16,10)\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: true,\n\twildcardPaths:[(concat(concat('deltachange/', $folderPath),'/*.csv'))]) ~> sapcdcdeltachange\nMergeOperation alterRow(deleteIf(ODQ_CHANGEMODE=='D'),\n\tupsertIf(or(ODQ_CHANGEMODE=='C',ODQ_CHANGEMODE=='U'))) ~> AlterRowForSynapse\nAlterRowForSynapse select(mapColumn(\n\t\teach(match(and(!in(array('_SEQUENCENUMBER','ODQ_CHANGEMODE','ODQ_ENTITYCNTR'),name),!startsWith(name,'_DATAFLOWKEYCOLUMN'))))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> RemoveSystemColumns\nsapcdcdeltachange derive({_DATAFLOWKEYCOLUMN1} = toString(byName(at($keyColumns,1))),\n\t\t{_DATAFLOWKEYCOLUMN2} = toString(byName(at($keyColumns,2))),\n\t\t{_DATAFLOWKEYCOLUMN3} = toString(byName(at($keyColumns,3))),\n\t\t{_DATAFLOWKEYCOLUMN4} = toString(byName(at($keyColumns,4))),\n\t\t{_DATAFLOWKEYCOLUMN5} = toString(byName(at($keyColumns,5))),\n\t\t{_DATAFLOWKEYCOLUMN6} = toString(byName(at($keyColumns,6))),\n\t\t{_DATAFLOWKEYCOLUMN7} = toString(byName(at($keyColumns,7))),\n\t\t{_DATAFLOWKEYCOLUMN8} = toString(byName(at($keyColumns,8))),\n\t\t{_DATAFLOWKEYCOLUMN9} = toString(byName(at($keyColumns,9))),\n\t\t{_DATAFLOWKEYCOLUMN10} = toString(byName(at($keyColumns,10)))) ~> getDataFlowKeyColumns\ngetDataFlowKeyColumns window(over({_DATAFLOWKEYCOLUMN1},\n\t\t{_DATAFLOWKEYCOLUMN2},\n\t\t{_DATAFLOWKEYCOLUMN3},\n\t\t{_DATAFLOWKEYCOLUMN4},\n\t\t{_DATAFLOWKEYCOLUMN5},\n\t\t{_DATAFLOWKEYCOLUMN6},\n\t\t{_DATAFLOWKEYCOLUMN7},\n\t\t{_DATAFLOWKEYCOLUMN8},\n\t\t{_DATAFLOWKEYCOLUMN9},\n\t\t{_DATAFLOWKEYCOLUMN10}),\n\tdesc({_SEQUENCENUMBER}, true),\n\teach(match(and(!equals('_SEQUENCENUMBER',name),!startsWith(name,'_DATAFLOWKEYCOLUMN'))), $$ = first($$)),\n\t\t{_SEQUENCENUMBER} = rowNumber()) ~> PartitionByKeyColumns\nPartitionByKeyColumns filter({_SEQUENCENUMBER}==1) ~> MergeOperation\nRemoveSystemColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:true,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:($keyColumns),\n\tformat: 'table',\n\tstaged: true,\n\tallowCopyCommand: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError',\n\toutputRejectedData: true) ~> ApplyToSink"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SapStagingDataset1')]",
+				"[concat(variables('factoryId'), '/datasets/SynapseSinkDataset')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SynapseSinkDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureSynapseAnalytics1')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"schema": {
+						"type": "string"
+					},
+					"table": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().schema",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().table",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
