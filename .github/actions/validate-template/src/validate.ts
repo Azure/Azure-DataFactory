@@ -1,13 +1,25 @@
 import Template from './Template.ts';
-import { ValidateResult } from './types.ts';
+import { ErrorCode, ValidateResult } from './types.ts';
 import { formatResults } from './format.ts';
+import Result from '.github/actions/validate-template/src/Result.ts';
 
 const validate = (path: string): ValidateResult => {
 	const entries = Array.from(Deno.readDirSync(path));
-	const templates: Template[] = entries.map((entry) =>
-		new Template(entry.name, `${path}/${entry.name}`)
-	);
-	const results = templates.map((template) => template.validate());
+	const results: Result[] = [];
+	const templates: Template[] = entries.reduce((previousValue, currentValue) => {
+		try {
+			previousValue.concat(new Template(currentValue.name, `${path}/${currentValue.name}`));
+		} catch (e) {
+			const result = new Result(currentValue.name);
+			result.errors.push({
+				code: ErrorCode.PARSE_JSON_FAIL,
+				detail: e.emssage
+			});
+			results.push(result);
+			return previousValue;
+		}
+	}, []);
+	results.push(...templates.map((template) => template.validate()));
 	return formatResults(results);
 };
 
