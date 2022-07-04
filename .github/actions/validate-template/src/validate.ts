@@ -1,7 +1,7 @@
 import Template from './Template.ts';
 import { ErrorCode, ValidateResult } from './types.ts';
 import { formatResults } from './format.ts';
-import Result from '.github/actions/validate-template/src/Result.ts';
+import Result from './Result.ts';
 
 const validate = (path: string): ValidateResult => {
 	const entries = Array.from(Deno.readDirSync(path));
