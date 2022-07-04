@@ -8,7 +8,7 @@ const validate = (path: string): ValidateResult => {
 	const results: Result[] = [];
 	const templates: Template[] = entries.reduce((previousValue, currentValue) => {
 		try {
-			previousValue.concat(new Template(currentValue.name, `${path}/${currentValue.name}`));
+			return previousValue.concat(new Template(currentValue.name, `${path}/${currentValue.name}`));
 		} catch (e) {
 			const result = new Result(currentValue.name);
 			result.errors.push({

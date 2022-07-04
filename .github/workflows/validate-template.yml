@@ -6,8 +6,6 @@ on:
       - opened
       - edited
       - synchronize
-    branches:
-      - main
 
   workflow_dispatch:
 
