@@ -1,7 +1,12 @@
 name: Template Validation
 on:
-  pull_request:
-    branches: [ main ]
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+    branches:
+      - main
 
   workflow_dispatch:
 
