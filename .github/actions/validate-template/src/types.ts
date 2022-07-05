@@ -14,7 +14,7 @@ export type ValidateResult = {
 
 export enum ErrorCode {
 	ITEM_IS_NULL_OR_EMPTY,
-	PARSE_JSON_FAIL
+	PARSE_JSON_FAIL,
 }
 
 export type ItemIsNullOrEmpty = {
