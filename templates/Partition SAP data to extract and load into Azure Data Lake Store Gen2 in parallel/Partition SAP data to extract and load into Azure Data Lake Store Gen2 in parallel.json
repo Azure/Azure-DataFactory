@@ -6,7 +6,7 @@
       "type": "string",
       "metadata": "Data Factory name"
     },
-    "SapCDC1": {
+    "SapOdp1": {
       "type": "string"
     },
     "AzureDataLakeStorage1": {
@@ -48,7 +48,7 @@
                   "userProperties": [],
                   "typeProperties": {
                     "source": {
-                      "type": "SapCDCSource",
+                      "type": "SapOdpSource",
                       "extractionMode": "Full",
                       "selection": {
                         "value": "@item()",
@@ -79,7 +79,7 @@
                   },
                   "inputs": [
                     {
-                      "referenceName": "SapCDCDataset3",
+                      "referenceName": "SapOdpResource3",
                       "type": "DatasetReference",
                       "parameters": {
                         "context": {
@@ -129,17 +129,17 @@
         "lastPublishTime": "2022-04-02T09:09:55Z"
       },
       "dependsOn": [
-        "[concat(variables('factoryId'), '/datasets/SapCDCDataset3')]",
+        "[concat(variables('factoryId'), '/datasets/SapOdpResource3')]",
         "[concat(variables('factoryId'), '/datasets/SapStagingDataset3')]"
       ]
     },
     {
-      "name": "[concat(parameters('factoryName'), '/SapCDCDataset3')]",
+      "name": "[concat(parameters('factoryName'), '/SapOdpResource3')]",
       "type": "Microsoft.DataFactory/factories/datasets",
       "apiVersion": "2018-06-01",
       "properties": {
         "linkedServiceName": {
-          "referenceName": "[parameters('SapCDC1')]",
+          "referenceName": "[parameters('SapOdp1')]",
           "type": "LinkedServiceReference"
         },
         "parameters": {
@@ -151,7 +151,7 @@
           }
         },
         "annotations": [],
-        "type": "SapCDCDataset",
+        "type": "SapOdpResource",
         "schema": [],
         "typeProperties": {
           "context": {

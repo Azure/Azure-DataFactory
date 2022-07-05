@@ -9,7 +9,7 @@
 		"AzureDataLakeStorage1": {
 			"type": "string"
 		},
-		"SapCDC1": {
+		"SapOdp1": {
 			"type": "string"
 		},
 		"AzureSynapseAnalytics1": {
@@ -40,7 +40,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"source": {
-								"type": "SapCDCSource",
+								"type": "SapOdpSource",
 								"extractionMode": "Delta",
 								"subscriberProcess": {
 									"value": "@{pipeline().parameters.subscriberProcess}",
@@ -63,7 +63,7 @@
 						},
 						"inputs": [
 							{
-								"referenceName": "SapCDCDataset1",
+								"referenceName": "SapOdpResource1",
 								"type": "DatasetReference",
 								"parameters": {
 									"context": {
@@ -202,18 +202,18 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/SapCDCDataset1')]",
+				"[concat(variables('factoryId'), '/datasets/SapOdpResource1')]",
 				"[concat(variables('factoryId'), '/datasets/SapStagingDataset1')]",
 				"[concat(variables('factoryId'), '/dataflows/sapcdcapplychange')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/SapCDCDataset1')]",
+			"name": "[concat(parameters('factoryName'), '/SapOdpResource1')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "[parameters('SapCDC1')]",
+					"referenceName": "[parameters('SapOdp1')]",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -225,7 +225,7 @@
 					}
 				},
 				"annotations": [],
-				"type": "SapCDCDataset",
+				"type": "SapOdpResource",
 				"schema": [],
 				"typeProperties": {
 					"context": {
