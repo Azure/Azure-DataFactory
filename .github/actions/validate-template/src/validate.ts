@@ -18,7 +18,7 @@ const validate = (path: string): ValidateResult => {
 			results.push(result);
 			return previousValue;
 		}
-	}, []);
+	}, [] as Template[]);
 	results.push(...templates.map((template) => template.validate()));
 	return formatResults(results);
 };
