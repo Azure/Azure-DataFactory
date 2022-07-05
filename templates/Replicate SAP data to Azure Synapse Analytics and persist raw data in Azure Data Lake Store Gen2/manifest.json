@@ -13,7 +13,7 @@
           "AzureBlobFS"
         ]
       },
-      "SapCDC1": {
+      "SapOdp1": {
         "supportTypes": [
           "SapOdp",
           "SapCDC"

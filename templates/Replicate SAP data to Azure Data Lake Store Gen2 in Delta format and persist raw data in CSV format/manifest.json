@@ -8,7 +8,7 @@
   ],
   "requires": {
     "linkedservices": {
-      "SapCDC1": {
+      "SapOdp1": {
         "supportTypes": [
           "SapOdp",
           "SapCDC"
