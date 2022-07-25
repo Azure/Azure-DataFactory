@@ -3,16 +3,17 @@ import {
 	ErrorCode,
 	ItemIsNullOrEmpty,
 	ParseJSONFail,
+	ResultItem,
 	ValidateResult,
 } from './types.ts';
 
 const EOL = '\n';
 
 const formatter = {
-	[ErrorCode.ITEM_IS_NULL_OR_EMPTY]: (item: ItemIsNullOrEmpty): string =>
-		`- "${item.key}" field is not specified. Do you want to add it?`,
-	[ErrorCode.PARSE_JSON_FAIL]: (item: ParseJSONFail): string =>
-		`- Parse JSON fail: ${item.detail}`,
+	[ErrorCode.ITEM_IS_NULL_OR_EMPTY]: (item: ResultItem): string =>
+		`- "${(item as ItemIsNullOrEmpty).key}" field is not specified. Do you want to add it?`,
+	[ErrorCode.PARSE_JSON_FAIL]: (item: ResultItem): string =>
+		`- Parse JSON fail: ${(item as ParseJSONFail).detail}`,
 };
 
 const formatResult = (result: Result): string => {
