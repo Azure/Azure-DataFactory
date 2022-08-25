@@ -7,7 +7,7 @@
     <PackageReference Include="Microsoft.Azure.Storage.DataMovement" Version="0.8.1" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.2" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.24" />
-    <PackageReference Include="SharpCompress" Version="0.22.0" />
+    <PackageReference Include="SharpCompress" Version="0.29.0" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
