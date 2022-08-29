@@ -457,7 +457,8 @@ function Compare-TriggerAdditionalProperties {
 }
 
 function Update-TriggerTemplate {
-    param([string]$templateJson,
+    param(
+        [string]$templateJson,
         [PSCustomObject]$templateParameters
     )
     
@@ -495,7 +496,8 @@ $triggersDeployed = Get-SortedTriggers -DataFactoryName $DataFactoryName -Resour
 if ($PreDeployment -eq $true) {
     #Stop trigger only if there is change in payload
     $triggersToStop = $triggersDeployed | Where-Object { $_.Name -in $triggerNamesInTemplate -and $_.RuntimeState -ne 'Stopped' } `
-    | Where-Object { $triggerName = $_.Name;
+    | Where-Object { 
+        $triggerName = $_.Name;
         $triggerInTemplate = $triggersInTemplate | Where-Object { $_.name.Substring(37, $_.name.Length - 40) -eq $triggerName };
         Compare-TriggerPayload -triggerDeployed $_ -triggerInTemplate $triggerInTemplate -templateParameters $templateParameters
     } `
@@ -650,7 +652,12 @@ else {
     #Start active triggers - after cleanup efforts
     $triggersRunning = $triggersDeployed | Where-Object { $_.RuntimeState -eq 'Started' } | ForEach-Object { $_.Name }
 
-    $triggersToStart = $triggersInTemplate | Where-Object { $_.properties.runtimeState -eq "Started" -and $_.name.Substring(37, $_.name.Length - 40) -notin $triggersRunning } `
+    $updatedTriggersInTemplate = $triggersInTemplate | ForEach-Object { 
+        $jsonTrigger = ConvertTo-Json -InputObject $_ -Depth 10 -EscapeHandling Default
+        Update-TriggerTemplate -templateJson $jsonTrigger -templateParameters $templateParameters
+    } | ConvertFrom-Json -Depth 10
+
+    $triggersToStart = $updatedTriggersInTemplate | Where-Object { $_.properties.runtimeState -eq "Started" -and $_.name.Substring(37, $_.name.Length - 40) -notin $triggersRunning } `
     | Where-Object { $_.properties.pipelines.Count -gt 0 -or $_.properties.pipeline.pipelineReference -ne $null } | ForEach-Object { 
         New-Object PSObject -Property @{
             Name        = $_.name.Substring(37, $_.name.Length - 40)
