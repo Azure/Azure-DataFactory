@@ -23,7 +23,7 @@
   },
   "author": "sawinark@microsoft.com",
   "annotations": [],
-  "services": [],
+  "services": ["SAP ODP"],
   "categories": [
     "SAP"
   ]
