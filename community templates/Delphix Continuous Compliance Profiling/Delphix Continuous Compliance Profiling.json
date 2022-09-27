@@ -1,1 +1,1210 @@
-{"$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#","contentVersion":"1.0.0.0","parameters":{"factoryName":{"type":"string","metadata":"Data Factory name"},"Connect_to_stroage":{"type":"string"},"AzureSqlDatabaseSource":{"type":"string"},"File Share Linked Service":{"type":"string"}},"variables":{"factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"},"resources":[{"name":"[concat(parameters('factoryName'), '/Delphix Continuous Compliance Profiling')]","type":"Microsoft.DataFactory/factories/pipelines","apiVersion":"2018-06-01","properties":{"description":"Use this template to provide Delphix Continuous Compliance with what it requires in order to run Profiling, i.e. to identify columns that may contain sensitive data and assign appropriate masking algorithms. \n\nRun this template to find sensitive data, prior to running the Delphix Continuous Compliance Masking template (which replaces sensitive data elements with similar but fictitious values) (LINK TO MASKING TEMPLATE).\n\nThe delivery of on-demand, compliant data from myriad data sources is a challenge across organizations. Finding where sensitive data resides is part of this challenge, and is what is addressed by this template.\n\nA purchase of Delphix Continuous Compliance (Azure Marketplace) is required to use this template. To receive Delphix support, please register your engine.\n\nView documentation (LINK)\n","activities":[{"name":"Iterate over a file list","type":"ForEach","dependsOn":[{"activity":"Whether output directory should br created","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"items":{"value":"@activity('Get Files List in Source Directory').output.childItems","type":"Expression"},"activities":[{"name":"Pivot the schema headers","type":"ExecuteDataFlow","dependsOn":[],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"dataflow":{"referenceName":"dataflow_to_process_schema","type":"DataFlowReference","parameters":{},"datasetParameters":{"input":{"Filename":"@item().name","DirectoryName":"schemafile"},"Target":{"Filename":"@item().name","DirectoryName":"fileformat"}}},"staging":{},"compute":{"coreCount":8,"computeType":"General"},"traceLevel":"Fine"}}]}},{"name":"Get Files List in Source Directory","type":"GetMetadata","dependsOn":[{"activity":"Gets if output Directory Exists","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"dataset":{"referenceName":"ConnectToFileFormatContainer","type":"DatasetReference","parameters":{"FileName":"*","DirectoryName":"schemafile"}},"fieldList":["childItems"],"storeSettings":{"type":"AzureBlobStorageReadSettings","recursive":true,"enablePartitionDiscovery":false},"formatSettings":{"type":"DelimitedTextReadSettings"}}},{"name":"Gets if output Directory Exists","type":"GetMetadata","dependsOn":[{"activity":"Copies schema for all tables in csv","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"dataset":{"referenceName":"ConnectToFileFormatContainer","type":"DatasetReference","parameters":{"FileName":"*","DirectoryName":"fileformat"}},"fieldList":["exists"],"storeSettings":{"type":"AzureBlobStorageReadSettings","recursive":true,"enablePartitionDiscovery":false},"formatSettings":{"type":"DelimitedTextReadSettings"}}},{"name":"Gets List of all tables","type":"Lookup","dependsOn":[],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"source":{"type":"AzureSqlSource","sqlReaderQuery":{"value":"@pipeline().parameters.QueryToGetTableSchema","type":"Expression"},"queryTimeout":"02:00:00","partitionOption":"None"},"dataset":{"referenceName":"GetSourceData","type":"DatasetReference","parameters":{"TableName":"*","TableSchema":"*"}},"firstRowOnly":false}},{"name":"Copies schema for all tables in csv","type":"ForEach","dependsOn":[{"activity":"Gets List of all tables","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"items":{"value":"@activity('Gets List of all tables').output.value","type":"Expression"},"activities":[{"name":"Copies the schema into csv","type":"Copy","dependsOn":[],"policy":{"timeout":"0.12:00:00","retry":1,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"source":{"type":"AzureSqlSource","sqlReaderQuery":{"value":"SELECT TOP 1 * FROM [@{item().TABLE_SCHEMA}].[@{item().TABLE_NAME}]","type":"Expression"},"queryTimeout":"02:00:00","partitionOption":"None"},"sink":{"type":"DelimitedTextSink","storeSettings":{"type":"AzureBlobStorageWriteSettings"},"formatSettings":{"type":"DelimitedTextWriteSettings","quoteAllText":true,"fileExtension":".txt"}},"enableStaging":false,"translator":{"type":"TabularTranslator","typeConversion":true,"typeConversionSettings":{"allowDataTruncation":true,"treatBooleanAsNumber":false}}},"inputs":[{"referenceName":"GetSourceData","type":"DatasetReference","parameters":{"TableName":{"value":"@item().TABLE_NAME","type":"Expression"},"TableSchema":"@item().TABLE_SCHEMA"}}],"outputs":[{"referenceName":"ConnectToFileFormatContainer","type":"DatasetReference","parameters":{"FileName":"@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv","DirectoryName":"schemafile"}}]},{"name":"Creates empty files in the Target Fileshare","type":"Copy","dependsOn":[{"activity":"Copies the schema into csv","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":1,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"source":{"type":"AzureSqlSource","sqlReaderQuery":{"value":"SELECT * FROM dbo.[@{item().TABLE_NAME}] where 1=2","type":"Expression"},"queryTimeout":"02:00:00","partitionOption":"None"},"sink":{"type":"DelimitedTextSink","storeSettings":{"type":"AzureFileStorageWriteSettings"},"formatSettings":{"type":"DelimitedTextWriteSettings","quoteAllText":true,"fileExtension":".txt"}},"enableStaging":false,"translator":{"type":"TabularTranslator","typeConversion":true,"typeConversionSettings":{"allowDataTruncation":true,"treatBooleanAsNumber":false}}},"inputs":[{"referenceName":"GetSourceData","type":"DatasetReference","parameters":{"TableName":"@item().TABLE_NAME","TableSchema":"@item().TABLE_SCHEMA"}}],"outputs":[{"referenceName":"FileShareDataset","type":"DatasetReference","parameters":{"DirectoryName":"Target","FileName":"@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"}}]}]}},{"name":"Set dummy File Name","type":"SetVariable","dependsOn":[{"activity":"Get Files List in Source Directory","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"variableName":"DummyFile","value":{"value":"@activity('Get Files List in Source Directory').output.childItems[1].name","type":"Expression"}}},{"name":"Whether output directory should br created","type":"IfCondition","dependsOn":[{"activity":"Set dummy File Name","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"expression":{"value":"@activity('Gets if output Directory Exists').output.exists","type":"Expression"},"ifFalseActivities":[{"name":"Created fileformat directory","description":"Copy data has been used here because copy data will create the output directory. This will be executed only once.","type":"Copy","dependsOn":[],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"source":{"type":"DelimitedTextSource","storeSettings":{"type":"AzureBlobStorageReadSettings","recursive":true,"enablePartitionDiscovery":false},"formatSettings":{"type":"DelimitedTextReadSettings"}},"sink":{"type":"DelimitedTextSink","storeSettings":{"type":"AzureBlobStorageWriteSettings"},"formatSettings":{"type":"DelimitedTextWriteSettings","quoteAllText":true,"fileExtension":".txt"}},"enableStaging":false,"translator":{"type":"TabularTranslator","typeConversion":true,"typeConversionSettings":{"allowDataTruncation":true,"treatBooleanAsNumber":false}}},"inputs":[{"referenceName":"ConnectToFileFormatContainer","type":"DatasetReference","parameters":{"FileName":{"value":"@variables('DummyFile')","type":"Expression"},"DirectoryName":"schemafile"}}],"outputs":[{"referenceName":"ConnectToFileFormatContainer","type":"DatasetReference","parameters":{"FileName":{"value":"@variables('DummyFile')","type":"Expression"},"DirectoryName":"fileformat"}}]}]}},{"name":"Delphix Login","description":"API login to Delphix Compliance Engine","type":"WebActivity","dependsOn":[{"activity":"Iterate over a file list","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":5,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"url":{"value":"@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/login')","type":"Expression"},"method":"POST","headers":{"Content-Type":"application/json","Accept":"application/json"},"body":{"value":"{\"username\":\"@{pipeline().parameters.UserName}\",\"password\":\"@{pipeline().parameters.Password}\"}","type":"Expression"}}},{"name":"ForEach loop to upload list of files","type":"ForEach","dependsOn":[{"activity":"Delphix Login","dependencyConditions":["Succeeded"]},{"activity":"Iterator to get index used in loop","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"items":{"value":"@range(1, activity('Iterator to get index used in loop').output.count)","type":"Expression"},"isSequential":true,"activities":[{"name":"fileFormatsGET","type":"WebActivity","dependsOn":[{"activity":"POST fileFormat using LogicApp","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":5,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"url":{"value":"@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-formats')","type":"Expression"},"method":"GET","headers":{"Accept":"application/json","Authorization":{"value":"@activity('Delphix Login').output.Authorization","type":"Expression"}}}},{"name":"Get File Path","type":"GetMetadata","dependsOn":[],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"dataset":{"referenceName":"DelimitedFileFormatBlob","type":"DatasetReference","parameters":{}},"fieldList":["childItems","itemName","itemType"],"storeSettings":{"type":"AzureBlobStorageReadSettings","recursive":true,"enablePartitionDiscovery":false},"formatSettings":{"type":"DelimitedTextReadSettings"}}},{"name":"POST fileFormat using LogicApp","type":"WebActivity","dependsOn":[{"activity":"AppendFileName with PipelineRunID","dependencyConditions":["Succeeded"]},{"activity":"Get Content Body for individual file","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":5,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"url":{"value":"@pipeline().parameters.LogicappURL","type":"Expression"},"method":"POST","headers":{},"body":{"value":"{\n    \"Authorization\": \"@{activity('Delphix Login').output.Authorization}\",\n    \"fileFormat\" : \"@{variables('FileContents')}\",\n    \"fileFormatType\" : \"DELIMITED\",\n    \"fileName\": \"@{variables('FileNamewithPipelineId')}\",\n    \"maskingEngineIp\": \"@{pipeline().parameters.MaskingEngineIP}\"\n}","type":"Expression"}}},{"name":"FileName","type":"SetVariable","dependsOn":[{"activity":"Get File Path","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"variableName":"FileName","value":{"value":"@activity('Get File Path').output.childItems[sub(item(),1)].name","type":"Expression"}}},{"name":"Get Contents of Schema File","type":"Lookup","dependsOn":[],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"source":{"type":"DelimitedTextSource","storeSettings":{"type":"AzureBlobStorageReadSettings","recursive":true,"wildcardFileName":"*.csv","enablePartitionDiscovery":false},"formatSettings":{"type":"DelimitedTextReadSettings"}},"dataset":{"referenceName":"DelimitedFileFormatBlob","type":"DatasetReference","parameters":{}},"firstRowOnly":false}},{"name":"Get PipelineRunID","type":"SetVariable","dependsOn":[],"userProperties":[],"typeProperties":{"variableName":"PipelineRunId","value":{"value":"@split(pipeline().RunId, '-')[0]","type":"Expression"}}},{"name":"AppendFileName with PipelineRunID","type":"SetVariable","dependsOn":[{"activity":"Get PipelineRunID","dependencyConditions":["Succeeded"]},{"activity":"FileName","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"variableName":"FileNamewithPipelineId","value":{"value":"@concat(variables('FileName'),'_',variables('PipelineRunId'))","type":"Expression"}}},{"name":"Get Content Body for individual file","type":"SetVariable","dependsOn":[{"activity":"Get Contents of Schema File","dependencyConditions":["Succeeded"]}],"userProperties":[],"typeProperties":{"variableName":"FileContents","value":{"value":"@activity('Get Contents of Schema File').output.value[sub(item(),1)].Prop_0","type":"Expression"}}}]}},{"name":"Iterator to get index used in loop","type":"Lookup","dependsOn":[{"activity":"Iterate over a file list","dependencyConditions":["Succeeded"]}],"policy":{"timeout":"0.12:00:00","retry":0,"retryIntervalInSeconds":30,"secureOutput":false,"secureInput":false},"userProperties":[],"typeProperties":{"source":{"type":"DelimitedTextSource","storeSettings":{"type":"AzureBlobStorageReadSettings","recursive":true,"wildcardFileName":"*csv","enablePartitionDiscovery":false},"formatSettings":{"type":"DelimitedTextReadSettings"}},"dataset":{"referenceName":"DelimitedFileFormatBlob","type":"DatasetReference","parameters":{}},"firstRowOnly":false}}],"policy":{"elapsedTimeMetric":{},"cancelAfter":{}},"parameters":{"UserName":{"type":"string"},"Password":{"type":"string"},"MaskingEngineIP":{"type":"string"},"LogicappURL":{"type":"string"},"QueryToGetTableSchema":{"type":"string"}},"variables":{"ContentBody":{"type":"String"},"SanitizedString":{"type":"String"},"FileName":{"type":"String"},"PipelineId":{"type":"String"},"FileNamewithPipelineId":{"type":"String"},"FileContents":{"type":"String"},"DummyFile":{"type":"String"},"PipelineRunId":{"type":"String"}},"folder":{"name":"Delphix Continous Compliance"},"annotations":["Delphix Profiling"],"lastPublishTime":"2022-09-20T07:06:13Z"},"dependsOn":["[concat(variables('factoryId'), '/datasets/ConnectToFileFormatContainer')]","[concat(variables('factoryId'), '/datasets/GetSourceData')]","[concat(variables('factoryId'), '/datasets/DelimitedFileFormatBlob')]","[concat(variables('factoryId'), '/dataflows/dataflow_to_process_schema')]","[concat(variables('factoryId'), '/datasets/FileShareDataset')]"]},{"name":"[concat(parameters('factoryName'), '/ConnectToFileFormatContainer')]","type":"Microsoft.DataFactory/factories/datasets","apiVersion":"2018-06-01","properties":{"description":"It does not have any parameters","linkedServiceName":{"referenceName":"[parameters('Connect_to_stroage')]","type":"LinkedServiceReference"},"parameters":{"FileName":{"type":"string"},"DirectoryName":{"type":"string"}},"folder":{"name":"Azure Blob Storage"},"annotations":[],"type":"DelimitedText","typeProperties":{"location":{"type":"AzureBlobStorageLocation","fileName":{"value":"@dataset().FileName","type":"Expression"},"container":{"value":"@dataset().DirectoryName","type":"Expression"}},"columnDelimiter":",","escapeChar":"\\","firstRowAsHeader":true,"quoteChar":"\""},"schema":[]},"dependsOn":[]},{"name":"[concat(parameters('factoryName'), '/GetSourceData')]","type":"Microsoft.DataFactory/factories/datasets","apiVersion":"2018-06-01","properties":{"linkedServiceName":{"referenceName":"[parameters('AzureSqlDatabaseSource')]","type":"LinkedServiceReference"},"parameters":{"TableName":{"type":"string"},"TableSchema":{"type":"string"}},"folder":{"name":"Azure SQL Database"},"annotations":[],"type":"AzureSqlTable","schema":[{"name":"Street","type":"varchar"},{"name":"city","type":"varchar"},{"name":"Zip","type":"int","precision":10},{"name":"Country","type":"varchar"}],"typeProperties":{"schema":{"value":"@dataset().TableSchema","type":"Expression"},"table":{"value":"@dataset().TableName","type":"Expression"}}},"dependsOn":[]},{"name":"[concat(parameters('factoryName'), '/DelimitedFileFormatBlob')]","type":"Microsoft.DataFactory/factories/datasets","apiVersion":"2018-06-01","properties":{"linkedServiceName":{"referenceName":"[parameters('Connect_to_stroage')]","type":"LinkedServiceReference"},"folder":{"name":"Azure Blob Storage"},"annotations":[],"type":"DelimitedText","typeProperties":{"location":{"type":"AzureBlobStorageLocation","container":"fileformat"},"columnDelimiter":"|","rowDelimiter":"|","escapeChar":"\\","quoteChar":"\""},"schema":[{"type":"String"}]},"dependsOn":[]},{"name":"[concat(parameters('factoryName'), '/dataflow_to_process_schema')]","type":"Microsoft.DataFactory/factories/dataflows","apiVersion":"2018-06-01","properties":{"folder":{"name":"Delphix DataFlow"},"type":"MappingDataFlow","typeProperties":{"sources":[{"dataset":{"referenceName":"ConnectorForFileFormatProcessing","type":"DatasetReference"},"name":"input"}],"sinks":[{"dataset":{"referenceName":"ConnectorForFileFormatProcessing","type":"DatasetReference"},"name":"Target"}],"transformations":[{"name":"AddRowCount"},{"name":"SelectFirstRow"},{"name":"RemoveRowCountColumn"},{"name":"AddModifiedFilename"},{"name":"RemoveFilenameColumn"},{"name":"ChangeColumnSeq"},{"name":"ConcatenateColumnValues"},{"name":"CopyDerivedColumns"},{"name":"ConvertColumnValuetoArray"},{"name":"flattenArray"},{"name":"AddRowCountOne"},{"name":"RemoveFileNameRow"},{"name":"RemoveRCountColumn"}],"scriptLines":["source(allowSchemaDrift: true,","     validateSchema: false,","     ignoreNoFilesFound: false,","     rowUrlColumn: 'Filename') ~> input","input keyGenerate(output(row_count as long),","     startAt: 1L,","     stepValue: 1L) ~> AddRowCount","AddRowCount split(row_count ==1,","     disjoint: false) ~> SelectFirstRow@(FirstRowOutput, RemainingRowsOutput)","SelectFirstRow@FirstRowOutput select(mapColumn(","          each(match(name!='row_count'))","     ),","     skipDuplicateMapInputs: true,","     skipDuplicateMapOutputs: true) ~> RemoveRowCountColumn","RemoveRowCountColumn derive(Modified_Filename = replace(Filename,'/','')) ~> AddModifiedFilename","AddModifiedFilename select(mapColumn(","          each(match(name!='Filename'))","     ),","     skipDuplicateMapInputs: true,","     skipDuplicateMapOutputs: true) ~> RemoveFilenameColumn","RemoveFilenameColumn select(mapColumn(","          Modified_Filename,","          each(match(lower(name)!=\"null\"))","     ),","     skipDuplicateMapInputs: true,","     skipDuplicateMapOutputs: true) ~> ChangeColumnSeq","ChangeColumnSeq derive(ABC = concatWS(',',toString(columns()))) ~> ConcatenateColumnValues","ConcatenateColumnValues select(mapColumn(","          Modified_Filename,","          ABC","     ),","     skipDuplicateMapInputs: true,","     skipDuplicateMapOutputs: true) ~> CopyDerivedColumns","CopyDerivedColumns derive(ABC = split(ABC,',')) ~> ConvertColumnValuetoArray","ConvertColumnValuetoArray foldDown(unroll(ABC),","     mapColumn(","          Modified_Filename,","          ABC","     ),","     skipDuplicateMapInputs: false,","     skipDuplicateMapOutputs: false) ~> flattenArray","flattenArray keyGenerate(output(Rcount1 as long),","     startAt: 1L,","     stepValue: 1L) ~> AddRowCountOne","AddRowCountOne filter(Rcount1!=1) ~> RemoveFileNameRow","RemoveFileNameRow select(mapColumn(","          ABC,","          {$$} = Modified_Filename","     ),","     skipDuplicateMapInputs: true,","     skipDuplicateMapOutputs: true) ~> RemoveRCountColumn","RemoveRCountColumn sink(allowSchemaDrift: true,","     validateSchema: false,","     rowUrlColumn:'$$',","     skipDuplicateMapInputs: true,","     skipDuplicateMapOutputs: true) ~> Target"]}},"dependsOn":["[concat(variables('factoryId'), '/datasets/ConnectorForFileFormatProcessing')]"]},{"name":"[concat(parameters('factoryName'), '/FileShareDataset')]","type":"Microsoft.DataFactory/factories/datasets","apiVersion":"2018-06-01","properties":{"linkedServiceName":{"referenceName":"[parameters('File Share Linked Service')]","type":"LinkedServiceReference"},"parameters":{"DirectoryName":{"type":"string"},"FileName":{"type":"string"}},"folder":{"name":"Azure File Shares"},"annotations":[],"type":"DelimitedText","typeProperties":{"location":{"type":"AzureFileStorageLocation","fileName":{"value":"@dataset().FileName","type":"Expression"},"folderPath":{"value":"@dataset().DirectoryName","type":"Expression"}},"columnDelimiter":",","escapeChar":"\\","firstRowAsHeader":true,"quoteChar":"\""},"schema":[]},"dependsOn":[]},{"name":"[concat(parameters('factoryName'), '/ConnectorForFileFormatProcessing')]","type":"Microsoft.DataFactory/factories/datasets","apiVersion":"2018-06-01","properties":{"linkedServiceName":{"referenceName":"[parameters('Connect_to_stroage')]","type":"LinkedServiceReference"},"parameters":{"Filename":{"type":"string"},"DirectoryName":{"type":"string"}},"folder":{"name":"Azure Blob Storage"},"annotations":[],"type":"DelimitedText","typeProperties":{"location":{"type":"AzureBlobStorageLocation","fileName":{"value":"@dataset().Filename","type":"Expression"},"container":{"value":"@dataset().DirectoryName","type":"Expression"}},"columnDelimiter":",","escapeChar":"\\","firstRowAsHeader":false,"quoteChar":"\""},"schema":[]},"dependsOn":[]}]}
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        },
+        "Connect_to_stroage": {
+            "type": "string"
+        },
+        "AzureSqlDatabaseSource": {
+            "type": "string"
+        },
+        "File Share Linked Service": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Delphix Continuous Compliance Profiling')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Use this template to provide Delphix Continuous Compliance with what it requires in order to run Profiling, i.e. to identify columns that may contain sensitive data and assign appropriate masking algorithms. \n\nRun this template to find sensitive data, prior to running the Delphix Continuous Compliance Masking template (which replaces sensitive data elements with similar but fictitious values) (LINK TO MASKING TEMPLATE).\n\nThe delivery of on-demand, compliant data from myriad data sources is a challenge across organizations. Finding where sensitive data resides is part of this challenge, and is what is addressed by this template.\n\nA purchase of Delphix Continuous Compliance (Azure Marketplace) is required to use this template. To receive Delphix support, please register your engine.\n\nView documentation (LINK)\n",
+                "activities": [
+                    {
+                        "name": "Iterate over a file list",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "Whether output directory should br created",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('Get Files List in Source Directory').output.childItems",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Pivot the schema headers",
+                                    "type": "ExecuteDataFlow",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "dataflow": {
+                                            "referenceName": "dataflow_to_process_schema",
+                                            "type": "DataFlowReference",
+                                            "parameters": {},
+                                            "datasetParameters": {
+                                                "input": {
+                                                    "Filename": "@item().name",
+                                                    "DirectoryName": "schemafile"
+                                                },
+                                                "Target": {
+                                                    "Filename": "@item().name",
+                                                    "DirectoryName": "fileformat"
+                                                }
+                                            }
+                                        },
+                                        "staging": {},
+                                        "compute": {
+                                            "coreCount": 8,
+                                            "computeType": "General"
+                                        },
+                                        "traceLevel": "Fine"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Get Files List in Source Directory",
+                        "type": "GetMetadata",
+                        "dependsOn": [
+                            {
+                                "activity": "Gets if output Directory Exists",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "ConnectToFileFormatContainer",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "FileName": "*",
+                                    "DirectoryName": "schemafile"
+                                }
+                            },
+                            "fieldList": [
+                                "childItems"
+                            ],
+                            "storeSettings": {
+                                "type": "AzureBlobStorageReadSettings",
+                                "recursive": true,
+                                "enablePartitionDiscovery": false
+                            },
+                            "formatSettings": {
+                                "type": "DelimitedTextReadSettings"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Gets if output Directory Exists",
+                        "type": "GetMetadata",
+                        "dependsOn": [
+                            {
+                                "activity": "Copies schema for all tables in csv",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "ConnectToFileFormatContainer",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "FileName": "*",
+                                    "DirectoryName": "fileformat"
+                                }
+                            },
+                            "fieldList": [
+                                "exists"
+                            ],
+                            "storeSettings": {
+                                "type": "AzureBlobStorageReadSettings",
+                                "recursive": true,
+                                "enablePartitionDiscovery": false
+                            },
+                            "formatSettings": {
+                                "type": "DelimitedTextReadSettings"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Gets List of all tables",
+                        "type": "Lookup",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "sqlReaderQuery": {
+                                    "value": "@pipeline().parameters.QueryToGetTableSchema",
+                                    "type": "Expression"
+                                },
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "dataset": {
+                                "referenceName": "GetSourceData",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "TableName": "*",
+                                    "TableSchema": "*"
+                                }
+                            },
+                            "firstRowOnly": false
+                        }
+                    },
+                    {
+                        "name": "Copies schema for all tables in csv",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "Gets List of all tables",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('Gets List of all tables').output.value",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Copies the schema into csv",
+                                    "type": "Copy",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 1,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "AzureSqlSource",
+                                            "sqlReaderQuery": {
+                                                "value": "SELECT TOP 1 * FROM [@{item().TABLE_SCHEMA}].[@{item().TABLE_NAME}]",
+                                                "type": "Expression"
+                                            },
+                                            "queryTimeout": "02:00:00",
+                                            "partitionOption": "None"
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "typeConversion": true,
+                                            "typeConversionSettings": {
+                                                "allowDataTruncation": true,
+                                                "treatBooleanAsNumber": false
+                                            }
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "GetSourceData",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "TableName": {
+                                                    "value": "@item().TABLE_NAME",
+                                                    "type": "Expression"
+                                                },
+                                                "TableSchema": "@item().TABLE_SCHEMA"
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "ConnectToFileFormatContainer",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                "DirectoryName": "schemafile"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Creates empty files in the Target Fileshare",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Copies the schema into csv",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 1,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "AzureSqlSource",
+                                            "sqlReaderQuery": {
+                                                "value": "SELECT * FROM dbo.[@{item().TABLE_NAME}] where 1=2",
+                                                "type": "Expression"
+                                            },
+                                            "queryTimeout": "02:00:00",
+                                            "partitionOption": "None"
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": {
+                                                "type": "AzureFileStorageWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "typeConversion": true,
+                                            "typeConversionSettings": {
+                                                "allowDataTruncation": true,
+                                                "treatBooleanAsNumber": false
+                                            }
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "GetSourceData",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "TableName": "@item().TABLE_NAME",
+                                                "TableSchema": "@item().TABLE_SCHEMA"
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "FileShareDataset",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "DirectoryName": "Target",
+                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Set dummy File Name",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Files List in Source Directory",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "DummyFile",
+                            "value": {
+                                "value": "@activity('Get Files List in Source Directory').output.childItems[1].name",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Whether output directory should br created",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "Set dummy File Name",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@activity('Gets if output Directory Exists').output.exists",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "Created fileformat directory",
+                                    "description": "Copy data has been used here because copy data will create the output directory. This will be executed only once.",
+                                    "type": "Copy",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "DelimitedTextSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageReadSettings",
+                                                "recursive": true,
+                                                "enablePartitionDiscovery": false
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextReadSettings"
+                                            }
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "typeConversion": true,
+                                            "typeConversionSettings": {
+                                                "allowDataTruncation": true,
+                                                "treatBooleanAsNumber": false
+                                            }
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "ConnectToFileFormatContainer",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "FileName": {
+                                                    "value": "@variables('DummyFile')",
+                                                    "type": "Expression"
+                                                },
+                                                "DirectoryName": "schemafile"
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "ConnectToFileFormatContainer",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "FileName": {
+                                                    "value": "@variables('DummyFile')",
+                                                    "type": "Expression"
+                                                },
+                                                "DirectoryName": "fileformat"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Delphix Login",
+                        "description": "API login to Delphix Compliance Engine",
+                        "type": "WebActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Iterate over a file list",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 5,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/login')",
+                                "type": "Expression"
+                            },
+                            "method": "POST",
+                            "headers": {
+                                "Content-Type": "application/json",
+                                "Accept": "application/json"
+                            },
+                            "body": {
+                                "value": "{\"username\":\"@{pipeline().parameters.UserName}\",\"password\":\"@{pipeline().parameters.Password}\"}",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "name": "ForEach loop to upload list of files",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "Delphix Login",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            },
+                            {
+                                "activity": "Iterator to get index used in loop",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@range(1, activity('Iterator to get index used in loop').output.count)",
+                                "type": "Expression"
+                            },
+                            "isSequential": true,
+                            "activities": [
+                                {
+                                    "name": "fileFormatsGET",
+                                    "type": "WebActivity",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "POST fileFormat using LogicApp",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 5,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": {
+                                            "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-formats')",
+                                            "type": "Expression"
+                                        },
+                                        "method": "GET",
+                                        "headers": {
+                                            "Accept": "application/json",
+                                            "Authorization": {
+                                                "value": "@activity('Delphix Login').output.Authorization",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Get File Path",
+                                    "type": "GetMetadata",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "dataset": {
+                                            "referenceName": "DelimitedFileFormatBlob",
+                                            "type": "DatasetReference",
+                                            "parameters": {}
+                                        },
+                                        "fieldList": [
+                                            "childItems",
+                                            "itemName",
+                                            "itemType"
+                                        ],
+                                        "storeSettings": {
+                                            "type": "AzureBlobStorageReadSettings",
+                                            "recursive": true,
+                                            "enablePartitionDiscovery": false
+                                        },
+                                        "formatSettings": {
+                                            "type": "DelimitedTextReadSettings"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "POST fileFormat using LogicApp",
+                                    "type": "WebActivity",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "AppendFileName with PipelineRunID",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        {
+                                            "activity": "Get Content Body for individual file",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 5,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": {
+                                            "value": "@pipeline().parameters.LogicappURL",
+                                            "type": "Expression"
+                                        },
+                                        "method": "POST",
+                                        "headers": {},
+                                        "body": {
+                                            "value": "{\n    \"Authorization\": \"@{activity('Delphix Login').output.Authorization}\",\n    \"fileFormat\" : \"@{variables('FileContents')}\",\n    \"fileFormatType\" : \"DELIMITED\",\n    \"fileName\": \"@{variables('FileNamewithPipelineId')}\",\n    \"maskingEngineIp\": \"@{pipeline().parameters.MaskingEngineIP}\"\n}",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "FileName",
+                                    "type": "SetVariable",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Get File Path",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "FileName",
+                                        "value": {
+                                            "value": "@activity('Get File Path').output.childItems[sub(item(),1)].name",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Get Contents of Schema File",
+                                    "type": "Lookup",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "DelimitedTextSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageReadSettings",
+                                                "recursive": true,
+                                                "wildcardFileName": "*.csv",
+                                                "enablePartitionDiscovery": false
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextReadSettings"
+                                            }
+                                        },
+                                        "dataset": {
+                                            "referenceName": "DelimitedFileFormatBlob",
+                                            "type": "DatasetReference",
+                                            "parameters": {}
+                                        },
+                                        "firstRowOnly": false
+                                    }
+                                },
+                                {
+                                    "name": "Get PipelineRunID",
+                                    "type": "SetVariable",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "PipelineRunId",
+                                        "value": {
+                                            "value": "@split(pipeline().RunId, '-')[0]",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "AppendFileName with PipelineRunID",
+                                    "type": "SetVariable",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Get PipelineRunID",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        {
+                                            "activity": "FileName",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "FileNamewithPipelineId",
+                                        "value": {
+                                            "value": "@concat(variables('FileName'),'_',variables('PipelineRunId'))",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Get Content Body for individual file",
+                                    "type": "SetVariable",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Get Contents of Schema File",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "FileContents",
+                                        "value": {
+                                            "value": "@activity('Get Contents of Schema File').output.value[sub(item(),1)].Prop_0",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Iterator to get index used in loop",
+                        "type": "Lookup",
+                        "dependsOn": [
+                            {
+                                "activity": "Iterate over a file list",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobStorageReadSettings",
+                                    "recursive": true,
+                                    "wildcardFileName": "*csv",
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": {
+                                    "type": "DelimitedTextReadSettings"
+                                }
+                            },
+                            "dataset": {
+                                "referenceName": "DelimitedFileFormatBlob",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "firstRowOnly": false
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "UserName": {
+                        "type": "string"
+                    },
+                    "Password": {
+                        "type": "string"
+                    },
+                    "MaskingEngineIP": {
+                        "type": "string"
+                    },
+                    "LogicappURL": {
+                        "type": "string"
+                    },
+                    "QueryToGetTableSchema": {
+                        "type": "string"
+                    }
+                },
+                "variables": {
+                    "ContentBody": {
+                        "type": "String"
+                    },
+                    "SanitizedString": {
+                        "type": "String"
+                    },
+                    "FileName": {
+                        "type": "String"
+                    },
+                    "PipelineId": {
+                        "type": "String"
+                    },
+                    "FileNamewithPipelineId": {
+                        "type": "String"
+                    },
+                    "FileContents": {
+                        "type": "String"
+                    },
+                    "DummyFile": {
+                        "type": "String"
+                    },
+                    "PipelineRunId": {
+                        "type": "String"
+                    }
+                },
+                "folder": {
+                    "name": "Delphix Continous Compliance"
+                },
+                "annotations": [
+                    "Delphix Profiling"
+                ],
+                "lastPublishTime": "2022-09-20T07:06:13Z"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/ConnectToFileFormatContainer')]",
+                "[concat(variables('factoryId'), '/datasets/GetSourceData')]",
+                "[concat(variables('factoryId'), '/datasets/DelimitedFileFormatBlob')]",
+                "[concat(variables('factoryId'), '/dataflows/dataflow_to_process_schema')]",
+                "[concat(variables('factoryId'), '/datasets/FileShareDataset')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/ConnectToFileFormatContainer')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "It does not have any parameters",
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Connect_to_stroage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "FileName": {
+                        "type": "string"
+                    },
+                    "DirectoryName": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Azure Blob Storage"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": {
+                            "value": "@dataset().FileName",
+                            "type": "Expression"
+                        },
+                        "container": {
+                            "value": "@dataset().DirectoryName",
+                            "type": "Expression"
+                        }
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/GetSourceData')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AzureSqlDatabaseSource')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "TableName": {
+                        "type": "string"
+                    },
+                    "TableSchema": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Azure SQL Database"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "Street",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "city",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "Zip",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "Country",
+                        "type": "varchar"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": {
+                        "value": "@dataset().TableSchema",
+                        "type": "Expression"
+                    },
+                    "table": {
+                        "value": "@dataset().TableName",
+                        "type": "Expression"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DelimitedFileFormatBlob')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Connect_to_stroage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "folder": {
+                    "name": "Azure Blob Storage"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "container": "fileformat"
+                    },
+                    "columnDelimiter": "|",
+                    "rowDelimiter": "|",
+                    "escapeChar": "\\",
+                    "quoteChar": "\""
+                },
+                "schema": [
+                    {
+                        "type": "String"
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/dataflow_to_process_schema')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "folder": {
+                    "name": "Delphix DataFlow"
+                },
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "ConnectorForFileFormatProcessing",
+                                "type": "DatasetReference"
+                            },
+                            "name": "input"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "ConnectorForFileFormatProcessing",
+                                "type": "DatasetReference"
+                            },
+                            "name": "Target"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "AddRowCount"
+                        },
+                        {
+                            "name": "SelectFirstRow"
+                        },
+                        {
+                            "name": "RemoveRowCountColumn"
+                        },
+                        {
+                            "name": "AddModifiedFilename"
+                        },
+                        {
+                            "name": "RemoveFilenameColumn"
+                        },
+                        {
+                            "name": "ChangeColumnSeq"
+                        },
+                        {
+                            "name": "ConcatenateColumnValues"
+                        },
+                        {
+                            "name": "CopyDerivedColumns"
+                        },
+                        {
+                            "name": "ConvertColumnValuetoArray"
+                        },
+                        {
+                            "name": "flattenArray"
+                        },
+                        {
+                            "name": "AddRowCountOne"
+                        },
+                        {
+                            "name": "RemoveFileNameRow"
+                        },
+                        {
+                            "name": "RemoveRCountColumn"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     rowUrlColumn: 'Filename') ~> input",
+                        "input keyGenerate(output(row_count as long),",
+                        "     startAt: 1L,",
+                        "     stepValue: 1L) ~> AddRowCount",
+                        "AddRowCount split(row_count ==1,",
+                        "     disjoint: false) ~> SelectFirstRow@(FirstRowOutput, RemainingRowsOutput)",
+                        "SelectFirstRow@FirstRowOutput select(mapColumn(",
+                        "          each(match(name!='row_count'))",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> RemoveRowCountColumn",
+                        "RemoveRowCountColumn derive(Modified_Filename = replace(Filename,'/','')) ~> AddModifiedFilename",
+                        "AddModifiedFilename select(mapColumn(",
+                        "          each(match(name!='Filename'))",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> RemoveFilenameColumn",
+                        "RemoveFilenameColumn select(mapColumn(",
+                        "          Modified_Filename,",
+                        "          each(match(lower(name)!=\"null\"))",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> ChangeColumnSeq",
+                        "ChangeColumnSeq derive(ABC = concatWS(',',toString(columns()))) ~> ConcatenateColumnValues",
+                        "ConcatenateColumnValues select(mapColumn(",
+                        "          Modified_Filename,",
+                        "          ABC",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> CopyDerivedColumns",
+                        "CopyDerivedColumns derive(ABC = split(ABC,',')) ~> ConvertColumnValuetoArray",
+                        "ConvertColumnValuetoArray foldDown(unroll(ABC),",
+                        "     mapColumn(",
+                        "          Modified_Filename,",
+                        "          ABC",
+                        "     ),",
+                        "     skipDuplicateMapInputs: false,",
+                        "     skipDuplicateMapOutputs: false) ~> flattenArray",
+                        "flattenArray keyGenerate(output(Rcount1 as long),",
+                        "     startAt: 1L,",
+                        "     stepValue: 1L) ~> AddRowCountOne",
+                        "AddRowCountOne filter(Rcount1!=1) ~> RemoveFileNameRow",
+                        "RemoveFileNameRow select(mapColumn(",
+                        "          ABC,",
+                        "          {$$} = Modified_Filename",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> RemoveRCountColumn",
+                        "RemoveRCountColumn sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     rowUrlColumn:'$$',",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> Target"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/ConnectorForFileFormatProcessing')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/FileShareDataset')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('File Share Linked Service')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "DirectoryName": {
+                        "type": "string"
+                    },
+                    "FileName": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Azure File Shares"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureFileStorageLocation",
+                        "fileName": {
+                            "value": "@dataset().FileName",
+                            "type": "Expression"
+                        },
+                        "folderPath": {
+                            "value": "@dataset().DirectoryName",
+                            "type": "Expression"
+                        }
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/ConnectorForFileFormatProcessing')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('Connect_to_stroage')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "Filename": {
+                        "type": "string"
+                    },
+                    "DirectoryName": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Azure Blob Storage"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "fileName": {
+                            "value": "@dataset().Filename",
+                            "type": "Expression"
+                        },
+                        "container": {
+                            "value": "@dataset().DirectoryName",
+                            "type": "Expression"
+                        }
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": false,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
+        }
+    ]
+}
