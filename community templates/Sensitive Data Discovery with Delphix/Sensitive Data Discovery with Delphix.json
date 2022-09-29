@@ -308,7 +308,7 @@
                                         "source": {
                                             "type": "AzureSqlSource",
                                             "sqlReaderQuery": {
-                                                "value": "SELECT * FROM dbo.[@{item().TABLE_NAME}] where 1=2",
+                                                "value": "SELECT * FROM [@{item().TABLE_SCHEMA}].[@{item().TABLE_NAME}] where 1=2",
                                                 "type": "Expression"
                                             },
                                             "queryTimeout": "02:00:00",
