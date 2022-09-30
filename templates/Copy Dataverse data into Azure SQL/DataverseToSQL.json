@@ -212,7 +212,7 @@
                     "name": "DataverseToLakeToSQL"
                 },
                 "annotations": [
-                    "DataverseIncremental"
+                    "DataverseSQL"
                 ],
                 "lastPublishTime": "2022-07-21T22:29:27Z"
             },
