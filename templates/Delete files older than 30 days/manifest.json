@@ -108,5 +108,6 @@
     ],
     "categories":[  
         "Copy"
-    ]
+    ],
+    "scope":["Trident"]
 }

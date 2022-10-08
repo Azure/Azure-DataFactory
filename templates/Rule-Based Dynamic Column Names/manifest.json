@@ -23,5 +23,6 @@
         "Data Flow"
     ],
     "services": [],
+	"scope":["Trident"],
 	"documentation": "https://kromerbigdata.com/2019/05/24/adf-mapping-data-flows-create-rules-to-modify-column-names/"
 }

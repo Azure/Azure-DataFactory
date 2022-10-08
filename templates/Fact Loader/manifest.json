@@ -27,5 +27,6 @@
     "annotations": [
         "Data Flow"
     ],
-    "services": []
+    "services": [],
+	"scope":["Trident"]
 }

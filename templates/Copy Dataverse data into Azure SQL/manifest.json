@@ -43,5 +43,6 @@
         "Data flow",
         "Synapse Link"
     ],
+    "scope":["Trident"],
     "documentation": "https://docs.microsoft.com/en-us/power-apps/maker/data-platform/azure-synapse-link-pipelines"
 }

@@ -654,5 +654,6 @@
       "Database"
     ],
     "services": [],
-    "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023"
+    "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023",
+    "scope":["Trident"]
   }

@@ -540,5 +540,6 @@
     ],
     "categories":[  
         "Copy"
-    ]
+    ],
+    "scope":["Trident"]
 }

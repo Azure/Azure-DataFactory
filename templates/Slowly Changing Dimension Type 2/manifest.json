@@ -30,5 +30,6 @@
         "Data Flow",
         "mapping data flow",
         "SCD"
-    ]
+    ],
+    "scope":["Trident"]
 }

@@ -17,5 +17,6 @@
   "services": [],
   "categories": [
 	"Synapse"
-  ]
+  ],
+  "scope":["Trident"]
 }
