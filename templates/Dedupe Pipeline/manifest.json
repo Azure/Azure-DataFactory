@@ -20,6 +20,6 @@
         "Data flow"
     ],
     "services": [],
-	"documentation": "https://kromerbigdata.com/2019/04/21/use-adf-mapping-data-flows-for-fuzzy-matching-and-dedupe/",
-	"scope":["Trident"]
+	"compatibleWithPBI": true,
+	"documentation": "https://kromerbigdata.com/2019/04/21/use-adf-mapping-data-flows-for-fuzzy-matching-and-dedupe/"
 }

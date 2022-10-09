@@ -27,5 +27,5 @@
 	],
 	"services": [],
 	"categories": ["Data flow"],
-	"scope":["Trident"]
+	"compatibleWithPBI": true
 }

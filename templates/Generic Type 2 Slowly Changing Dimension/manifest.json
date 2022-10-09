@@ -34,6 +34,6 @@
     "categories": [
         "Data flow"
     ],
-    "scope":["Trident"],
+    "compatibleWithPBI": true,
     "documentation": "https://youtu.be/tc283k8CWh8"
 }

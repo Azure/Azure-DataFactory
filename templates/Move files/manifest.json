@@ -510,5 +510,5 @@
     "categories":[  
        "Copy"
     ],
-    "scope":["Trident"]
+    "compatibleWithPBI": true
  }
