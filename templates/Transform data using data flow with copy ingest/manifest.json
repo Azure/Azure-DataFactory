@@ -150,5 +150,6 @@
         "Transform"
     ],
     "services": [],
-    "documentation": ""
+    "documentation": "",
+    "scope": ["Trident"]
 }

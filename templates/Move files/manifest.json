@@ -509,5 +509,6 @@
     ],
     "categories":[  
        "Copy"
-    ]
+    ],
+    "scope":["Trident"]
  }

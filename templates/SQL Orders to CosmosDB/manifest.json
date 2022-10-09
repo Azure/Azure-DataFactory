@@ -33,5 +33,6 @@
     ],
     "categories": [
         "Data flow"
-    ]
+    ],
+    "scope": ["Trident"]
 }
