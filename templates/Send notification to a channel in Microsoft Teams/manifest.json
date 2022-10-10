@@ -11,5 +11,5 @@
     "annotations": ["Alerts", "Microsoft Teams", "Notifications"],
     "services": [],
     "categories": ["Web activity"],
-    "scope":["Trident"]
+    "compatibleWithPBI": true
 }

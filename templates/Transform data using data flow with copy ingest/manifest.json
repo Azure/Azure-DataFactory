@@ -151,5 +151,5 @@
     ],
     "services": [],
     "documentation": "",
-    "scope": ["Trident"]
+    "compatibleWithPBI": true
 }

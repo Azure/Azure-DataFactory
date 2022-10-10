@@ -25,5 +25,5 @@
     "annotations": [],
     "services": [],
     "categories": [],
-    "scope":["Trident"]
+    "compatibleWithPBI": true
 }

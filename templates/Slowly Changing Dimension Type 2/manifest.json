@@ -31,5 +31,5 @@
         "mapping data flow",
         "SCD"
     ],
-    "scope":["Trident"]
+    "compatibleWithPBI": true
 }
