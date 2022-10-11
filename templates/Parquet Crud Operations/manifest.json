@@ -22,6 +22,5 @@
 	"services": [],
 	"categories": [
 		"Data flow"
-	],
-	"compatibleWithPBI": true
+	]
 }

@@ -22,6 +22,5 @@
     "annotations": [
         "Data Flow"
     ],
-    "services": [],
-	"compatibleWithPBI": true
+    "services": []
 }
