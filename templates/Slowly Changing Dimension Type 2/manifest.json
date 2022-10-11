@@ -30,6 +30,5 @@
         "Data Flow",
         "mapping data flow",
         "SCD"
-    ],
-    "compatibleWithPBI": true
+    ]
 }
