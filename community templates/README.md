@@ -1,7 +1,7 @@
 # Community pipeline templates #
 
 We are excited to announce that Community Templates are now available to our community members. For more information about this announcement, please see
-[Introducing Azure Data Factory Community Templates] (https://techcommunity.microsoft.com/t5/azure-data-factory-blog/introducing-azure-data-factory-community-templates/ba-p/3650989). 
+[Introducing Azure Data Factory Community Templates](https://techcommunity.microsoft.com/t5/azure-data-factory-blog/introducing-azure-data-factory-community-templates/ba-p/3650989). 
 
 Pipeline templates should follow ARM templates syntax. For more information about ARM templates, see [https://go.microsoft.com/fwlink/?linkid=2181481](https://go.microsoft.com/fwlink/?linkid=2181481)
 
