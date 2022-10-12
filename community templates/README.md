@@ -1,17 +1,22 @@
 # Community pipeline templates #
 
+We are excited to announce that Community Templates are now available to our community members. For more information about this announcement, please see
+[Introducing Azure Data Factory Community Templates] (https://techcommunity.microsoft.com/t5/azure-data-factory-blog/introducing-azure-data-factory-community-templates/ba-p/3650989). 
+
 Pipeline templates should follow ARM templates syntax. For more information about ARM templates, see [https://go.microsoft.com/fwlink/?linkid=2181481](https://go.microsoft.com/fwlink/?linkid=2181481)
 
 Notes for "manifest.json":
 1. It must contain a property named "contributorType" set to "Community".
-2. "author" property can be configured as the contributor of the template.
+2. The "author" property can be configured as the contributor of the template.
+3. The "documentation" property must be set to a link. Please upload your documentation to the documentation folder in community templates. 
 
 # Create templates from pipelines #
 
-In addition to writing a template file directly, you can also get a template from a pipeline in [Azure Data Factory](https://adf.azure.com). 
+In addition to writing a template file directly, you can also create a template from a a new or existing pipeline in [Azure Data Factory](https://adf.azure.com). 
+
 For details about pipelines, please refer [Data Integration Pipelines](https://go.microsoft.com/fwlink/?linkid=2181927).  
 
-To create a template from a pipeline, please go to [Azure Data Factory](https://adf.azure.com) and excute the following steps:
+To create a template from a pipeline, please go to [Azure Data Factory](https://adf.azure.com) and execute the following steps:
 
 1. Navigate to your data factroy, in the left side menu choose "Author" to open the authoring blade.
 
@@ -71,4 +76,4 @@ To do so, execute the following steps:
 
   You're very welcomed to provide your templates to [Azure-DataFactory](https://github.com/Azure/Azure-DataFactory)！
 
-  Put your templates in the "community templates" folder and create a pull request. We will review your templates, once they are verified to be correct, we will deploy them to the Azure Data Factory.
+Put your templates in the "community templates" folder and create a pull request. We will review your templates. Once they are verified to be correct, we will deploy them to the Azure Data Factory template gallery. 
