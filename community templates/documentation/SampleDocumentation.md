@@ -1,4 +1,4 @@
-# [Template Title]
+# [Insert Template Title]
 
 [INSERT template background & use cases] 
 
