@@ -1,5 +1,8 @@
 # [Insert Template Title]
 
+For more documentation references, please visit the ADF docs page:
+[Template Documentation Example](https://user-images.githubusercontent.com/76960847/195501152-e18275fd-d0cb-488f-9ece-6daaf4346c2d.png)
+
 [INSERT template background & use cases] 
 
 This article describes a solution template that [INSERT template description]. 
