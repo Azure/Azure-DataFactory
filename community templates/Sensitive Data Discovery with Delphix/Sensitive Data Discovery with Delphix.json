@@ -2,9 +2,10 @@
 	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
 	"contentVersion": "1.0.0.0",
 	"parameters": {
-		"factoryName": {
+		"workspaceName": {
 			"type": "string",
-			"metadata": "Data Factory name"
+			"metadata": "Workspace name",
+			"defaultValue": "analyticsazuresynapse"
 		},
 		"AzureBlobStorage": {
 			"type": "string"
@@ -17,13 +18,13 @@
 		}
 	},
 	"variables": {
-		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/Sensitive Data Discovery with Delphix')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/Sensitive Data Discovery with Delphix')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"description": "Use this template to configure a Delphix Continuous Compliance Engine with what it requires to run sensitive data discovery, also known as Profiling.\n\nProfiling is the process that identifies columns that may contain sensitive data and assigns appropriate algorithms to mask this data. The delivery of on-demand, compliant data from multiple data sources is a challenge that every enterprise faces today. Identifying where sensitive data resides is a crucial part of this challenge, and is addressed by this template.\n\nIt is recommended that this template be run to identify sensitive data, prior to running the Delphix Continuous Compliance Masking template to mask the sensitive data.\n\nNote: A purchase of Delphix Continuous Compliance (Azure Marketplace) is required to use this template. To receive Delphix support, please register your engine at https://support-register.delphix.com",
 				"activities": [
@@ -912,17 +913,17 @@
 				"lastPublishTime": "2022-10-12T11:05:04Z"
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ConnectToFileFormatContainer')]",
-				"[concat(variables('factoryId'), '/datasets/GetSourceData')]",
-				"[concat(variables('factoryId'), '/datasets/DelimitedFileFormatBlob')]",
-				"[concat(variables('factoryId'), '/dataflows/dataflow_to_process_schema')]",
-				"[concat(variables('factoryId'), '/datasets/ConnectToTargetFileShare')]"
+				"[concat(variables('workspaceId'), '/datasets/ConnectToFileFormatContainer')]",
+				"[concat(variables('workspaceId'), '/datasets/GetSourceData')]",
+				"[concat(variables('workspaceId'), '/datasets/DelimitedFileFormatBlob')]",
+				"[concat(variables('workspaceId'), '/dataflows/dataflow_to_process_schema')]",
+				"[concat(variables('workspaceId'), '/datasets/ConnectToTargetFileShare')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ConnectToFileFormatContainer')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/ConnectToFileFormatContainer')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"description": "It does not have any parameters",
 				"linkedServiceName": {
@@ -964,9 +965,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/GetSourceData')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/GetSourceData')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureSqlDatabase')]",
@@ -1018,9 +1019,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DelimitedFileFormatBlob')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/DelimitedFileFormatBlob')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureBlobStorage')]",
@@ -1050,9 +1051,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/dataflow_to_process_schema')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/dataflow_to_process_schema')]",
+			"type": "Microsoft.Synapse/workspaces/dataflows",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"folder": {
 					"name": "Delphix DataFlow"
@@ -1179,13 +1180,13 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ConnectorForFileFormatProcessing')]"
+				"[concat(variables('workspaceId'), '/datasets/ConnectorForFileFormatProcessing')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ConnectToTargetFileShare')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/ConnectToTargetFileShare')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureFileStorage')]",
@@ -1226,9 +1227,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ConnectorForFileFormatProcessing')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/ConnectorForFileFormatProcessing')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureBlobStorage')]",

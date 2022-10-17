@@ -2,9 +2,10 @@
 	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
 	"contentVersion": "1.0.0.0",
 	"parameters": {
-		"factoryName": {
+		"workspaceName": {
 			"type": "string",
-			"metadata": "Data Factory name"
+			"metadata": "Workspace name",
+			"defaultValue": "analyticsazuresynapse"
 		},
 		"AzureFileStorage": {
 			"type": "string"
@@ -20,13 +21,13 @@
 		}
 	},
 	"variables": {
-		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/Data Masking with Delphix')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/Data Masking with Delphix')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"description": "Use this template to mask sensitive data using Delphix Continuous Compliance and load the compliant (masked) data to Azure Synapse. This template extracts data from a source data store, executes Delphix Masking Job(s) to mask sensitive data in the extract using appropriate algorithms, and finally, loads the compliant data into target datastore.\n\nApply data-ready rules for regulatory needs like GDPR, CCPA, HIPAA, and others, and automatically move compliant data from sources like SAP, Salesforce, and Oracle EBS to high-value service layers, like Microsoft Synapse. Delphix masks data consistently across data sources, maintaining referential integrity for integrated application testing.\n\nNote: A purchase of Delphix Continuous Compliance (Azure Marketplace) is required to use this template. To receive Delphix support, please register your engine at https://support-register.delphix.com",
 				"activities": [
@@ -593,17 +594,17 @@
 				"lastPublishTime": "2022-10-12T11:05:04Z"
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/FileShareDataset')]",
-				"[concat(variables('factoryId'), '/pipelines/Invoke atomic masking job')]",
-				"[concat(variables('factoryId'), '/datasets/TargetBlobStorage')]",
-				"[concat(variables('factoryId'), '/datasets/ConnectToSynapseDataset')]",
-				"[concat(variables('factoryId'), '/pipelines/Extract Source Data')]"
+				"[concat(variables('workspaceId'), '/datasets/FileShareDataset')]",
+				"[concat(variables('workspaceId'), '/pipelines/Invoke atomic masking job')]",
+				"[concat(variables('workspaceId'), '/datasets/TargetBlobStorage')]",
+				"[concat(variables('workspaceId'), '/datasets/ConnectToSynapseDataset')]",
+				"[concat(variables('workspaceId'), '/pipelines/Extract Source Data')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/FileShareDataset')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/FileShareDataset')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureFileStorage')]",
@@ -644,9 +645,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Invoke atomic masking job')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/Invoke atomic masking job')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"activities": [
 					{
@@ -829,9 +830,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/TargetBlobStorage')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/TargetBlobStorage')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureBlobStorage')]",
@@ -866,9 +867,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ConnectToSynapseDataset')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/ConnectToSynapseDataset')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureSynapseAnalytics')]",
@@ -920,9 +921,9 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Extract Source Data')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/Extract Source Data')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"activities": [
 					{
@@ -1048,14 +1049,14 @@
 				"lastPublishTime": "2022-10-04T09:50:40Z"
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/GetSourceData')]",
-				"[concat(variables('factoryId'), '/datasets/FileShareDataset')]"
+				"[concat(variables('workspaceId'), '/datasets/GetSourceData')]",
+				"[concat(variables('workspaceId'), '/datasets/FileShareDataset')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/GetSourceData')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
+			"name": "[concat(parameters('workspaceName'), '/GetSourceData')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "[parameters('AzureSqlDatabase')]",
