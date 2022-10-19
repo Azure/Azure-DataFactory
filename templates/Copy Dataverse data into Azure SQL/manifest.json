@@ -43,6 +43,5 @@
         "Data flow",
         "Synapse Link"
     ],
-    "compatibleWithPBI": true,
     "documentation": "https://docs.microsoft.com/en-us/power-apps/maker/data-platform/azure-synapse-link-pipelines"
 }
