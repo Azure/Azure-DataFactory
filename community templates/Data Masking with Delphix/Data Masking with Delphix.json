@@ -452,7 +452,14 @@
 					{
 						"name": "Is Extract Source data required",
 						"type": "IfCondition",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Cleanup Target Directory of Fileshare",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
 						"userProperties": [],
 						"typeProperties": {
 							"expression": {
@@ -463,7 +470,14 @@
 								{
 									"name": "Extract Source Data",
 									"type": "ExecutePipeline",
-									"dependsOn": [],
+									"dependsOn": [
+										{
+											"activity": "Cleanup Source Directory of Fileshare",
+											"dependencyConditions": [
+												"Completed"
+											]
+										}
+									],
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -476,6 +490,36 @@
 												"value": "@pipeline().parameters.QueryToFetchTables",
 												"type": "Expression"
 											}
+										}
+									}
+								},
+								{
+									"name": "Cleanup Source Directory of Fileshare",
+									"description": "",
+									"type": "Delete",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "ConnectToFileShareDirectoy",
+											"type": "DatasetReference",
+											"parameters": {
+												"DirectoryName": "source"
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureFileStorageReadSettings",
+											"recursive": true,
+											"wildcardFileName": "*",
+											"enablePartitionDiscovery": false
 										}
 									}
 								}
@@ -545,6 +589,70 @@
 								"resource": "https://vault.azure.net"
 							}
 						}
+					},
+					{
+						"name": "Cleanup Maskeddata Directory",
+						"type": "Delete",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ConnectToBlobContainers",
+								"type": "DatasetReference",
+								"parameters": {
+									"DirName": "maskeddata"
+								}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					},
+					{
+						"name": "Cleanup Target Directory of Fileshare",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "Cleanup Maskeddata Directory",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ConnectToFileShareDirectoy",
+								"type": "DatasetReference",
+								"parameters": {
+									"DirectoryName": "Target"
+								}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureFileStorageReadSettings",
+								"recursive": true,
+								"wildcardFileName": "*",
+								"enablePartitionDiscovery": false
+							}
+						}
 					}
 				],
 				"parameters": {
@@ -595,6 +703,8 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/FileShareDataset')]",
+				"[concat(variables('workspaceId'), '/datasets/ConnectToBlobContainers')]",
+				"[concat(variables('workspaceId'), '/datasets/ConnectToFileShareDirectoy')]",
 				"[concat(variables('workspaceId'), '/pipelines/Invoke atomic masking job')]",
 				"[concat(variables('workspaceId'), '/datasets/TargetBlobStorage')]",
 				"[concat(variables('workspaceId'), '/datasets/ConnectToSynapseDataset')]",
@@ -638,6 +748,77 @@
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
 					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ConnectToBlobContainers')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureBlobStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"DirName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Azure Blob Storage"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": {
+							"value": "@dataset().DirName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ConnectToFileShareDirectoy')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureFileStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"DirectoryName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Azure File Shares"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureFileStorageLocation",
+						"folderPath": {
+							"value": "@dataset().DirectoryName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": false,
 					"quoteChar": "\""
 				},
 				"schema": []
