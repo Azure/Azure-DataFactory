@@ -1,45 +1,35 @@
- 
-# This simple script prints pipeline and activity level run details between two dates. 
-# You can go back 45 days only. You can change output to whatever format (csv) as
-# you like with custom printing. This prints same run hour/corehour values as what you see in UX.
+$dataFactoryName = ""
+$resourceGroupName = ""
+$startTime = "11/18/2022 00:00:00"
+$endTime = "11/18/2022 12:00:00"
+$filePath = "C:\temp\adfouput.csv"
 
-# Here is sample output. Azure IR is used with General Compute meter. It shows corehours and hours spent. 
-<# ExternalActivity
-[
-  {
-    "meterType": "General",
-    "duration": 0.28871840533333332,
-    "unit": "coreHour",
-    "sessionType": "WarmCluster"
-  }
-]
-for
-executedataflow
-[
-  {
-    "meterType": "AzureIR",
-    "duration": 0.016666666666666666,
-    "unit": "Hours"
-  }
-]
-for
-ExternalActivity 
-#>
+$pipelineRuns = Get-AzDataFactoryV2PipelineRun -ResourceGroupName $resourceGroupName -DataFactoryName $dataFactoryName -LastUpdatedAfter $startTime -LastUpdatedBefore $endTime
 
-$startTime = "5/5/2021 4:00:00"
-$endTime = "5/5/2021 7:00:00"
- 
-$pipelineRuns = Get-AzDataFactoryV2PipelineRun -ResourceGroupName ADF -DataFactoryName adfpupcanary -LastUpdatedAfter $startTime -LastUpdatedBefore $endTime
- 
+$activityDetails = @()
+
 foreach($pipelineRun in $pipelineRuns) {
-    $activtiyRuns = Get-AzDataFactoryV2ActivityRun -ResourceGroupName ADF -DataFactoryName adfpupcanary -pipelineRunId $pipelineRun.RunId -RunStartedAfter $startTime -RunStartedBefore $endTime
+    
+    $activtiyRuns = Get-AzDataFactoryV2ActivityRun -ResourceGroupName $resourceGroupName -DataFactoryName $dataFactoryName -pipelineRunId $pipelineRun.RunId -RunStartedAfter $startTime -RunStartedBefore $endTime
+    
     foreach($activtiyRun in $activtiyRuns) {
         if ($activtiyRun.Output -ne $null -and
                 $activtiyRun.Output.SelectToken("billingReference.billableDuration") -ne $null) {
-            Write-Output $activtiyRun.Output.SelectToken("billingReference.billableDuration").ToString() for $activtiyRun.Output.SelectToken("billingReference.activityType").ToString()
-        }
-        else {
-            Write-Output "Not Availble" for $activtiyRun.ActivityType
+        
+            $x = @()
+            $x = $activtiyRun.Output.SelectToken("billingReference.billableDuration").ToString() | ConvertFrom-Json
+            $x | Add-Member -MemberType NoteProperty -Name "activityBillingType" -Value $activtiyRun.Output.SelectToken("billingReference.activityType").ToString()
+            $x | Add-Member -MemberType NoteProperty -Name "activityType" -Value $activtiyRun.ActivityType.ToString()
+            $x | Add-Member -MemberType NoteProperty -Name "activityName" -Value $activtiyRun.ActivityName.ToString()
+            $x | Add-Member -MemberType NoteProperty -Name "activityRunStart" -Value $activtiyRun.ActivityRunStart.ToString()
+            $x | Add-Member -MemberType NoteProperty -Name "pipelineRunId" -Value $pipelineRun.RunId
+            $x | Add-Member -MemberType NoteProperty -Name "pipelineName" -Value $pipelineRun.PipelineName
+            $x | Add-Member -MemberType NoteProperty -Name "dataFactoryName" -Value $pipelineRun.DataFactoryName
+
+            $activityDetails += $x
+
         }
     }
 }
+
+$activityDetails | Export-Csv -Path $filePath
