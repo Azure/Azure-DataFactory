@@ -547,6 +547,10 @@
                                             "PipelineRunId": {
                                                 "value": "@variables('PipelineRunId')",
                                                 "type": "Expression"
+                                            },
+                                            "authkey": {
+                                                "value": "@activity('Delphix Login').output.Authorization",
+                                                "type": "Expression"
                                             }
                                         }
                                     }
@@ -3582,45 +3586,9 @@
             "properties": {
                 "activities": [
                     {
-                        "name": "Delphix Login",
-                        "description": "API login to Delphix Compliance Engine",
-                        "type": "WebActivity",
-                        "dependsOn": [],
-                        "policy": {
-                            "timeout": "0.12:00:00",
-                            "retry": 2,
-                            "retryIntervalInSeconds": 30,
-                            "secureOutput": true,
-                            "secureInput": true
-                        },
-                        "userProperties": [],
-                        "typeProperties": {
-                            "url": {
-                                "value": "@concat('http://','20.169.248.28','/masking/api/v5.1.11/login')",
-                                "type": "Expression"
-                            },
-                            "method": "POST",
-                            "headers": {
-                                "Content-Type": "application/json",
-                                "Accept": "application/json"
-                            },
-                            "body": {
-                                "value": "{\"username\":\"admin\",\"password\":\"Admin-12\"}",
-                                "type": "Expression"
-                            }
-                        }
-                    },
-                    {
                         "name": "Get all fileformats on Delphix Engine",
                         "type": "WebActivity",
-                        "dependsOn": [
-                            {
-                                "activity": "Delphix Login",
-                                "dependencyConditions": [
-                                    "Succeeded"
-                                ]
-                            }
-                        ],
+                        "dependsOn": [],
                         "policy": {
                             "timeout": "0.12:00:00",
                             "retry": 5,
@@ -3631,14 +3599,14 @@
                         "userProperties": [],
                         "typeProperties": {
                             "url": {
-                                "value": "@concat('http://','20.169.248.28','/masking/api/v5.1.11/file-formats')",
+                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-formats')",
                                 "type": "Expression"
                             },
                             "method": "GET",
                             "headers": {
                                 "Accept": "application/json",
                                 "Authorization": {
-                                    "value": "@activity('Delphix Login').output.Authorization",
+                                    "value": "@pipeline().parameters.authkey",
                                     "type": "Expression"
                                 }
                             }
@@ -3750,7 +3718,7 @@
                                                     "headers": {
                                                         "Accept": "application/json",
                                                         "Authorization": {
-                                                            "value": "@activity('Delphix Login').output.Authorization",
+                                                            "value": "@pipeline().parameters.authkey",
                                                             "type": "Expression"
                                                         }
                                                     }
@@ -3821,6 +3789,9 @@
                         "type": "string"
                     },
                     "PipelineRunId": {
+                        "type": "string"
+                    },
+                    "authkey": {
                         "type": "string"
                     }
                 },
