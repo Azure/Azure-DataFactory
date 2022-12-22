@@ -13,4 +13,5 @@ Key Outcomes
 #### Media
 1. Link to Demo video: https://www.delphix.com/video/delphix-microsoft-intelligent-data-platform
 2. Visual
+ </br>
  <img src='assets/partners/media/Delphix01.png' alt='' width=500 style='padding-top:20px;padding-right:16px' />
