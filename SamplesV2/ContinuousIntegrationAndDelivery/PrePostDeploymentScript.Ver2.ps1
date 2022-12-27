@@ -33,7 +33,7 @@
     Default: $null
     Override template parameters. Similar to overrideParameters in AzureResourceGroupDeployment@2.
     Note: object type parameters are not tested so that probably does not work.
-        example: -esbdatafactory_slim4_sqlLS_properties_typeProperties_connectionString_secretName "con-sql-slim4-connectionstringUPDATE" -esbdatafactory_salesordercosmosdbLS_properties_typeProperties_connectionString_secretName "con-esbsalesordercosmosdb-connectionstringUPDATE"
+        example: -datafactory_connectionString "someconnectionstring"
 .PARAMETER ExplicitStopTriggerList
     Default: @() (An empty array)
     Expliticly stops the triggers form this list if the trigger is in started state even if the trigger payload not changed
@@ -301,7 +301,7 @@ function Compare-ScheduleTrigger {
         {                        
             $dateTimeString = $deployedValue["recurrence"]["startTime"].ToString("yyyy-MM-ddTHH:mm:ss");
             $dateTime = Get-Date -Date $dateTimeString;            
-            # For some weird reason I cannot set the new datetime directly, so this additional line is needed
+            # As an intermediate step we explicitly set it to a different date otherwise the DateTimeKind it will not be overwritten
             $deployedValue["recurrence"]["startTime"] = New-Object DateTime 2000, 1, 1, 1, 0, 0, ([DateTimeKind]::Unspecified)
             $deployedValue["recurrence"]["startTime"] = New-Object DateTime $dateTime.Year, $dateTime.Month, $dateTime.Day, $dateTime.Hour, $dateTime.Minute, $dateTime.Second, ([DateTimeKind]::Unspecified)
         }
