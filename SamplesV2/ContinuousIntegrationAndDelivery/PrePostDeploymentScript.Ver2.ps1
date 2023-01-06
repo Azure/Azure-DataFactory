@@ -228,7 +228,7 @@ function Compare-TriggerPayload {
         return $True
     }
     catch {
-        Write-Host "##[warning] Unable to compare payload for '$($triggerDeployed.Name)' trigger, this is not a failure. You can post the issue to https://github.com/Azure/Azure-DataFactory/issues to check if this can be addressed."
+        Write-Host "##[warning] Unable to compare payload for '$($triggerDeployed.Name)' trigger, this is not a failure. You can post the issue to https://github.com/Azure/Azure-DataFactory/issues to check if this is user error or limitation."
         Write-Host "##[warning] $_ from Line: $($_.InvocationInfo.ScriptLineNumber)"
         return $True;
     }
@@ -467,7 +467,15 @@ function Update-TriggerTemplate {
     foreach ($parameterMatch in $parameterMatches) {
         $parameterName = $parameterMatch.Value.Substring(13, $parameterMatch.Value.Length - 16)
         if ($null -ne $templateParameters.$($parameterName)) {
-            $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape($parameterMatch.Value), $templateParameters.$($parameterName).value
+            $parameterType = $templateParameters.$($parameterName).value ? $templateParameters.$($parameterName).value.GetType().Name : $null
+            if ($parameterType -eq 'Object[]') {
+                $parameterValue = ConvertTo-Json $templateParameters.$($parameterName).value
+                $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $parameterValue
+            } elseif ($parameterType -eq 'Boolean' -or $parameterType -eq 'Int64') {
+                $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $templateParameters.$($parameterName).value
+            } else {
+                $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape($parameterMatch.Value), $templateParameters.$($parameterName).value
+            }
         }
     }
 
