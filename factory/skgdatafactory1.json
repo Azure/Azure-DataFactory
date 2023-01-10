@@ -1,0 +1,9 @@
+{
+	"name": "skgdatafactory1",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "ccc6173e-208f-44c2-b52d-72bfacfc50ea",
+		"tenantId": "d7de017d-3820-49e8-bf34-8d2b02b3e2e1"
+	}
+}

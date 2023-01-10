@@ -1,0 +1,75 @@
+{
+	"name": "MoviesTransformations",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DelimitedText1",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzureSqlTable1",
+						"type": "DatasetReference"
+					},
+					"name": "AzureSql"
+				}
+			],
+			"transformations": [
+				{
+					"name": "Casting"
+				},
+				{
+					"name": "ChangeColumnNames"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          Film as string,",
+				"          Genre as string,",
+				"          {Lead Studio} as string,",
+				"          {Audience score %} as string,",
+				"          Profitability as string,",
+				"          {Rotten Tomatoes %} as string,",
+				"          {Worldwide Gross} as string,",
+				"          Year as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(Year = toInteger(Year),",
+				"          {Rotten Tomatoes %} = toInteger({Rotten Tomatoes %}),",
+				"          {Audience score %} = toInteger({Audience score %}),",
+				"          Profitability = toDecimal(Profitability)) ~> Casting",
+				"Casting select(mapColumn(",
+				"          Film,",
+				"          Genre,",
+				"          {Lead Studio},",
+				"          AudienceScore = {Audience score %},",
+				"          Profitability,",
+				"          RottenTomatoes = {Rotten Tomatoes %},",
+				"          WorldwideGross = {Worldwide Gross},",
+				"          Year",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> ChangeColumnNames",
+				"ChangeColumnNames sink(allowSchemaDrift: true,",
+				"     validateSchema: true,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> AzureSql"
+			]
+		}
+	}
+}
