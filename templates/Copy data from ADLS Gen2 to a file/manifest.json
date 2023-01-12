@@ -22,6 +22,6 @@
     "services": [],
     "categories": [],
     "compatibleWithPBI": true,
-    "descriptionForPBI": "Use this template to copy data from your Azure SQL database to a specified file location in your Lakehouse.\n\nIf you want to copy data from a number of files, please use the “Copy assistant” to create your pipeline.",
+    "descriptionForPBI": "Use this template to copy data from ADLS Gen2 to a specified file location in your Lakehouse.\n\nIf you want to copy data from a number of files, please use the “Copy assistant” to create your pipeline.",
     "scope":["PBI"] 
 }
