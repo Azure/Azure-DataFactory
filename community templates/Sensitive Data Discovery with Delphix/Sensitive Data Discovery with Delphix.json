@@ -1,6 +1,6 @@
 {
     "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-    "contentVersion": "1.1.0.0",
+    "contentVersion": "1.1.1.0",
     "parameters": {
         "factoryName": {
             "type": "string",
@@ -65,7 +65,7 @@
                         "type": "ForEach",
                         "dependsOn": [
                             {
-                                "activity": "List All Tables",
+                                "activity": "Check Schema Directory",
                                 "dependencyConditions": [
                                     "Succeeded"
                                 ]
@@ -158,7 +158,7 @@
                                     "type": "Copy",
                                     "dependsOn": [
                                         {
-                                            "activity": "Copy Table schema",
+                                            "activity": "Copy Schema to BackupDir",
                                             "dependencyConditions": [
                                                 "Succeeded"
                                             ]
@@ -315,6 +315,93 @@
                                                     "type": "Expression"
                                                 },
                                                 "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Copy Schema to BackupDir",
+                                    "type": "Copy",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Copy Table schema",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "DelimitedTextSource",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageReadSettings",
+                                                "recursive": true,
+                                                "enablePartitionDiscovery": false
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextReadSettings"
+                                            }
+                                        },
+                                        "sink": {
+                                            "type": "DelimitedTextSink",
+                                            "storeSettings": {
+                                                "type": "AzureBlobStorageWriteSettings"
+                                            },
+                                            "formatSettings": {
+                                                "type": "DelimitedTextWriteSettings",
+                                                "quoteAllText": true,
+                                                "fileExtension": ".txt"
+                                            }
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "typeConversion": true,
+                                            "typeConversionSettings": {
+                                                "allowDataTruncation": true,
+                                                "treatBooleanAsNumber": false
+                                            }
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "rootDataSet",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "containerName": {
+                                                    "value": "@pipeline().parameters.ContainerRootFolder",
+                                                    "type": "Expression"
+                                                },
+                                                "directoryName": "current-fileformat/schemafile",
+                                                "fileName": {
+                                                    "value": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "rootDataSet",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "containerName": {
+                                                    "value": "@pipeline().parameters.ContainerRootFolder",
+                                                    "type": "Expression"
+                                                },
+                                                "directoryName": "current-fileformat/BkpSchemafile",
+                                                "fileName": {
+                                                    "value": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ]
@@ -1441,20 +1528,102 @@
                         }
                     },
                     {
-                        "name": "Set execution status",
-                        "type": "SetVariable",
+                        "name": "Get Directory Metadata",
+                        "type": "GetMetadata",
                         "dependsOn": [
                             {
-                                "activity": "Setup Masking Engine",
+                                "activity": "List All Tables",
                                 "dependencyConditions": [
-                                    "Failed"
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataset": {
+                                "referenceName": "deleteCheckDataset",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "containerName": {
+                                        "value": "@pipeline().parameters.ContainerRootFolder",
+                                        "type": "Expression"
+                                    },
+                                    "directoryName": "current-fileformat/schemafile"
+                                }
+                            },
+                            "fieldList": [
+                                "exists"
+                            ],
+                            "storeSettings": {
+                                "type": "AzureBlobStorageReadSettings",
+                                "recursive": true,
+                                "enablePartitionDiscovery": false
+                            },
+                            "formatSettings": {
+                                "type": "DelimitedTextReadSettings"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Check Schema Directory",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Directory Metadata",
+                                "dependencyConditions": [
+                                    "Succeeded"
                                 ]
                             }
                         ],
                         "userProperties": [],
                         "typeProperties": {
-                            "variableName": "Execution",
-                            "value": true
+                            "expression": {
+                                "value": "@activity('Get Directory Metadata').output.exists",
+                                "type": "Expression"
+                            },
+                            "ifTrueActivities": [
+                                {
+                                    "name": "Delete Schema",
+                                    "type": "Delete",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "dataset": {
+                                            "referenceName": "rootDataSet",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "containerName": {
+                                                    "value": "@pipeline().parameters.ContainerRootFolder",
+                                                    "type": "Expression"
+                                                },
+                                                "directoryName": "current-fileformat/schemafile",
+                                                "fileName": "*"
+                                            }
+                                        },
+                                        "enableLogging": false,
+                                        "storeSettings": {
+                                            "type": "AzureBlobStorageReadSettings",
+                                            "recursive": true,
+                                            "wildcardFileName": "*",
+                                            "enablePartitionDiscovery": false
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 ],
@@ -1616,7 +1785,7 @@
                     "Profiling",
                     "Compliance"
                 ],
-                "lastPublishTime": "2022-12-19T08:01:02Z"
+                "lastPublishTime": "2023-01-12T10:37:49Z"
             },
             "dependsOn": [
                 "[concat(variables('factoryId'), '/datasets/ConnectToSourceData')]",
@@ -1625,6 +1794,7 @@
                 "[concat(variables('factoryId'), '/datasets/fileFormatDataSetPiped')]",
                 "[concat(variables('factoryId'), '/datasets/rootDataSet')]",
                 "[concat(variables('factoryId'), '/pipelines/Setup Directories')]",
+                "[concat(variables('factoryId'), '/datasets/deleteCheckDataset')]",
                 "[concat(variables('factoryId'), '/datasets/rootDataSetRowHeader')]",
                 "[concat(variables('factoryId'), '/datasets/ConnectToTargetFileShare')]",
                 "[concat(variables('factoryId'), '/pipelines/Clean File Formats')]",
@@ -1987,7 +2157,7 @@
                                     "userProperties": [],
                                     "typeProperties": {
                                         "expression": {
-                                            "value": "@contains(string(item()),pipeline().parameters.ApplicationName)",
+                                            "value": "@equals(string(item().applicationName),pipeline().parameters.ApplicationName)",
                                             "type": "Expression"
                                         },
                                         "ifTrueActivities": [
@@ -2320,7 +2490,7 @@
                         "userProperties": [],
                         "typeProperties": {
                             "url": {
-                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors')",
+                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors?environment_id=',variables('sourceEnvironmentId'))",
                                 "type": "Expression"
                             },
                             "method": "GET",
@@ -2551,7 +2721,7 @@
                         "userProperties": [],
                         "typeProperties": {
                             "url": {
-                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets')",
+                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets?environment_id=',variables('sourceEnvironmentId'))",
                                 "type": "Expression"
                             },
                             "method": "GET",
@@ -2839,7 +3009,7 @@
                     "name": "Delphix Continous Compliance"
                 },
                 "annotations": [],
-                "lastPublishTime": "2022-12-19T08:01:02Z"
+                "lastPublishTime": "2023-01-11T08:05:16Z"
             },
             "dependsOn": [
                 "[concat(variables('factoryId'), '/pipelines/Setup Target Connector and Ruleset')]"
@@ -3073,7 +3243,7 @@
                             },
                             "ifFalseActivities": [
                                 {
-                                    "name": "Created fileformat directory",
+                                    "name": "Create fileformat directory",
                                     "description": "Copy data has been used here because copy data will create the output directory. This will be executed only once.",
                                     "type": "Copy",
                                     "dependsOn": [],
@@ -3476,7 +3646,7 @@
                     "name": "Delphix Continous Compliance"
                 },
                 "annotations": [],
-                "lastPublishTime": "2022-12-14T12:55:50Z"
+                "lastPublishTime": "2023-01-12T10:25:48Z"
             },
             "dependsOn": [
                 "[concat(variables('factoryId'), '/datasets/scehmaFileDataSet')]",
@@ -3485,6 +3655,48 @@
                 "[concat(variables('factoryId'), '/datasets/rootDataSet')]",
                 "[concat(variables('factoryId'), '/datasets/fileFormatDataSetPiped')]"
             ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/deleteCheckDataset')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[parameters('AzureBlobStorage1')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "containerName": {
+                        "type": "string"
+                    },
+                    "directoryName": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Azure Blob Storage"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobStorageLocation",
+                        "folderPath": {
+                            "value": "@dataset().directoryName",
+                            "type": "Expression"
+                        },
+                        "container": {
+                            "value": "@dataset().containerName",
+                            "type": "Expression"
+                        }
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": []
         },
         {
             "name": "[concat(parameters('factoryName'), '/rootDataSetRowHeader')]",
@@ -3849,7 +4061,7 @@
                     "name": "Delphix Continous Compliance"
                 },
                 "annotations": [],
-                "lastPublishTime": "2022-12-11T05:20:32Z"
+                "lastPublishTime": "2023-01-11T08:05:16Z"
             },
             "dependsOn": []
         },
@@ -4270,7 +4482,7 @@
                         "userProperties": [],
                         "typeProperties": {
                             "url": {
-                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors')",
+                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors?environment_id=',variables('targetEnvironmentId'))",
                                 "type": "Expression"
                             },
                             "method": "GET",
@@ -4399,7 +4611,7 @@
                         "userProperties": [],
                         "typeProperties": {
                             "url": {
-                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets')",
+                                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets?environment_id=',variables('targetEnvironmentId'))",
                                 "type": "Expression"
                             },
                             "method": "GET",
@@ -4569,7 +4781,7 @@
                     "name": "Delphix Continous Compliance"
                 },
                 "annotations": [],
-                "lastPublishTime": "2022-12-09T09:29:15Z"
+                "lastPublishTime": "2023-01-11T08:05:16Z"
             },
             "dependsOn": []
         },

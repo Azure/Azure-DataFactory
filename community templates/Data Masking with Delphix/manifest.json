@@ -38,6 +38,17 @@
         "Masking",
         "Compliance"
     ],
-    "services": ["Azure SQL Database", "Azure Storage", "Azure Synapse", "Logic App", "Delphix DevOps Data Platform for Azure"],
-    "categories": ["Data Masking", "Compliance", "Azure Pipeline", "Data Movement"]
+    "services": [
+        "Azure SQL Database",
+        "Azure Storage",
+        "Azure Synapse",
+        "Logic App",
+        "Delphix DevOps Data Platform for Azure"
+    ],
+    "categories": [
+        "Data Masking",
+        "Compliance",
+        "Azure Pipeline",
+        "Data Movement"
+    ]
 }
