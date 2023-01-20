@@ -472,7 +472,7 @@ function Update-TriggerTemplate {
                 $parameterValue = ConvertTo-Json $templateParameters.$($parameterName).value
                 $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $parameterValue
             } elseif ($parameterType -eq 'Boolean' -or $parameterType -eq 'Int64') {
-                $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $templateParameters.$($parameterName).value
+                $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $templateParameters.$($parameterName).value.ToString().ToLower()
             } else {
                 $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape($parameterMatch.Value), $templateParameters.$($parameterName).value
             }
