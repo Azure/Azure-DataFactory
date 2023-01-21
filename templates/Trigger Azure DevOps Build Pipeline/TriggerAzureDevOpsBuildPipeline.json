@@ -1,0 +1,231 @@
+{
+   "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+   "contentVersion":"1.0.0.0",
+   "parameters":{
+      "factoryName":{
+         "type":"string",
+         "metadata":"Data Factory name"
+      },
+      "AzureKeyVaultLS":{
+         "type":"string"
+      }
+   },
+   "variables":{
+      "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+   },
+   "resources":[
+      {
+         "name":"[concat(parameters('factoryName'), '/TriggerAzureDevOpsBuildPipeline')]",
+         "type":"Microsoft.DataFactory/factories/pipelines",
+         "apiVersion":"2018-06-01",
+         "properties":{
+            "activities":[
+               {
+                  "name":"TriggerBuilldPipeline",
+                  "type":"WebActivity",
+                  "dependsOn":[
+                     
+                  ],
+                  "policy":{
+                     "timeout":"0.12:00:00",
+                     "retry":0,
+                     "retryIntervalInSeconds":30,
+                     "secureOutput":false,
+                     "secureInput":false
+                  },
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "url":{
+                        "value":"@concat('https://dev.azure.com/',replace(pipeline().parameters.organization,' ','%20'),'/',replace(pipeline().parameters.project,' ','%20'),'/_apis/pipelines/',pipeline().parameters.pipelineId,'/runs?api-version=6.0-preview.1')",
+                        "type":"Expression"
+                     },
+                     "method":"POST",
+                     "headers":{
+                        "Content-Type":"Application/json"
+                     },
+                     "body":{
+                        "templateParameters":{
+                           "InputValue":"@{pipeline().parameters.InputValue}"
+                        }
+                     },
+                     "authentication":{
+                        "type":"Basic",
+                        "username":" ",
+                        "password":{
+                           "type":"AzureKeyVaultSecret",
+                           "store":{
+                              "referenceName":"[parameters('AzureKeyVaultLS')]",
+                              "type":"LinkedServiceReference"
+                           },
+                           "secretName":{
+                              "value":"@pipeline().parameters.PATSecretName",
+                              "type":"Expression"
+                           }
+                        }
+                     }
+                  }
+               },
+               {
+                  "name":"UntilBuildPipelineExecutes",
+                  "type":"Until",
+                  "dependsOn":[
+                     {
+                        "activity":"TriggerBuilldPipeline",
+                        "dependencyConditions":[
+                           "Succeeded"
+                        ]
+                     }
+                  ],
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "expression":{
+                        "value":"@equals(activity('GetBuildPipelineDetails').output.state,'completed')",
+                        "type":"Expression"
+                     },
+                     "activities":[
+                        {
+                           "name":"GetBuildPipelineDetails",
+                           "type":"WebActivity",
+                           "dependsOn":[
+                              
+                           ],
+                           "policy":{
+                              "timeout":"0.12:00:00",
+                              "retry":0,
+                              "retryIntervalInSeconds":30,
+                              "secureOutput":false,
+                              "secureInput":false
+                           },
+                           "userProperties":[
+                              
+                           ],
+                           "typeProperties":{
+                              "url":{
+                                 "value":"@concat('https://dev.azure.com/',replace(pipeline().parameters.organization,' ','%20'),'/',replace(pipeline().parameters.project,' ','%20'),'/_apis/pipelines/',pipeline().parameters.pipelineId,'/runs/',string(activity('TriggerBuilldPipeline').output.id),'?api-version=7.0')",
+                                 "type":"Expression"
+                              },
+                              "method":"GET",
+                              "headers":{
+                                 
+                              },
+                              "body":" ",
+                              "authentication":{
+                                 "type":"Basic",
+                                 "username":" ",
+                                 "password":{
+                                    "type":"AzureKeyVaultSecret",
+                                    "store":{
+                                       "referenceName":"[parameters('AzureKeyVaultLS')]",
+                                       "type":"LinkedServiceReference"
+                                    },
+                                    "secretName":{
+                                       "value":"@pipeline().parameters.PATSecretName",
+                                       "type":"Expression"
+                                    }
+                                 }
+                              }
+                           }
+                        },
+                        {
+                           "name":"WaitFor30Sec",
+                           "type":"Wait",
+                           "dependsOn":[
+                              {
+                                 "activity":"GetBuildPipelineDetails",
+                                 "dependencyConditions":[
+                                    "Succeeded"
+                                 ]
+                              }
+                           ],
+                           "userProperties":[
+                              
+                           ],
+                           "typeProperties":{
+                              "waitTimeInSeconds":30
+                           }
+                        }
+                     ],
+                     "timeout":"0.12:00:00"
+                  }
+               },
+               {
+                  "name":"CheckBuildPipelineStatus",
+                  "type":"IfCondition",
+                  "dependsOn":[
+                     {
+                        "activity":"UntilBuildPipelineExecutes",
+                        "dependencyConditions":[
+                           "Succeeded"
+                        ]
+                     }
+                  ],
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "expression":{
+                        "value":"@not(equals(activity('GetBuildPipelineDetails').output.result,'succeeded'))",
+                        "type":"Expression"
+                     },
+                     "ifTrueActivities":[
+                        {
+                           "name":"ThrowErrorInCaseOfFailureOrCancellation",
+                           "type":"Fail",
+                           "dependsOn":[
+                              
+                           ],
+                           "userProperties":[
+                              
+                           ],
+                           "typeProperties":{
+                              "message":{
+                                 "value":"@concat('Pipeline ',activity('GetBuildPipelineDetails').output.pipeline.name,' ',activity('GetBuildPipelineDetails').output.result)",
+                                 "type":"Expression"
+                              },
+                              "errorCode":"123"
+                           }
+                        }
+                     ]
+                  }
+               }
+            ],
+            "policy":{
+               "elapsedTimeMetric":{
+                  
+               },
+               "cancelAfter":{
+                  
+               }
+            },
+            "parameters":{
+               "organization":{
+                  "type":"string"
+               },
+               "project":{
+                  "type":"string"
+               },
+               "pipelineId":{
+                  "type":"string"
+               },
+               "InputValue":{
+                  "type":"string"
+               },
+               "PATSecretName":{
+                  "type":"string"
+               }
+            },
+            "annotations":[
+               
+            ],
+            "lastPublishTime":"2023-01-17T10:31:27Z"
+         },
+         "dependsOn":[
+            
+         ]
+      }
+   ]
+}
