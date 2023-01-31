@@ -40,19 +40,11 @@ Select +New in the first User input and create an Azure SQL Database Linked Serv
 
 ![adfDatabaseLinkedService](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfDatabaseLinkedService.png)
 
-Select +New in the second User input and create an Azure Data Lake Storage Gen2 Linked Service 
+For User input 2 select the same Database you chose in User input 1 
+
+Select +New in the third User input and create an Azure Data Lake Storage Gen2 Linked Service 
 
 ![adfAdlsLinkedService](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adfAdlsLinkedService.png)
-
-For Input 3 select the same Database you chose in Input 1 
-
-For Input 4 select the same Database you chose in Input 1
-
-For Input 5 select the same Storage input you chose in Input 2
-
-For Input 6 select the same Database you chose in Input 1 
-
-For Input 7 select the same Database you chose in Input 1
 
 Then click on Use this template
 
@@ -352,7 +344,7 @@ You can skip cell 6 the first time because nothing has been mounted.  You may ge
 
 When running the Notebook the first time, just move on to cell 7 to mount the Source and Sink file system
 
-The first time to run cell 16 comment out the 2 lines it references by putting # at beginning of each line.
+The first time to run cell 16 leave the # comments on the 2 lines referenced below
 
 ```
  #.foreachBatch(upsertToDelta) # Comment this out first time you run
@@ -404,7 +396,7 @@ This time you should see that new record
 
 ![adbcell19again](https://raw.githubusercontent.com/Azure/Azure-DataFactory/main/SamplesV2/ChangeDataCapture/images/adbcell19again.png)
 
-If you want to try an insert and update try these.  Remember that you need to run the ADF pipeline after the insert, check that the insert happens in the Delta table, and then ADF pipeline again after the update.  Note you might have to change the AddressID = 11383 to a different AddressID if records got inserted in a different order.
+If you want to try an insert and update try these.  `Remember that you need to run the ADF pipeline after the insert, check that the insert happens in the Delta table, and then ADF pipeline again after the update.  Note you might have to change the AddressID = 11383 to a different AddressID if records got inserted in a different order.`
 
 ```
 INSERT INTO [SalesLT].[Address]
