@@ -27,6 +27,11 @@
     Expliticly stops the triggers form this list if the trigger is in started state even if the trigger payload not changed
         example: "testTrigger", "storageEventsTrigger"
     The script is not very comprehensive in detecting the trigger changes, so this parameter can be used to stop triggers explicitly if required
+.PARAMETER ThrottleLimit
+    Default: 1
+    Defines the parallelism level to stop/start triggers.
+    This parameter must consider the number of cores available in the Agent Pool that runs the script.
+    If not defined, works as single thread process.
 #>
 param
 (
@@ -36,7 +41,8 @@ param
     [parameter(Mandatory = $false)] [Bool] $PreDeployment = $true,
     [parameter(Mandatory = $false)] [Bool] $DeleteDeployment = $false,
     [parameter(Mandatory = $false)] [String] $ArmTemplateParameters = $null,
-    [parameter(Mandatory = $false)] [String[]] $ExplicitStopTriggerList = @()
+    [parameter(Mandatory = $false)] [String[]] $ExplicitStopTriggerList = @(),
+    [parameter(Mandatory = $false)] [Int32] $ThrottleLimit = 1
 )
 
 function Get-PipelineDependency {
@@ -525,22 +531,26 @@ try {
             New-Object PSObject -Property @{
                 Name        = $_.Name
                 TriggerType = $_.Properties.GetType().Name
+				ResourceGroupName = $_.ResourceGroupName
+				DataFactoryName = $_.DataFactoryName
             }
         }
 
         Write-Host "Stopping $($triggersToStop.Count) triggers  `n"
-        $triggersToStop | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $triggersToStop | ForEach-Object -Parallel {
             if ($_.TriggerType -eq 'BlobEventsTrigger') {
                 Write-Host "Unsubscribing $($_.Name) from events"
-                $status = Remove-AzDataFactoryV2TriggerSubscription -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                $status = Remove-AzDataFactoryV2TriggerSubscription -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                 while ($status.Status -ne 'Disabled') {
                     Start-Sleep -s 15
-                    $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                    $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                 }
             }
             Write-Host "Stopping trigger $($_.Name)"
-            Stop-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name -Force
-        }
+            Stop-AzDataFactoryV2Trigger -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of triggers Stopped: $($triggersToStop.Count)"
+		Write-Host "Time spent stopping triggers: $totalSeconds"
 
         $explicitTriggersToStop = $triggersDeployed | Where-Object { $_.Name -in $triggerNamesInTemplate -and $_.RuntimeState -ne 'Stopped' } `
         | Where-Object { $_.Name -in $ExplicitStopTriggerList } `
@@ -548,23 +558,27 @@ try {
             New-Object PSObject -Property @{
                 Name        = $_.Name
                 TriggerType = $_.Properties.GetType().Name
+				ResourceGroupName = $_.ResourceGroupName
+				DataFactoryName = $_.DataFactoryName
             }
         }
 
         if ($explicitTriggersToStop -and $explicitTriggersToStop.Count -gt 0) {
             Write-Host "Stopping $($explicitTriggersToStop.Count) triggers from explicit stop-trigger list `n"
-            $explicitTriggersToStop | ForEach-Object {
+			$totalSeconds = ( Measure-Command { $explicitTriggersToStop | ForEach-Object -Parallel {
                 if ($_.TriggerType -eq 'BlobEventsTrigger') {
                     Write-Host "Unsubscribing $($_.Name) from events"
-                    $status = Remove-AzDataFactoryV2TriggerSubscription -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                    $status = Remove-AzDataFactoryV2TriggerSubscription -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                     while ($status.Status -ne 'Disabled') {
                         Start-Sleep -s 15
-                        $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                        $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                     }
                 }
                 Write-Host "Stopping trigger $($_.Name)"
-                Stop-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name -Force
-            }
+                Stop-AzDataFactoryV2Trigger -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name -Force
+            }  -ThrottleLimit $ThrottleLimit }).TotalSeconds
+			Write-Host "Number of explicit triggers Stopped: $($explicitTriggersToStop.Count)"
+			Write-Host "Time spent stopping explicit triggers: $totalSeconds"
         } elseif ($ExplicitStopTriggerList -and $ExplicitStopTriggerList.Count -gt 0) {
             Write-Host "No matching trigger (in started state) to stop from explicit stop-trigger list"
         }
@@ -607,49 +621,68 @@ try {
             New-Object PSObject -Property @{
                 Name        = $_.Name
                 TriggerType = $_.Properties.GetType().Name
+				ResourceGroupName = $_.ResourceGroupName
+				DataFactoryName = $_.DataFactoryName
             }
         }
-        $triggersToDelete | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $triggersToDelete | ForEach-Object -Parallel {
             Write-Host "Deleting trigger $($_.Name)"
-            $trig = Get-AzDataFactoryV2Trigger -name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
+            $trig = Get-AzDataFactoryV2Trigger -name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName
             if ($trig.RuntimeState -eq 'Started') {
                 if ($_.TriggerType -eq 'BlobEventsTrigger') {
                     Write-Host "Unsubscribing trigger $($_.Name) from events"
-                    $status = Remove-AzDataFactoryV2TriggerSubscription -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                    $status = Remove-AzDataFactoryV2TriggerSubscription -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                     while ($status.Status -ne 'Disabled') {
                         Start-Sleep -s 15
-                        $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                        $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                     }
                 }
-                Stop-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name -Force
+                Stop-AzDataFactoryV2Trigger -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name -Force
             }
-            Remove-AzDataFactoryV2Trigger -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Force
-        }
+            Remove-AzDataFactoryV2Trigger -Name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of triggers deleted: $($triggersToDelete.Count)"
+		Write-Host "Time spent deleting triggers: $totalSeconds"
+		
         Write-Host "Deleting pipelines"
-        $deletedpipelines | ForEach-Object {
+        $totalSeconds = ( Measure-Command { $deletedpipelines | ForEach-Object -Parallel {
             Write-Host "Deleting pipeline $($_.Name)"
-            Remove-AzDataFactoryV2Pipeline -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Force
-        }
+            Remove-AzDataFactoryV2Pipeline -Name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of pipelines deleted: $($deletedpipelines.Count)"
+		Write-Host "Time spent deleting pipelines: $totalSeconds"
+	
         Write-Host "Deleting dataflows"
-        $deleteddataflow | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $deleteddataflow | ForEach-Object -Parallel {
             Write-Host "Deleting dataflow $($_.Name)"
-            Remove-AzDataFactoryV2DataFlow -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Force
-        }
+            Remove-AzDataFactoryV2DataFlow -Name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of dataflows deleted: $($deleteddataflow.Count)"
+		Write-Host "Time spent deleting dataflows: $totalSeconds"
+		
         Write-Host "Deleting datasets"
-        $deleteddataset | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $deleteddataset | ForEach-Object -Parallel {
             Write-Host "Deleting dataset $($_.Name)"
-            Remove-AzDataFactoryV2Dataset -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Force
-        }
+            Remove-AzDataFactoryV2Dataset -Name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of datasets deleted: $($deleteddataset.Count)"
+		Write-Host "Time spent deleting datasets: $totalSeconds"
+	
         Write-Host "Deleting linked services"
-        $deletedlinkedservices | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $deletedlinkedservices | ForEach-Object -Parallel {
             Write-Host "Deleting Linked Service $($_.Name)"
-            Remove-AzDataFactoryV2LinkedService -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Force
-        }
+            Remove-AzDataFactoryV2LinkedService -Name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of linked services deleted: $($deletedlinkedservices.Count)"
+		Write-Host "Time spent deleting linked services: $totalSeconds"
+	
         Write-Host "Deleting integration runtimes"
-        $deletedintegrationruntimes | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $deletedintegrationruntimes | ForEach-Object -Parallel {
             Write-Host "Deleting integration runtime $($_.Name)"
-            Remove-AzDataFactoryV2IntegrationRuntime -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Force
-        }
+            Remove-AzDataFactoryV2IntegrationRuntime -Name $_.Name -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of integration runtimes deleted: $($deletedintegrationruntimes.Count)"
+		Write-Host "Time spent deleting integration runtimes: $totalSeconds"
 
         if ($DeleteDeployment -eq $true) {
             Write-Host "Deleting ARM deployment ... under resource group: $ResourceGroupName"
@@ -661,10 +694,13 @@ try {
             $deploymentOperations = Get-AzResourceGroupDeploymentOperation -DeploymentName $deploymentName -ResourceGroupName $ResourceGroupName
             $deploymentsToDelete = $deploymentOperations | Where-Object { $_.properties.targetResource.id -like "*Microsoft.Resources/deployments*" }
 
-            $deploymentsToDelete | ForEach-Object {
+			$totalSeconds = ( Measure-Command { $deploymentsToDelete | ForEach-Object -Parallel {
                 Write-Host "Deleting inner deployment: $($_.properties.targetResource.id)"
                 Remove-AzResourceGroupDeployment -Id $_.properties.targetResource.id
-            }
+            } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+			Write-Host "Number of deployments deleted: $($deploymentsToDelete.Count)"
+			Write-Host "Time spent deleting deployments: $totalSeconds"
+			
             Write-Host "Deleting deployment: $deploymentName"
             Remove-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -Name $deploymentName
         }
@@ -685,23 +721,27 @@ try {
             New-Object PSObject -Property @{
                 Name        = $_.name.Substring(37, $_.name.Length - 40)
                 TriggerType = $_.Properties.type
+				ResourceGroupName = $ResourceGroupName
+				DataFactoryName = $DataFactoryName
             }
         }
 
         Write-Host "Starting $($triggersToStart.Count) triggers"
 
-        $triggersToStart | ForEach-Object {
+		$totalSeconds = ( Measure-Command { $triggersToStart | ForEach-Object -Parallel {
             if ($_.TriggerType -eq 'BlobEventsTrigger') {
                 Write-Host "Subscribing $($_.Name) to events"
-                $status = Add-AzDataFactoryV2TriggerSubscription -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                $status = Add-AzDataFactoryV2TriggerSubscription -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                 while ($status.Status -ne 'Enabled') {
                     Start-Sleep -s 15
-                    $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name
+                    $status = Get-AzDataFactoryV2TriggerSubscriptionStatus -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name
                 }
             }
             Write-Host "Starting trigger $($_.Name)"
-            Start-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName -Name $_.Name -Force
-        }
+            Start-AzDataFactoryV2Trigger -ResourceGroupName $_.ResourceGroupName -DataFactoryName $_.DataFactoryName -Name $_.Name -Force
+        } -ThrottleLimit $ThrottleLimit }).TotalSeconds
+		Write-Host "Number of triggers started: $($triggersToStart.Count)"
+		Write-Host "Time spent starting triggers: $totalSeconds"
     }
 } catch {
     Write-Host "##[error] $_ from Line: $($_.InvocationInfo.ScriptLineNumber)"
