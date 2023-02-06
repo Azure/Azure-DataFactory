@@ -3219,7 +3219,7 @@
                         "typeProperties": {
                             "variableName": "DummyFile",
                             "value": {
-                                "value": "@activity('List Source Files').output.childItems[1].name",
+                                "value": "@activity('List Source Files').output.childItems[0].name",
                                 "type": "Expression"
                             }
                         }
@@ -3444,7 +3444,7 @@
                                         "type": "Expression"
                                     },
                                     "fileName": {
-                                        "value": "@activity('List Source Files').output.childItems[1].name",
+                                        "value": "@variables('DummyFile')",
                                         "type": "Expression"
                                     }
                                 }
@@ -3585,7 +3585,7 @@
                                                 },
                                                 "directoryName": "current-fileformat/schemafile",
                                                 "fileName": {
-                                                    "value": "@activity('List Source Files').output.childItems[1].name",
+                                                    "value": "@variables('DummyFile')",
                                                     "type": "Expression"
                                                 }
                                             }
