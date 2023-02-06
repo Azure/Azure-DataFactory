@@ -27,6 +27,9 @@
     Expliticly stops the triggers form this list if the trigger is in started state even if the trigger payload not changed
         example: "testTrigger", "storageEventsTrigger"
     The script is not very comprehensive in detecting the trigger changes, so this parameter can be used to stop triggers explicitly if required
+.PARAMETER DeleteDeployment
+    Default: 100
+    The maximum depth the JSON input is allowed to have
 #>
 param
 (
@@ -36,7 +39,8 @@ param
     [parameter(Mandatory = $false)] [Bool] $PreDeployment = $true,
     [parameter(Mandatory = $false)] [Bool] $DeleteDeployment = $false,
     [parameter(Mandatory = $false)] [String] $ArmTemplateParameters = $null,
-    [parameter(Mandatory = $false)] [String[]] $ExplicitStopTriggerList = @()
+    [parameter(Mandatory = $false)] [String[]] $ExplicitStopTriggerList = @(),
+    [parameter(Mandatory = $false)] [int] $MaxJsonDepth = 100
 )
 
 function Get-PipelineDependency {
@@ -175,6 +179,7 @@ function Compare-TriggerPayload {
         [PSCustomObject]$templateParameters
     )
     try {
+        Write-Host "Comparing '$($triggerDeployed.Name)' trigger payload"
         # Parse the trigger json from template to deserialize to trigger object
         $triggerInTemplate.properties.typeProperties | Get-Member -MemberType NoteProperty | ForEach-Object {
             $triggerInTemplate.properties | Add-Member -NotePropertyName $_.Name -NotePropertyValue $triggerInTemplate.properties.typeProperties.$($_.Name) -Force
@@ -183,11 +188,12 @@ function Compare-TriggerPayload {
         $addPropDictionary.Add('typeProperties', $triggerInTemplate.properties.typeProperties)
         $triggerInTemplate.properties | Add-Member -NotePropertyName 'additionalProperties' -NotePropertyValue $addPropDictionary
         $triggerInTemplate.properties.PSObject.Properties.Remove('typeProperties')
-        $triggerTemplateJson = ConvertTo-Json -InputObject $triggerInTemplate.properties -Depth 10 -EscapeHandling Default
+        $triggerTemplateJson = ConvertTo-Json -InputObject $triggerInTemplate.properties -Depth $MaxJsonDepth -EscapeHandling Default
         $updatedTemplateJson = Update-TriggerTemplate -templateJson $triggerTemplateJson -templateParameters $templateParameters
         $serializerOptions = New-Object System.Text.Json.JsonSerializerOptions -Property @{ PropertyNameCaseInsensitive = $True }
-        $payloadPSObject = $updatedTemplateJson | ConvertFrom-Json -Depth 10
+        $payloadPSObject = $updatedTemplateJson | ConvertFrom-Json -Depth $MaxJsonDepth
         if ($triggerDeployed.Properties.RuntimeState -ne $payloadPSObject.runtimeState) {
+            Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - runtimeState changed"
             return $True;
         }
 
@@ -199,7 +205,7 @@ function Compare-TriggerPayload {
             if ($payloadPSObject.recurrence.schedule.monthlyOccurrences) {
                 $payloadPSObject.recurrence.schedule.monthlyOccurrences | ForEach-Object { $_.day = ([System.DayOfWeek]::$($_.day)).value__ }
             }
-            $updatedTemplateJson = ConvertTo-Json -InputObject $payloadPSObject -Depth 10
+            $updatedTemplateJson = ConvertTo-Json -InputObject $payloadPSObject -Depth $MaxJsonDepth
 
             $triggerPayload = [System.Text.Json.JsonSerializer]::Deserialize($updatedTemplateJson,
                 [Microsoft.Azure.Management.DataFactory.Models.ScheduleTrigger],
@@ -225,10 +231,11 @@ function Compare-TriggerPayload {
             return Compare-CustomEventsTrigger -triggerDeployed $triggerDeployed -triggerPayload $triggerPayload
         }
 
+        Write-Host "##[warning] Comparison terminated as trigger type '$($triggerDeployed.Properties.GetType().Name)' not match"
         return $True
     }
     catch {
-        Write-Host "##[warning] Unable to compare payload for '$($triggerDeployed.Name)' trigger, this is not a failure. You can post the issue to https://github.com/Azure/Azure-DataFactory/issues to check if this is user error or limitation."
+        Write-Host "##[warning] Unable to compare '$($triggerDeployed.Name)' trigger payload, this is not a failure. You can post the issue to https://github.com/Azure/Azure-DataFactory/issues to check if this is user error or limitation."
         Write-Host "##[warning] $_ from Line: $($_.InvocationInfo.ScriptLineNumber)"
         return $True;
     }
@@ -273,16 +280,21 @@ function Compare-ScheduleTrigger {
     # Compare to check if there is any change in referenced pipeline
     $pipelineRefChanged = Compare-TriggerPipelineReference -tprDeployed $deployedTriggerProps.Pipelines -tprPayload $triggerPayload.Pipelines
 
+    # Temporary workaround for Get-AzDataFactoryV2Trigger returning incorrect datetime notation
+    # https://github.com/Azure/azure-powershell/issues/20474 issue, thanks to gvdmaaden for this workaround
+    Update-TriggerTimeFormat -deployedAdditionalProps $deployedTriggerProps.AdditionalProperties
+
     # Compare additional properties (unmatched properties stay here)
-    $additionalPropsChanged = Compare-TriggerAdditionalProperty -deployedAdditionalProps $triggerDeployed.Properties.AdditionalProperties `
+    $additionalPropsChanged = Compare-TriggerAdditionalProperty -deployedAdditionalProps $deployedTriggerProps.AdditionalProperties `
         -payloadAdditionalProps $triggerPayload.AdditionalProperties
 
     if (($null -ne $descriptionChanges) -or ($null -ne $annotationChanges) -or ($null -ne $recurrencechanges) -or `
             $scheduleChanged -or $pipelineRefChanged -or $additionalPropsChanged) {
+        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - descriptionChanges=$($descriptionChanges.Length), annotationChanges=$($annotationChanges.Length), recurrencechanges=$($recurrencechanges.Length), scheduleChanged=$scheduleChanged, pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 
-    Write-Host "No change in payload for '$($triggerDeployed.Name)' trigger"
+    Write-Host "No change detected in '$($triggerDeployed.Name)' trigger payload"
     return $False;
 }
 
@@ -311,10 +323,11 @@ function Compare-TumblingWindowTrigger {
 
     if (($null -ne $propertyChanges) -or ($null -ne $annotationChanges) -or ($null -ne $retryPolicyChanges) -or `
         $pipelineRefChanged -or $additionalPropsChanged) {
+        Write-Host "Change detected in  '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), retryPolicyChanges=$($retryPolicyChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 
-    Write-Host "No change in payload for '$($triggerDeployed.Name)' trigger"
+    Write-Host "No change detected in '$($triggerDeployed.Name)' trigger payload"
     return $False;
 }
 
@@ -335,10 +348,11 @@ function Compare-BlobEventsTrigger {
         -payloadAdditionalProps $triggerPayload.AdditionalProperties
 
     if (($null -ne $propertyChanges) -or ($null -ne $annotationChanges) -or $pipelineRefChanged -or $additionalPropsChanged) {
+        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 
-    Write-Host "No change in payload for '$($triggerDeployed.Name)' trigger"
+    Write-Host "No change detected in '$($triggerDeployed.Name)' trigger payload"
     return $False;
 }
 
@@ -363,10 +377,11 @@ function Compare-CustomEventsTrigger {
 
     if (($null -ne $propertyChanges) -or ($null -ne $eventChanges) -or ($null -ne $annotationChanges) -or `
         $pipelineRefChanged -or $additionalPropsChanged) {
+        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), eventChanges=$($eventChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 
-    Write-Host "No change in payload for '$($triggerDeployed.Name)' trigger"
+    Write-Host "No change detected in '$($triggerDeployed.Name)' trigger payload"
     return $False;
 }
 
@@ -404,7 +419,19 @@ function Compare-TriggerPipelineReference {
                         break
                     }
                     else {
-                        $paramValueChanges = Compare-Object -ReferenceObject $deployedValue -DifferenceObject $payloadValue
+                        if ($deployedValue.GetType().Name -in @("JObject", "JArray")) {
+                            if (($deployedValue.ToString() | ConvertFrom-Json).type -eq "SecureString") {
+                                $paramsChanged = $True
+                                Write-Host "##[warning] SecureString parameter is always treated as a change"
+                                break
+                            } else {
+                                $paramValueChanges = Compare-Object -ReferenceObject ($deployedValue.ToString() | ConvertFrom-Json) -DifferenceObject ($payloadValue.ToString() | ConvertFrom-Json)
+                            }
+                        } elseif ($deployedValue.GetType().Name -eq "Boolean") {
+                            $paramValueChanges = Compare-Object -ReferenceObject ($deployedValue.ToString().ToLower() | ConvertFrom-Json) -DifferenceObject ($payloadValue.ToString().ToLower() | ConvertFrom-Json)
+                        } else {
+                            $paramValueChanges = Compare-Object -ReferenceObject $deployedValue -DifferenceObject $payloadValue
+                        }
                         if ($paramValueChanges.Length -gt 0) {
                             $paramsChanged = $True
                             break
@@ -458,6 +485,31 @@ function Compare-TriggerAdditionalProperty {
     return $additionalPropchanged
 }
 
+function Update-TriggerTimeFormat {
+    param(
+        [System.Collections.Generic.Dictionary[String, System.Object]]$deployedAdditionalProps
+    )
+    foreach ($key in $deployedAdditionalProps.Keys) {
+        $deployedValue = $null;
+        if ($deployedAdditionalProps.TryGetValue($key, [ref]$deployedValue) -and $deployedValue["recurrence"]["timeZone"] -ne "UTC")
+        {
+            if ($null -ne $deployedValue["recurrence"]["startTime"]) {
+                $startTimeString = $deployedValue["recurrence"]["startTime"].ToString("yyyy-MM-ddTHH:mm:ss");
+                $startDateTime = Get-Date -Date $startTimeString;
+                $deployedValue["recurrence"]["startTime"] = New-Object DateTime 2000, 1, 1, 1, 0, 0, ([DateTimeKind]::Unspecified)
+                $deployedValue["recurrence"]["startTime"] = New-Object DateTime $startDateTime.Year, $startDateTime.Month, $startDateTime.Day, $startDateTime.Hour, $startDateTime.Minute, $startDateTime.Second, ([DateTimeKind]::Unspecified)
+            }
+
+            if ($null -ne $deployedValue["recurrence"]["endTime"]) {
+                $endTimeString = $deployedValue["recurrence"]["endTime"].ToString("yyyy-MM-ddTHH:mm:ss");
+                $endDateTime = Get-Date -Date $endTimeString;
+                $deployedValue["recurrence"]["endTime"] = New-Object DateTime 2000, 1, 1, 1, 0, 0, ([DateTimeKind]::Unspecified)
+                $deployedValue["recurrence"]["endTime"] = New-Object DateTime $endDateTime.Year, $endDateTime.Month, $endDateTime.Day, $endDateTime.Hour, $endDateTime.Minute, $endDateTime.Second, ([DateTimeKind]::Unspecified)
+            }
+        }
+    }
+}
+
 function Update-TriggerTemplate {
     param(
         [string]$templateJson,
@@ -465,14 +517,16 @@ function Update-TriggerTemplate {
     )
     $parameterMatches = [System.Text.RegularExpressions.Regex]::Matches($templateJson, '\[parameters\([^)]*\)\]')
     foreach ($parameterMatch in $parameterMatches) {
-        $parameterName = $parameterMatch.Value.Substring(13, $parameterMatch.Value.Length - 16)
-        if ($null -ne $templateParameters.$($parameterName)) {
-            $parameterType = $templateParameters.$($parameterName).value ? $templateParameters.$($parameterName).value.GetType().Name : $null
-            if ($parameterType -eq 'Object[]') {
-                $parameterValue = ConvertTo-Json $templateParameters.$($parameterName).value
+        [string]$parameterName = $parameterMatch.Value.Substring(13, $parameterMatch.Value.Length - 16)
+        if ($null -ne $templateParameters.$($parameterName) && ($PreDeployment || $parameterName.EndsWith('runtimeState'))) {
+            $parameterType = $null -ne $templateParameters.$($parameterName).value ? $templateParameters.$($parameterName).value.GetType().Name : $null
+            if ($parameterType -eq 'Object[]' -or $parameterType -eq 'PSCustomObject') {
+                $parameterValue = ConvertTo-Json $templateParameters.$($parameterName).value -Depth $MaxJsonDepth -EscapeHandling Default
                 $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $parameterValue
-            } elseif ($parameterType -eq 'Boolean' -or $parameterType -eq 'Int64') {
+            } elseif ($parameterType -eq 'Int64') {
                 $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $templateParameters.$($parameterName).value
+            } elseif ($parameterType -eq 'Boolean') {
+                $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape("`"$($parameterMatch.Value)`""), $templateParameters.$($parameterName).value.ToString().ToLower()
             } else {
                 $templateJson = $templateJson -replace [System.Text.RegularExpressions.Regex]::Escape($parameterMatch.Value), $templateParameters.$($parameterName).value
             }
@@ -487,7 +541,7 @@ try {
     $PSCompatible = $True
     if ($PSVersionTable.PSEdition -ne 'Core' -and ([System.Version]$PSVersionTable.PSVersion -lt [System.Version]"7.0.0")) {
         $PSCompatible = $False
-        Write-Host "##[warning] The script is not compatible with your current PowerShell version $($PSVersionTable.PSVersion). Use either PowerShell Core or at least PS version 7.0, otherwise the script may fail to compare the trigger payload and start the trigger(s)"
+        Write-Host "##[warning] The script is not compatible with your current PowerShell version $($PSVersionTable.PSVersion). Use either PowerShell Core or at least PS version 7.0, otherwise the script may fail to compare the trigger payload and always stop/start the trigger(s)"
     }
 
     $templateJson = Get-Content $ArmTemplate | ConvertFrom-Json
@@ -503,7 +557,7 @@ try {
         $templateParametersJson = Get-Content $ArmTemplateParameters | ConvertFrom-Json
         $templateParameters = $templateParametersJson.parameters
     } else {
-        Write-Host "##[warning] The script couldn't find the arm-tempalte parameter file in the arm-template file path, the trigger comparision won't work for parameterized properties. Please pass the arm-template parameter file path to ArmTemplateParameters script argument."
+        Write-Host "##[warning] The script couldn't find the arm-tempalte parameter file in the arm-template file path, the trigger comparison won't work for parameterized properties. Please pass the arm-template parameter file path to ArmTemplateParameters script argument."
     }
 
     #Triggers
@@ -674,10 +728,15 @@ try {
 
         $updatedTriggersInTemplate = $triggersInTemplate
         if ($PSCompatible) {
-            $updatedTriggersInTemplate = $triggersInTemplate | ForEach-Object {
-                $triggerJson = ConvertTo-Json -InputObject $_ -Depth 10 -EscapeHandling Default
-                Update-TriggerTemplate -templateJson $triggerJson -templateParameters $templateParameters
-            } | ConvertFrom-Json -Depth 10
+            try {
+                $updatedTriggersInTemplate = $triggersInTemplate | ForEach-Object {
+                    $triggerJson = ConvertTo-Json -InputObject $_ -Depth $MaxJsonDepth -EscapeHandling Default
+                    Update-TriggerTemplate -templateJson $triggerJson -templateParameters $templateParameters
+                } | ConvertFrom-Json -Depth $MaxJsonDepth
+            } catch {
+                Write-Host "##[warning] Unable to update the parameterized properties in trigger template. The script may fail to start triggers if using parameterized runtimeState."
+                $updatedTriggersInTemplate = $triggersInTemplate
+            }
         }
 
         $triggersToStart = $updatedTriggersInTemplate | Where-Object { $_.properties.runtimeState -eq 'Started' -and $_.name.Substring(37, $_.name.Length - 40) -notin $triggersRunning } `
@@ -688,7 +747,9 @@ try {
             }
         }
 
-        Write-Host "Starting $($triggersToStart.Count) triggers"
+        if ($triggersToStart.Count -gt 0) {
+            Write-Host "Starting $($triggersToStart.Count) triggers"
+        }
 
         $triggersToStart | ForEach-Object {
             if ($_.TriggerType -eq 'BlobEventsTrigger') {
