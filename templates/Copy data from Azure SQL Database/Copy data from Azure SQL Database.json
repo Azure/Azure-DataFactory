@@ -35,71 +35,7 @@
                                 "datasetSettings": {
                                     "annotations": [],
                                     "type": "AzureSqlTable",
-                                    "schema": [
-                                        {
-                                            "name": "CustomerID",
-                                            "type": "int",
-                                            "precision": 10
-                                        },
-                                        {
-                                            "name": "NameStyle",
-                                            "type": "bit"
-                                        },
-                                        {
-                                            "name": "Title",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "FirstName",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "MiddleName",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "LastName",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "Suffix",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "CompanyName",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "SalesPerson",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "EmailAddress",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "Phone",
-                                            "type": "nvarchar"
-                                        },
-                                        {
-                                            "name": "PasswordHash",
-                                            "type": "varchar"
-                                        },
-                                        {
-                                            "name": "PasswordSalt",
-                                            "type": "varchar"
-                                        },
-                                        {
-                                            "name": "rowguid",
-                                            "type": "uniqueidentifier"
-                                        },
-                                        {
-                                            "name": "ModifiedDate",
-                                            "type": "datetime",
-                                            "precision": 23,
-                                            "scale": 3
-                                        }
-                                    ],
+                                    "schema": [],
                                     "typeProperties": {
                                         "schema": {
                                             "value": "@pipeline().parameters.schemaName",
