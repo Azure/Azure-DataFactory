@@ -27,7 +27,7 @@
     Expliticly stops the triggers form this list if the trigger is in started state even if the trigger payload not changed
         example: "testTrigger", "storageEventsTrigger"
     The script is not very comprehensive in detecting the trigger changes, so this parameter can be used to stop triggers explicitly if required
-.PARAMETER DeleteDeployment
+.PARAMETER MaxJsonDepth
     Default: 100
     The maximum depth the JSON input is allowed to have
 #>
@@ -323,7 +323,7 @@ function Compare-TumblingWindowTrigger {
 
     if (($null -ne $propertyChanges) -or ($null -ne $annotationChanges) -or ($null -ne $retryPolicyChanges) -or `
         $pipelineRefChanged -or $additionalPropsChanged) {
-        Write-Host "Change detected in  '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), retryPolicyChanges=$($retryPolicyChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
+        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), retryPolicyChanges=$($retryPolicyChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 
