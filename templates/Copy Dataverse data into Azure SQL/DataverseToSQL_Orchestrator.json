@@ -22,7 +22,7 @@
       "type": "Microsoft.DataFactory/factories/pipelines",
       "apiVersion": "2018-06-01",
       "properties": {
-        "description": "Once you have Synapse Link for Dataverse set up with incremental updates, use this template to orchestrate pipeline execution that will copy data from ADLS Gen 2 to an Azure SQL Database.\nThis pipeline also executes pipeline for copying option set metadata\n\nStatus in Processing Log table\n0=Failure\n1=Success\n2=Running\n3=Skipped",
+        "description": "Once you have Synapse Link for Dataverse set up with incremental updates, use this template to orchestrate pipeline execution that will copy data from ADLS Gen 2 to an Azure SQL Database. This pipeline also executes pipeline for copying option set metadata. \n*Please make sure you read the attached documentation thoroughly before you use this template.* \n\nStatus in Processing Log table\n0=Failure\n1=Success\n2=Running\n3=Skipped",
         "activities": [
           {
             "name": "SetupProcessingLog",
@@ -343,7 +343,7 @@
         },
         "annotations": [
         ],
-        "lastPublishTime": "2022-10-25T21:59:00Z"
+        "lastPublishTime": "2023-01-20T06:39:09Z"
       },
       "dependsOn": [
         "[concat(variables('factoryId'), '/datasets/DataverseToSQLDestination')]",
@@ -1088,7 +1088,7 @@
         },
         "annotations": [
         ],
-        "lastPublishTime": "2022-10-24T21:31:28Z"
+        "lastPublishTime": "2022-10-28T09:11:04Z"
       },
       "dependsOn": [
         "[concat(variables('factoryId'), '/datasets/OptionsetMetadataSourceDataset')]",
@@ -1481,12 +1481,6 @@
             },
             {
               "name": "SelectDeleteLogColumns"
-            },
-            {
-              "name": "RankRowNum"
-            },
-            {
-              "name": "DeDupRowNum"
             }
           ],
           "scriptLines": [
@@ -1529,7 +1523,7 @@
             "     desc(SinkModifiedOn, false),",
             "     {_RowVersion} = denseRank()) ~> Rank",
             "Rank filter(toLong(byName(\"_RowVersion\"))==1) ~> Dedup",
-            "DeDupRowNum, getMaxVersion join(versionnumber > maxversion,",
+            "Dedup, getMaxVersion join(versionnumber > maxversion,",
             "     joinType:'left',",
             "     matchType:'exact',",
             "     ignoreSpaces: false,",
@@ -1544,12 +1538,6 @@
             "     ),",
             "     skipDuplicateMapInputs: false,",
             "     skipDuplicateMapOutputs: true) ~> SelectDeleteLogColumns",
-            "Dedup window(over(Id),",
-            "     desc(Id, false),",
-            "     desc(versionnumber, false),",
-            "     desc(SinkModifiedOn, false),",
-            "     {_RowNum} = rowNumber()) ~> RankRowNum",
-            "RankRowNum filter(toLong(byName(\"_RowNum\"))==1) ~> DeDupRowNum",
             "AlterRow sink(allowSchemaDrift: true,",
             "     validateSchema: false,",
             "     format: 'table',",
