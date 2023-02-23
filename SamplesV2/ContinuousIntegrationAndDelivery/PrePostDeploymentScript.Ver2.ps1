@@ -427,8 +427,9 @@ function Compare-TriggerPipelineReference {
                             } else {
                                 $deployedValueObj = ConvertFrom-Json $deployedValue.ToString()
                                 $payloadValueObj = ConvertFrom-Json $payloadValue.ToString()
-                                # when both are null, do not compare them
-                                if ($null -ne $deployedValueObj -and $null -ne $payloadValueObj) {
+                                # only compare the objects when one of them is non-null
+                                if ($null -ne $deployedValueObj -or $null -ne $payloadValueObj) {
+                                {
                                     $paramValueChanges = Compare-Object -ReferenceObject $deployedValueObj -DifferenceObject $payloadValueObj
                                 }
                             }
