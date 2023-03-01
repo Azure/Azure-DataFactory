@@ -6,6 +6,7 @@
 		"ExecuteDataFlow",
 		"DelimitedText"
 	],
+	"documentation": "https://github.com/prasann/adf-docs/blob/main/Log%20differences%20in%20records%20across%202%20files.md",
 	"requires": {
 		"linkedservices": {
 			"BlobStorage": {
