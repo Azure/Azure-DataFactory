@@ -343,7 +343,7 @@
         },
         "annotations": [
         ],
-        "lastPublishTime": "2023-01-20T06:39:09Z"
+        "lastPublishTime": "2023-01-24T04:46:20Z"
       },
       "dependsOn": [
         "[concat(variables('factoryId'), '/datasets/DataverseToSQLDestination')]",
@@ -1088,7 +1088,7 @@
         },
         "annotations": [
         ],
-        "lastPublishTime": "2022-10-28T09:11:04Z"
+        "lastPublishTime": "2023-01-24T04:46:20Z"
       },
       "dependsOn": [
         "[concat(variables('factoryId'), '/datasets/OptionsetMetadataSourceDataset')]",
@@ -1321,7 +1321,7 @@
         },
         "annotations": [
         ],
-        "lastPublishTime": "2022-10-24T08:17:40Z"
+        "lastPublishTime": "2023-01-24T04:46:20Z"
       },
       "dependsOn": [
         "[concat(variables('factoryId'), '/datasets/modelJson')]",
@@ -1481,6 +1481,9 @@
             },
             {
               "name": "SelectDeleteLogColumns"
+            },
+            {
+              "name": "FilterMaxVersion"
             }
           ],
           "scriptLines": [
@@ -1503,19 +1506,19 @@
             "     dateFormats: ['MM/dd/yyyy','yyyy-MM-dd'],",
             "     timestampFormats: ['MM/dd/yyyy hh:mm:ss a','yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\\'Z\\'','yyyy-MM-dd\\'T\\'HH:mm:ss\\'Z\\'','MM/dd/yyyy HH:mm:ss','yyyy-MM-dd\\'T\\'HH:mm:ss']) ~> CDMEntity",
             "source(output(",
-            "          maxversion as integer",
+            "          maxversion as long",
             "     ),",
             "     allowSchemaDrift: true,",
             "     validateSchema: false,",
             "     format: 'query',",
             "     store: 'sqlserver',",
-            "     query: (\"select max(versionnumber) as maxversion from \" + $dbschema + \".\" + $prefix + $entity ),",
+            "     query: (\"SELECT COALESCE(MAX(versionnumber),0) AS maxversion FROM \" + $dbschema + \".\" + $prefix + $entity ),",
             "     isolationLevel: 'READ_UNCOMMITTED') ~> getMaxVersion",
             "CDMEntity derive(Id = toString(byName(\"Id\")),",
             "          versionnumber = toLong(byName(\"versionnumber\")),",
             "          IsDelete = toBoolean(byName(\"IsDelete\")),",
             "          SinkModifiedOn = toTimestamp(byName(\"SinkModifiedOn\"))) ~> IdentifyColumns",
-            "FilterFolders alterRow(deleteIf(IsDelete==true()),",
+            "FilterMaxVersion alterRow(deleteIf(IsDelete==true()),",
             "     upsertIf(isNull(IsDelete)||IsDelete==false())) ~> AlterRow",
             "IdentifyColumns window(over(Id),",
             "     desc(Id, false),",
@@ -1528,7 +1531,7 @@
             "     matchType:'exact',",
             "     ignoreSpaces: false,",
             "     broadcast: 'right')~> FilterFolders",
-            "FilterFolders filter(IsDelete==true()) ~> FilterDeletedRows",
+            "FilterMaxVersion filter(IsDelete==true()) ~> FilterDeletedRows",
             "FilterDeletedRows derive(EntityName = $entity) ~> AddEntityName",
             "AddEntityName select(mapColumn(",
             "          EntityName,",
@@ -1538,6 +1541,7 @@
             "     ),",
             "     skipDuplicateMapInputs: false,",
             "     skipDuplicateMapOutputs: true) ~> SelectDeleteLogColumns",
+            "FilterFolders filter(versionnumber>toLong(maxversion)) ~> FilterMaxVersion",
             "AlterRow sink(allowSchemaDrift: true,",
             "     validateSchema: false,",
             "     format: 'table',",
