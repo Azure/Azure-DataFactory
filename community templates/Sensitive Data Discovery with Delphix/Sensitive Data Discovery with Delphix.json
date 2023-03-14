@@ -148,7 +148,10 @@
                                                     "type": "Expression"
                                                 },
                                                 "directoryName": "current-fileformat/schemafile",
-                                                "fileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                                "fileName": {
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ]
@@ -222,7 +225,10 @@
                                                     "value": "@concat(pipeline().parameters.FileShareRootFolder,'/Target')",
                                                     "type": "Expression"
                                                 },
-                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                                "FileName": {
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ]
@@ -301,7 +307,10 @@
                                                     "value": "@concat(pipeline().parameters.FileShareRootFolder,'/Target')",
                                                     "type": "Expression"
                                                 },
-                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                                "FileName": {
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ],
@@ -314,7 +323,10 @@
                                                     "value": "@concat(pipeline().parameters.FileShareRootFolder,'/Source')",
                                                     "type": "Expression"
                                                 },
-                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                                "FileName": {
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ]
@@ -382,7 +394,7 @@
                                                 },
                                                 "directoryName": "current-fileformat/schemafile",
                                                 "fileName": {
-                                                    "value": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
                                                     "type": "Expression"
                                                 }
                                             }
@@ -399,7 +411,7 @@
                                                 },
                                                 "directoryName": "current-fileformat/BkpSchemafile",
                                                 "fileName": {
-                                                    "value": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
                                                     "type": "Expression"
                                                 }
                                             }
@@ -945,7 +957,7 @@
                                     "typeProperties": {
                                         "variableName": "currentSchema",
                                         "value": {
-                                            "value": "@split(item().name,'.')[0]",
+                                            "value": "@split(item().name,'.')[1]",
                                             "type": "Expression"
                                         }
                                     }
@@ -1785,7 +1797,7 @@
                     "Profiling",
                     "Compliance"
                 ],
-                "lastPublishTime": "2023-01-12T10:37:49Z"
+                "lastPublishTime": "2023-02-15T05:33:10Z"
             },
             "dependsOn": [
                 "[concat(variables('factoryId'), '/datasets/ConnectToSourceData')]",
@@ -3646,7 +3658,7 @@
                     "name": "Delphix Continous Compliance"
                 },
                 "annotations": [],
-                "lastPublishTime": "2023-01-12T10:25:48Z"
+                "lastPublishTime": "2023-01-24T17:24:28Z"
             },
             "dependsOn": [
                 "[concat(variables('factoryId'), '/datasets/scehmaFileDataSet')]",

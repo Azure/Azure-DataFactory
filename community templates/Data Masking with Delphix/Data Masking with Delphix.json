@@ -241,7 +241,7 @@
                                     },
                                     "inputs": [
                                         {
-                                            "referenceName": "rootDataSetRowHeader1",
+                                            "referenceName": "rootDataSetRowHeader",
                                             "type": "DatasetReference",
                                             "parameters": {
                                                 "containerName": {
@@ -258,7 +258,7 @@
                                             "referenceName": "ConnectToSynapseDataset",
                                             "type": "DatasetReference",
                                             "parameters": {
-                                                "tableName": "@split(item().name,'.' )[1]",
+                                                "tableName": "@split(item().name,'.' )[2]",
                                                 "schmaName": "@pipeline().parameters.TargetSchemaName"
                                             }
                                         }
@@ -324,7 +324,7 @@
                                     ],
                                     "outputs": [
                                         {
-                                            "referenceName": "rootDataSetRowHeader1",
+                                            "referenceName": "rootDataSetRowHeader",
                                             "type": "DatasetReference",
                                             "parameters": {
                                                 "containerName": {
@@ -789,7 +789,7 @@
             "dependsOn": [
                 "[concat(variables('factoryId'), '/datasets/FileShareDataset')]",
                 "[concat(variables('factoryId'), '/pipelines/Invoke atomic masking job')]",
-                "[concat(variables('factoryId'), '/datasets/rootDataSetRowHeader1')]",
+                "[concat(variables('factoryId'), '/datasets/rootDataSetRowHeader')]",
                 "[concat(variables('factoryId'), '/datasets/ConnectToSynapseDataset')]",
                 "[concat(variables('factoryId'), '/datasets/rootDataSet')]",
                 "[concat(variables('factoryId'), '/pipelines/Extract Source Data')]"
@@ -1037,7 +1037,7 @@
             "dependsOn": []
         },
         {
-            "name": "[concat(parameters('factoryName'), '/rootDataSetRowHeader1')]",
+            "name": "[concat(parameters('factoryName'), '/rootDataSetRowHeader')]",
             "type": "Microsoft.DataFactory/factories/datasets",
             "apiVersion": "2018-06-01",
             "properties": {
@@ -1283,7 +1283,7 @@
                                     },
                                     "inputs": [
                                         {
-                                            "referenceName": "GetSourceData1",
+                                            "referenceName": "GetSourceData",
                                             "type": "DatasetReference",
                                             "parameters": {
                                                 "TableName": "@item().TABLE_NAME",
@@ -1300,7 +1300,10 @@
                                                     "value": "@concat(pipeline().parameters.rootFolder,'/Source')",
                                                     "type": "Expression"
                                                 },
-                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                                "FileName": {
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ]
@@ -1346,7 +1349,7 @@
             },
             "dependsOn": [
                 "[concat(variables('factoryId'), '/datasets/ConnectToSourceData')]",
-                "[concat(variables('factoryId'), '/datasets/GetSourceData1')]",
+                "[concat(variables('factoryId'), '/datasets/GetSourceData')]",
                 "[concat(variables('factoryId'), '/datasets/FileShareDataset')]"
             ]
         },
@@ -1405,7 +1408,7 @@
             "dependsOn": []
         },
         {
-            "name": "[concat(parameters('factoryName'), '/GetSourceData1')]",
+            "name": "[concat(parameters('factoryName'), '/GetSourceData')]",
             "type": "Microsoft.DataFactory/factories/datasets",
             "apiVersion": "2018-06-01",
             "properties": {
