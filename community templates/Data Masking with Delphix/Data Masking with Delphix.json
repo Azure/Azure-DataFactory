@@ -258,7 +258,7 @@
                                             "referenceName": "ConnectToSynapseDataset",
                                             "type": "DatasetReference",
                                             "parameters": {
-                                                "tableName": "@split(item().name,'.' )[1]",
+                                                "tableName": "@split(item().name,'.' )[2]",
                                                 "schmaName": "@pipeline().parameters.TargetSchemaName"
                                             }
                                         }
@@ -1300,7 +1300,10 @@
                                                     "value": "@concat(pipeline().parameters.rootFolder,'/Source')",
                                                     "type": "Expression"
                                                 },
-                                                "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                                                "FileName": {
+                                                    "value": "@{item().TABLE_CATALOG}.@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv",
+                                                    "type": "Expression"
+                                                }
                                             }
                                         }
                                     ]
