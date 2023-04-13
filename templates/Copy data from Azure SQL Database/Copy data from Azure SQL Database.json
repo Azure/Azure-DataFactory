@@ -58,7 +58,6 @@
                                 },
                                 "formatSettings": {
                                     "type": "DeltaWriteSettings",
-                                    "maxRowsPerFile": 5000000,
                                     "enableVertiParquet": true
                                 },
                                 "datasetSettings": {
