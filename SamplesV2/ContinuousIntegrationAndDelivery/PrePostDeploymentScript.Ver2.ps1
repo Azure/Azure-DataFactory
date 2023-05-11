@@ -2,7 +2,7 @@
 .SYNOPSIS
     Stop/ start triggers during release process (CICD)
 .DESCRIPTION
-    The script can be used to stop triggers before deployment and restrat them afterward. It stops the trigger only if the trigger is in started state and there is a change in trigger
+    The script can be used to stop triggers before deployment and restart them afterward. It stops the trigger only if the trigger is in started state and there is a change in trigger
 .PARAMETER ArmTemplate
     Arm template file path
         example: C:\Adf\ArmTemlateOutput\ARMTemplateForFactory.json
