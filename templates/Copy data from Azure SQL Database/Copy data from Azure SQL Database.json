@@ -52,14 +52,8 @@
                                 }
                             },
                             "sink": {
-                                "type": "DeltaSink",
-                                "storeSettings": {
-                                    "type": "LakehouseWriteSettings"
-                                },
-                                "formatSettings": {
-                                    "type": "DeltaWriteSettings",
-                                    "enableVertiParquet": true
-                                },
+                                "type": "LakehouseTableSink",
+                                "tableActionOption": "Append",
                                 "datasetSettings": {
                                     "annotations": [],
                                     "linkedService": {
@@ -73,14 +67,11 @@
                                             }
                                         }
                                     },
-                                    "type": "Delta",
+                                    "type": "LakehouseTable",
                                     "typeProperties": {
-                                        "location": {
-                                            "type": "LakehouseLocation",
-                                            "folderPath": {
-                                                "value": "@pipeline().parameters.LHTableName",
-                                                "type": "Expression"
-                                            }
+                                        "table": {
+                                            "value": "@pipeline().parameters.LHTableName",
+                                            "type": "Expression"
                                         }
                                     },
                                     "schema": []
