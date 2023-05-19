@@ -1,0 +1,323 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name",
+      "defaultValue": "zzysynapsecanary"
+    },
+    "zhuzhangen2LS": {
+      "type": "string"
+    },
+    "SapOdp1": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/SAP ODP to ADLS Gen2 in Parquet format')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "description": "Use this template to replicate multiple tables from SAP to Azure Data Lake Gen2 in Parquet format with additional operation type column, e.g., Upsert, Delete.",
+        "activities": [
+          {
+            "name": "SAP2ParquetLookup",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "JsonSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "JsonReadSettings"
+                }
+              },
+              "dataset": {
+                "referenceName": "SapToParquetLookupJson",
+                "type": "DatasetReference",
+                "parameters": {}
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "ForEach1",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "SAP2ParquetLookup",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('SAP2ParquetLookup').output.value",
+                "type": "Expression"
+              },
+              "isSequential": false,
+              "activities": [
+                {
+                  "name": "SAPParquetDataflow",
+                  "description": "Replicate data from sap table(sap_context, sap_object, sap_key_columns) and write to gen2 storage(sink_container, sink_folder) in parquet format",
+                  "type": "ExecuteDataFlow",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "dataflow": {
+                      "referenceName": "SAP2ParquetTemplateDataflow",
+                      "type": "DataFlowReference",
+                      "parameters": {
+                        "sapContext": {
+                          "value": "'@{item().sapContext}'",
+                          "type": "Expression"
+                        },
+                        "sapObjectName": {
+                          "value": "'@{item().sapObjectName}'",
+                          "type": "Expression"
+                        },
+                        "sapKeyColumns": {
+                          "value": "@item().sapKeyColumns",
+                          "type": "Expression"
+                        },
+                        "parquetContainer": {
+                          "value": "'@{item().parquetContainer}'",
+                          "type": "Expression"
+                        },
+                        "parquetFolder": {
+                          "value": "'@{item().parquetFolder}'",
+                          "type": "Expression"
+                        },
+                        "sapRunMode": {
+                          "value": "'@{item().sapRunMode}'",
+                          "type": "Expression"
+                        },
+                        "sapPartitions": {
+                          "value": "'@{item().sapPartitions}'",
+                          "type": "Expression"
+                        }
+                      },
+                      "datasetParameters": {
+                        "SAPSource": {},
+                        "ParquetSink": {}
+                      }
+                    },
+                    "staging": {
+                      "linkedService": {
+                        "referenceName": "[parameters('zhuzhangen2LS')]",
+                        "type": "LinkedServiceReference"
+                      },
+                      "folderPath": {
+                        "value": "@item().stagingStorageFolder",
+                        "type": "Expression"
+                      }
+                    },
+                    "compute": {
+                      "coreCount": 8,
+                      "computeType": "General"
+                    },
+                    "traceLevel": "Fine",
+                    "continuationSettings": {
+                      "customizedCheckpointKey": {
+                        "value": "@item().checkPointKey",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "annotations": [],
+        "lastPublishTime": "2023-05-19T02:37:53Z"
+      },
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/datasets/SapToParquetLookupJson')]",
+        "[concat(variables('workspaceId'), '/dataflows/SAP2ParquetTemplateDataflow')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/SapToParquetLookupJson')]",
+      "type": "Microsoft.Synapse/workspaces/datasets",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('zhuzhangen2LS')]",
+          "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "Json",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileName": "SapToParquetParameters.json",
+            "fileSystem": "demo"
+          }
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "checkPointKey": {
+              "type": "string"
+            },
+            "sapContext": {
+              "type": "string"
+            },
+            "sapObjectName": {
+              "type": "string"
+            },
+            "sapRunMode": {
+              "type": "string"
+            },
+            "sapKeyColumns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sapPartitions": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "fieldName": {
+                      "type": "string"
+                    },
+                    "sign": {
+                      "type": "string"
+                    },
+                    "option": {
+                      "type": "string"
+                    },
+                    "low": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "deltaContainer": {
+              "type": "string"
+            },
+            "deltaFolder": {
+              "type": "string"
+            },
+            "deltaKeyColumns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deltaPartition": {
+              "type": "string"
+            },
+            "stagingStorageFolder": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/SAP2ParquetTemplateDataflow')]",
+      "type": "Microsoft.Synapse/workspaces/dataflows",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+          "sources": [
+            {
+              "linkedService": {
+                "referenceName": "[parameters('SapOdp1')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "SAPSource"
+            }
+          ],
+          "sinks": [
+            {
+              "linkedService": {
+                "referenceName": "[parameters('zhuzhangen2LS')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "ParquetSink"
+            }
+          ],
+          "transformations": [
+            {
+              "name": "AddOperationTypeColumn"
+            }
+          ],
+          "scriptLines": [
+            "parameters{",
+            "     sapContext as string (\"default-context\"),",
+            "     sapObjectName as string (\"default-object\"),",
+            "     sapKeyColumns as string[] ([\"default-key1\",\"default-key2\"]),",
+            "     parquetContainer as string (\"default-parquet-container\"),",
+            "     parquetFolder as string (\"default-parquet-folder\"),",
+            "     sapRunMode as string (\"fullAndIncrementalLoad\"),",
+            "     sapPartitions as string (\"[[\\{\\\"fieldName\\\": \\\"default-ID\\\",\\\"sign\\\": \\\"I\\\", \\\"option\\\": \\\"BT\\\",\\\"low\\\": \\\"1\\\",\\\"high\\\": \\\"4\\\"}]]\")",
+            "}",
+            "source(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     store: 'SapOdp',",
+            "     format: 'sapObject',",
+            "     staged: true,",
+            "     context: ($sapContext),",
+            "     objectName: ($sapObjectName),",
+            "     readMode: ($sapRunMode),",
+            "     keys: ($sapKeyColumns),",
+            "     partitionPredicates: ($sapPartitions),",
+            "     partitionBy('external', 1)) ~> SAPSource",
+            "SAPSource derive(OperationType = case(isUpsert(),'Upsert', isDelete(), 'Delete', isUpdate(), 'Update', isInsert(), 'Insert')) ~> AddOperationTypeColumn",
+            "AddOperationTypeColumn sink(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     format: 'parquet',",
+            "     fileSystem: ($parquetContainer),",
+            "     folderPath: ($parquetFolder),",
+            "     umask: 0022,",
+            "     preCommands: [],",
+            "     postCommands: [],",
+            "     skipDuplicateMapInputs: true,",
+            "     skipDuplicateMapOutputs: true) ~> ParquetSink"
+          ]
+        }
+      },
+      "dependsOn": []
+    }
+  ]
+}
