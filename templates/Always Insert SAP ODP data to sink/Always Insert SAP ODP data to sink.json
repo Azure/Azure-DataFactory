@@ -2,28 +2,27 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "workspaceName": {
+    "factoryName": {
       "type": "string",
-      "metadata": "Workspace name",
-      "defaultValue": "zzysynapsecanary"
+      "metadata": "Data Factory name"
     },
-    "zhuzhangen2LS": {
+    "DataSource_LinkService": {
       "type": "string"
     },
-    "SapOdp1": {
+    "SapOdp3": {
       "type": "string"
     }
   },
   "variables": {
-    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
   },
   "resources": [
     {
-      "name": "[concat(parameters('workspaceName'), '/SAP ODP to ADLS Gen2 in Parquet format')]",
-      "type": "Microsoft.Synapse/workspaces/pipelines",
-      "apiVersion": "2019-06-01-preview",
+      "name": "[concat(parameters('factoryName'), '/Always Insert SAP ODP data to sink')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
       "properties": {
-        "description": "Use this template to replicate multiple tables from SAP to Azure Data Lake Gen2 in Parquet format with additional operation type column, e.g., Upsert, Delete.",
+        "description": "Insert each row of sap odp data to sink, no update, delete operation.",
         "activities": [
           {
             "name": "SAP2ParquetLookup",
@@ -130,7 +129,7 @@
                     },
                     "staging": {
                       "linkedService": {
-                        "referenceName": "[parameters('zhuzhangen2LS')]",
+                        "referenceName": "[parameters('DataSource_LinkService')]",
                         "type": "LinkedServiceReference"
                       },
                       "folderPath": {
@@ -160,20 +159,20 @@
           "cancelAfter": {}
         },
         "annotations": [],
-        "lastPublishTime": "2023-05-19T02:37:53Z"
+        "lastPublishTime": "2023-05-22T07:57:59Z"
       },
       "dependsOn": [
-        "[concat(variables('workspaceId'), '/datasets/SapToParquetLookupJson')]",
-        "[concat(variables('workspaceId'), '/dataflows/SAP2ParquetTemplateDataflow')]"
+        "[concat(variables('factoryId'), '/datasets/SapToParquetLookupJson')]",
+        "[concat(variables('factoryId'), '/dataflows/SAP2ParquetTemplateDataflow')]"
       ]
     },
     {
-      "name": "[concat(parameters('workspaceName'), '/SapToParquetLookupJson')]",
-      "type": "Microsoft.Synapse/workspaces/datasets",
-      "apiVersion": "2019-06-01-preview",
+      "name": "[concat(parameters('factoryName'), '/SapToParquetLookupJson')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
       "properties": {
         "linkedServiceName": {
-          "referenceName": "[parameters('zhuzhangen2LS')]",
+          "referenceName": "[parameters('DataSource_LinkService')]",
           "type": "LinkedServiceReference"
         },
         "annotations": [],
@@ -253,16 +252,16 @@
       "dependsOn": []
     },
     {
-      "name": "[concat(parameters('workspaceName'), '/SAP2ParquetTemplateDataflow')]",
-      "type": "Microsoft.Synapse/workspaces/dataflows",
-      "apiVersion": "2019-06-01-preview",
+      "name": "[concat(parameters('factoryName'), '/SAP2ParquetTemplateDataflow')]",
+      "type": "Microsoft.DataFactory/factories/dataflows",
+      "apiVersion": "2018-06-01",
       "properties": {
         "type": "MappingDataFlow",
         "typeProperties": {
           "sources": [
             {
               "linkedService": {
-                "referenceName": "[parameters('SapOdp1')]",
+                "referenceName": "[parameters('SapOdp3')]",
                 "type": "LinkedServiceReference"
               },
               "name": "SAPSource"
@@ -271,7 +270,7 @@
           "sinks": [
             {
               "linkedService": {
-                "referenceName": "[parameters('zhuzhangen2LS')]",
+                "referenceName": "[parameters('DataSource_LinkService')]",
                 "type": "LinkedServiceReference"
               },
               "name": "ParquetSink"
@@ -279,7 +278,8 @@
           ],
           "transformations": [
             {
-              "name": "AddOperationTypeColumn"
+              "name": "InsertEachRow",
+              "description": "Update each row to insert, no mater update, delete or  insert."
             }
           ],
           "scriptLines": [
@@ -303,8 +303,8 @@
             "     keys: ($sapKeyColumns),",
             "     partitionPredicates: ($sapPartitions),",
             "     partitionBy('external', 1)) ~> SAPSource",
-            "SAPSource derive(OperationType = case(isUpsert(),'Upsert', isDelete(), 'Delete', isUpdate(), 'Update', isInsert(), 'Insert')) ~> AddOperationTypeColumn",
-            "AddOperationTypeColumn sink(allowSchemaDrift: true,",
+            "SAPSource alterRow(insertIf(true())) ~> InsertEachRow",
+            "InsertEachRow sink(allowSchemaDrift: true,",
             "     validateSchema: false,",
             "     format: 'parquet',",
             "     fileSystem: ($parquetContainer),",
