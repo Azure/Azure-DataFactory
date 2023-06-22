@@ -24,7 +24,7 @@
     "variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
     "resources": [
         {
-            "name": "[concat(parameters('factoryName'), '/Copy DICOM Metadata to ADLS Gen2 in Delta Format')]",
+            "name": "[concat(parameters('factoryName'), '/Copy DICOM Metadata Changes to ADLS Gen2 in Delta Format')]",
             "type": "Microsoft.DataFactory/factories/pipelines",
             "apiVersion": "2018-06-01",
             "properties": {
