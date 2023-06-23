@@ -37,7 +37,7 @@
                         "userProperties": [],
                         "typeProperties": {
                             "expression": {
-                                "value": "@less(activity('Process Batch').output.runStatus.metrics.instanceTable.rowsWritten, pipeline().parameters.BatchSize)",
+                                "value": "@not(variables('Continue'))",
                                 "type": "Expression"
                             },
                             "activities": [
@@ -120,41 +120,133 @@
                                     }
                                 },
                                 {
-                                    "name": "Add Limit to Offset",
-                                    "description": "Add the limit to the current offset.",
-                                    "type": "SetVariable",
+                                    "name": "Determine Continuation",
+                                    "description": "Check the previous activity for metrics related to the instance table sink to determine whether processing should continue.",
+                                    "type": "IfCondition",
                                     "dependsOn": [
                                         {
                                             "activity": "Process Batch",
                                             "dependencyConditions": [ "Succeeded" ]
                                         }
                                     ],
-                                    "policy": {
-                                        "retry": 0,
-                                        "retryIntervalInSeconds": 30,
-                                        "secureOutput": false,
-                                        "secureInput": false
-                                    },
                                     "userProperties": [],
                                     "typeProperties": {
-                                        "variableName": "Temp",
-                                        "value": {
-                                            "value": "@string(add(int(variables('CurrentOffset')), pipeline().parameters.BatchSize))",
+                                        "expression": {
+                                            "value": "@contains(activity('Process Batch').output.runStatus.metrics, 'instanceTable')",
                                             "type": "Expression"
-                                        }
+                                        },
+                                        "ifFalseActivities": [
+                                            {
+                                                "name": "Complete Processing",
+                                                "description": "Signal that processing should stop because there are no more changes.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "Continue",
+                                                    "value": {
+                                                        "value": "@bool('false')",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        ],
+                                        "ifTrueActivities": [
+                                            {
+                                                "name": "Check Rows",
+                                                "description": "Update the continuation variable based on the number of rows processed in the last batch.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "Continue",
+                                                    "value": {
+                                                        "value": "@greater(activity('Process Batch').output.runStatus.metrics.instanceTable.rowsWritten, 0)",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "name": "Add Limit to Offset",
+                                                "description": "Add the limit to the current offset.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [
+                                                    {
+                                                        "activity": "Check Rows",
+                                                        "dependencyConditions": [ "Succeeded" ]
+                                                    }
+                                                ],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "Temp",
+                                                    "value": {
+                                                        "value": "@string(add(int(variables('CurrentOffset')), pipeline().parameters.BatchSize))",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "name": "Update Offset",
+                                                "description": "Update the current offset based on the newly computed value.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [
+                                                    {
+                                                        "activity": "Add Limit to Offset",
+                                                        "dependencyConditions": [ "Succeeded" ]
+                                                    }
+                                                ],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "CurrentOffset",
+                                                    "value": {
+                                                        "value": "@variables('Temp')",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        ]
                                     }
                                 },
                                 {
-                                    "name": "Update Offset",
-                                    "description": "Update the current offset based on the newly computed value.",
+                                    "name": "Cancel Processing",
+                                    "description": "Signal that processing should stop because there was a problem processing a batch.",
                                     "type": "SetVariable",
                                     "dependsOn": [
                                         {
-                                            "activity": "Add Limit to Offset",
-                                            "dependencyConditions": [ "Succeeded" ]
+                                            "activity": "Process Batch",
+                                            "dependencyConditions": [ "Failed" ]
                                         }
                                     ],
                                     "policy": {
+                                        "timeout": "0.12:00:00",
                                         "retry": 0,
                                         "retryIntervalInSeconds": 30,
                                         "secureOutput": false,
@@ -162,9 +254,9 @@
                                     },
                                     "userProperties": [],
                                     "typeProperties": {
-                                        "variableName": "CurrentOffset",
+                                        "variableName": "Continue",
                                         "value": {
-                                            "value": "@variables('Temp')",
+                                            "value": "@bool('false')",
                                             "type": "Expression"
                                         }
                                     }
@@ -224,10 +316,14 @@
                     "Temp": {
                         "type": "String",
                         "defaultValue": "0"
+                    },
+                    "Continue": {
+                        "type": "Boolean",
+                        "defaultValue": false
                     }
                 },
                 "annotations": [],
-                "lastPublishTime": "2023-06-21T23:36:59Z"
+                "lastPublishTime": "2023-06-23T19:54:06Z"
             },
             "dependsOn": [ "[concat(variables('factoryId'), '/dataflows/Update DICOM Delta Tables')]" ]
         },
