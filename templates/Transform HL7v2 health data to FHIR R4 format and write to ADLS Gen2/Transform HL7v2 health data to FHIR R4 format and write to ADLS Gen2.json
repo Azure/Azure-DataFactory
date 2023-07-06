@@ -1,0 +1,657 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Transform HL7v2 health data to FHIR R4 format and write to ADLS Gen2')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Transforms HL7v2 messages read from an Azure Data Lake Storage (ADLS) Gen2 or Azure Blob Storage account, to FHIR R4 format, and persists transformed FHIR bundle result into ADLS Gen2 or Blob Storage account.\nBy default if no ACR template configuration is provided (for custom conversion templates), the Microsoft published conversion liquid templates will be used.",
+                "activities": [
+                    {
+                        "name": "Read input data",
+                        "description": "Reads input data from specified ADLS Gen2 or Blob Storage account, containing unstructured health text to be analyzed and transformed into FHIR R4.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Read from ADLS Gen2 or Blob Storage",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "storageAccount": {
+                                    "value": "@pipeline().parameters.inputStorageAccount",
+                                    "type": "Expression"
+                                },
+                                "storageFolder": {
+                                    "value": "@pipeline().parameters.inputStorageFolder",
+                                    "type": "Expression"
+                                },
+                                "storageFile": {
+                                    "value": "@pipeline().parameters.inputStorageFile",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "HL7v2 to FHIR R4 Converter",
+                        "description": "Performs the conversion of HL7v2 data to FHIR R4 bundles. ",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Read input data",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "HL7v2 to FHIR R4 Converter",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "fhirService": {
+                                    "value": "@pipeline().parameters.fhirService",
+                                    "type": "Expression"
+                                },
+                                "acrServer": {
+                                    "value": "@pipeline().parameters.acrServer",
+                                    "type": "Expression"
+                                },
+                                "templateReference": {
+                                    "value": "@pipeline().parameters.templateReference",
+                                    "type": "Expression"
+                                },
+                                "inputData": {
+                                    "value": "@activity('Read input data').output.pipelineReturnValue.blobData",
+                                    "type": "Expression"
+                                },
+                                "rootTemplate": {
+                                    "value": "@pipeline().parameters.rootTemplate",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Write converted result to ADLS Gen2",
+                        "description": "Writes the converted result (i.e., FHIR bundle resource) to the specified ADLS Gen2 or Blob Storage account.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "HL7v2 to FHIR R4 Converter",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Write to ADLS Gen2 or Blob Storage",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "storageAccount": {
+                                    "value": "@pipeline().parameters.outputStorageAccount",
+                                    "type": "Expression"
+                                },
+                                "storageFolder": {
+                                    "value": "@pipeline().parameters.outputStorageFolder",
+                                    "type": "Expression"
+                                },
+                                "storageFile": {
+                                    "value": "@{pipeline().parameters.inputStorageFile}_@{utcnow()}.json",
+                                    "type": "Expression"
+                                },
+                                "fileContent": {
+                                    "value": "@activity('HL7v2 to FHIR R4 Converter').output.pipelineReturnValue.convertResult",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Write errors to ADLS Gen2",
+                        "description": "Writes the errors encountered during conversion to the specified ADLS Gen2 or Blob Storage account.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "HL7v2 to FHIR R4 Converter",
+                                "dependencyConditions": [
+                                    "Failed"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Write to ADLS Gen2 or Blob Storage",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "storageAccount": {
+                                    "value": "@pipeline().parameters.outputStorageAccount",
+                                    "type": "Expression"
+                                },
+                                "storageFolder": {
+                                    "value": "@pipeline().parameters.errorStorageFolder",
+                                    "type": "Expression"
+                                },
+                                "storageFile": {
+                                    "value": "@{pipeline().parameters.inputStorageFile}_@{utcnow()}.json",
+                                    "type": "Expression"
+                                },
+                                "fileContent": {
+                                    "value": "@activity('HL7v2 to FHIR R4 Converter').output.pipelineReturnValue.convertError",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "fhirService": {
+                        "type": "string"
+                    },
+                    "acrServer": {
+                        "type": "string",
+                        "defaultValue": "microsofthealth"
+                    },
+                    "templateReference": {
+                        "type": "string",
+                        "defaultValue": "hl7v2templates:default"
+                    },
+                    "inputStorageAccount": {
+                        "type": "string"
+                    },
+                    "inputStorageFolder": {
+                        "type": "string"
+                    },
+                    "inputStorageFile": {
+                        "type": "string"
+                    },
+                    "outputStorageAccount": {
+                        "type": "string"
+                    },
+                    "outputStorageFolder": {
+                        "type": "string"
+                    },
+                    "rootTemplate": {
+                        "type": "string"
+                    },
+                    "errorStorageFolder": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Pipelines"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-23T21:51:27Z"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/pipelines/Read from ADLS Gen2 or Blob Storage')]",
+                "[concat(variables('factoryId'), '/pipelines/HL7v2 to FHIR R4 Converter')]",
+                "[concat(variables('factoryId'), '/pipelines/Write to ADLS Gen2 or Blob Storage')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Read from ADLS Gen2 or Blob Storage')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Reads blob file contents from specified Azure Data Lake Storage Gen2 account or Azure Blob Storage account.",
+                "activities": [
+                    {
+                        "name": "Get Blob",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat(pipeline().parameters.storageAccount,'/',pipeline().parameters.storageFolder,'/',pipeline().parameters.storageFile)",
+                                "type": "Expression"
+                            },
+                            "method": "GET",
+                            "headers": {
+                                "x-ms-blob-type": "BlockBlob",
+                                "x-ms-version": "2017-11-09"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "https://storage.azure.com/"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set blob content output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Blob",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "blobData",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('Get Blob').output.Response"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "storageAccount": {
+                        "type": "string"
+                    },
+                    "storageFolder": {
+                        "type": "string"
+                    },
+                    "storageFile": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Extract"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-22T20:40:53Z"
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/HL7v2 to FHIR R4 Converter')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Performs the conversion of HL7v2 data to FHIR R4 bundles. ",
+                "activities": [
+                    {
+                        "name": "HL7v2 to FHIR R4 Converter",
+                        "description": "Performs the conversion of HL7v2 data to FHIR R4 bundles. ",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Generic FHIR R4 Converter",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "fhirService": {
+                                    "value": "@pipeline().parameters.fhirService",
+                                    "type": "Expression"
+                                },
+                                "acrServer": {
+                                    "value": "@pipeline().parameters.acrServer",
+                                    "type": "Expression"
+                                },
+                                "templateReference": {
+                                    "value": "@pipeline().parameters.templateReference",
+                                    "type": "Expression"
+                                },
+                                "inputData": {
+                                    "value": "@pipeline().parameters.inputData",
+                                    "type": "Expression"
+                                },
+                                "inputDataType": "Hl7v2",
+                                "rootTemplate": {
+                                    "value": "@pipeline().parameters.rootTemplate",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set converted result output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "HL7v2 to FHIR R4 Converter",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "convertResult",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('HL7v2 to FHIR R4 Converter').output.pipelineReturnValue.convertResult"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    },
+                    {
+                        "name": "Set converted error output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "HL7v2 to FHIR R4 Converter",
+                                "dependencyConditions": [
+                                    "Failed"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "convertError",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('HL7v2 to FHIR R4 Converter').output.pipelineReturnValue.convertError"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "fhirService": {
+                        "type": "string"
+                    },
+                    "acrServer": {
+                        "type": "string",
+                        "defaultValue": "microsofthealth"
+                    },
+                    "templateReference": {
+                        "type": "string",
+                        "defaultValue": "hl7v2templates:default"
+                    },
+                    "inputData": {
+                        "type": "string"
+                    },
+                    "rootTemplate": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Transform/Convert/Specific Converters"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-23T21:51:27Z"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/pipelines/Generic FHIR R4 Converter')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Write to ADLS Gen2 or Blob Storage')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Writes to files in the specified Azure Data Lake Storage Gen2 account or Azure Blob Storage account.",
+                "activities": [
+                    {
+                        "name": "Save file",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat(pipeline().parameters.storageAccount,'/',pipeline().parameters.storageFolder,'/',pipeline().parameters.storageFile)",
+                                "type": "Expression"
+                            },
+                            "method": "PUT",
+                            "headers": {
+                                "x-ms-blob-type": "BlockBlob",
+                                "x-ms-version": "2017-11-09"
+                            },
+                            "body": {
+                                "value": "@pipeline().parameters.fileContent",
+                                "type": "Expression"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "https://storage.azure.com/"
+                            }
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "storageAccount": {
+                        "type": "string"
+                    },
+                    "storageFolder": {
+                        "type": "string"
+                    },
+                    "storageFile": {
+                        "type": "string"
+                    },
+                    "fileContent": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Load"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-22T20:40:53Z"
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Generic FHIR R4 Converter')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Performs the conversion of specified input data type to FHIR R4 bundles. ",
+                "activities": [
+                    {
+                        "name": "Convert",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat(pipeline().parameters.fhirService, '$convert-data')",
+                                "type": "Expression"
+                            },
+                            "method": "POST",
+                            "headers": {},
+                            "body": {
+                                "value": "{\n    \"resourceType\": \"Parameters\",\n    \"parameter\": [\n        {\n            \"name\": \"inputData\",\n            \"valueString\": \"@{pipeline().parameters.inputData}\"\n        },\n        {\n            \"name\": \"inputDataType\",\n            \"valueString\": \"@{pipeline().parameters.inputDataType}\"\n        },\n        {\n            \"name\": \"templateCollectionReference\",\n            \"valueString\": \"@{pipeline().parameters.acrServer}/@{pipeline().parameters.templateReference}\"\n        },\n        {\n            \"name\": \"rootTemplate\",\n            \"valueString\": \"@{pipeline().parameters.rootTemplate}\"\n        }\n    ]\n}",
+                                "type": "Expression"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": {
+                                    "value": "@pipeline().parameters.fhirService",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set converted result output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Convert",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "convertResult",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('Convert').output"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    },
+                    {
+                        "name": "Set converted error output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Convert",
+                                "dependencyConditions": [
+                                    "Failed"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "convertError",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('Convert').output.issue"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "fhirService": {
+                        "type": "String"
+                    },
+                    "acrServer": {
+                        "type": "string"
+                    },
+                    "templateReference": {
+                        "type": "string"
+                    },
+                    "inputData": {
+                        "type": "string"
+                    },
+                    "inputDataType": {
+                        "type": "string"
+                    },
+                    "rootTemplate": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Transform/Convert"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-23T21:51:25Z"
+            },
+            "dependsOn": []
+        }
+    ]
+}
