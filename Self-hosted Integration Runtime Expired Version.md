@@ -3,6 +3,7 @@ Below is a comprehensive list of Azure Data Factory self-hosted integration runt
 
 |Version|Expiration Date<br/>(YYYY-MM-DD)|
 | ---------- | -------- |
+|5.24.8369.1|2024-01-01|
 |5.23.8355.1<br/> 5.23.8324.1<br/>|2023-12-01|
 |5.22.8312.1<br/> 5.22.8285.1<br/> 5.22.8297.1|2023-11-01|
 
