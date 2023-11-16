@@ -15,5 +15,7 @@
   "services": [],
   "categories": [],
   "compatibleWithPBI": true,
-  "scope": ["PBI"]
+  "scope": ["PBI"],
+  "shownInLandingPage": true,
+  "landingPageImage": "icon-i_dataWarehouse_bold"
 }
