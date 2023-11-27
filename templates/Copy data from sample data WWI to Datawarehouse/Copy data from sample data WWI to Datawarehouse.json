@@ -7,15 +7,15 @@
     "variables": {},
     "resources": [
         {
-            "name": "Copy data from the sample data (Wide World Importers) to the Warehouse table",
-            "description": "Use this template to copy data from sample data (Retail Data Model from Wide World Importers) to a specified table in Datawarehouse.",
+            "name": "Copy data from sample data (Wide World Importers) to the Warehouse table",
+            "description": "Use this template to copy data from sample data (Retail Data Model from Wide World Importers) to a specified table in Warehouse.",
             "type": "pipelines",
             "apiVersion": "2018-06-01",
             "properties": {
                 "activities": [
                     {
                         "name": "Copy from sample data to DW",
-                        "description": "Use this template to copy data from sample data (Retail Data Model from Wide World Importers) to a specified table in Datawarehouse.",
+                        "description": "Use this template to copy data from sample data (Retail Data Model from Wide World Importers) to a specified table in Warehouse.",
                         "type": "Copy",
                         "dependsOn": [],
                         "policy": {
