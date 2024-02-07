@@ -1,0 +1,4801 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.1.1.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": "Data Factory name"
+    },
+    "AzureSqlDatabaseLinkedService": {
+      "type": "string"
+    },
+    "AzureBlobStorageLinkedService": {
+      "type": "string"
+    },
+    "AzureFileStorageLinkedService": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('factoryName'), '/Sensitive Data Discovery with Delphix - Legacy')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Use this template to configure a Delphix Continuous Compliance Engine with what it requires to run sensitive data discovery, also known as Profiling.\n\nProfiling is the process that identifies columns that may contain sensitive data and assigns appropriate algorithms to mask this data. The delivery of on-demand, compliant data from multiple data sources is a challenge that every enterprise faces today. Identifying where sensitive data resides is a crucial part of this challenge, and is addressed by this template.\n\nIt is recommended that this template be run to identify sensitive data, prior to running the Delphix Continuous Compliance Masking template to mask the sensitive data.\n\nNote: A purchase of Delphix Continuous Compliance engine is required to use this template. To receive Delphix support, please register your engine at https://support-register.delphix.com",
+        "activities": [
+          {
+            "name": "List All Tables",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "AzureSqlSource",
+                "sqlReaderQuery": {
+                  "value": "@pipeline().parameters.QueryToGetTableSchema",
+                  "type": "Expression"
+                },
+                "queryTimeout": "02:00:00",
+                "partitionOption": "None"
+              },
+              "dataset": {
+                "referenceName": "ConnectToSourceData",
+                "type": "DatasetReference",
+                "parameters": {
+                  "TableName": "*",
+                  "TableSchema": "*"
+                }
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "Copy Table Schema to Blob Storage",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "List All Tables",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('List All Tables').output.value",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Copy Table schema",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "Append schemaName",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "AzureSqlSource",
+                      "sqlReaderQuery": {
+                        "value": "SELECT TOP 1 * FROM [@{item().TABLE_SCHEMA}].[@{item().TABLE_NAME}]",
+                        "type": "Expression"
+                      },
+                      "queryTimeout": "02:00:00",
+                      "partitionOption": "None"
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "ConnectToSourceData",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "TableName": "@item().TABLE_NAME",
+                        "TableSchema": "@item().TABLE_SCHEMA"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "rootDataSetRowHeader",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/schemafile",
+                        "fileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Creates empty files in the Target Fileshare",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "Copy Table schema",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "AzureSqlSource",
+                      "sqlReaderQuery": {
+                        "value": "SELECT * FROM [@{item().TABLE_SCHEMA}].[@{item().TABLE_NAME}] where 1=2",
+                        "type": "Expression"
+                      },
+                      "queryTimeout": "02:00:00",
+                      "partitionOption": "None"
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureFileStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "ConnectToSourceData",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "TableName": "@item().TABLE_NAME",
+                        "TableSchema": "@item().TABLE_SCHEMA"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "ConnectToTargetFileShare",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileShareRootFolder,'/Target')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Append schemaName",
+                  "type": "AppendVariable",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "schemaName",
+                    "value": {
+                      "value": "@item().TABLE_SCHEMA",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "Creates empty files in the Source Fileshare",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "Creates empty files in the Target Fileshare",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureFileStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureFileStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "ConnectToTargetFileShare",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileShareRootFolder,'/Target')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "ConnectToTargetFileShare",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileShareRootFolder,'/Source')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "Delphix Login",
+            "description": "API login to Delphix Compliance Engine",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Get Compliance Engine Password",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 2,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/login')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"username\":\"@{activity('Get Compliance Engine User').output.value}\",\"password\":\"@{activity('Get Compliance Engine Password').output.value}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Upload fileformats",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Delphix Login",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Check if current file format was uploaded",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@variables('FileToBeUploaded')",
+                "type": "Expression"
+              },
+              "isSequential": true,
+              "activities": [
+                {
+                  "name": "Get Contents of fileformat File",
+                  "type": "Lookup",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "dataset": {
+                      "referenceName": "fileFormatDataSetPiped",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "fileName": "@item()",
+                        "directoryName": "current-fileformat/fileformat"
+                      }
+                    },
+                    "firstRowOnly": false
+                  }
+                },
+                {
+                  "name": "POST fileFormat using LogicApp",
+                  "type": "WebActivity",
+                  "dependsOn": [
+                    {
+                      "activity": "Get fileformat File Data",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    },
+                    {
+                      "activity": "AppendFileName with PipelineRunID",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 5,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "url": {
+                      "value": "@pipeline().parameters.LogicappURL",
+                      "type": "Expression"
+                    },
+                    "method": "POST",
+                    "headers": {},
+                    "body": {
+                      "value": "{\n    \"Authorization\": \"@{activity('Delphix Login').output.Authorization}\",\n    \"fileFormat\" : \"@{variables('FileContents')}\",\n    \"fileFormatType\" : \"DELIMITED\",\n    \"fileName\": \"@{variables('FileNamewithPipelineId')}\",\n    \"maskingEngineIp\": \"@{pipeline().parameters.MaskingEngineIP}\"\n}",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "Get fileformat File Data",
+                  "type": "SetVariable",
+                  "dependsOn": [
+                    {
+                      "activity": "Get Contents of fileformat File",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "FileContents",
+                    "value": {
+                      "value": "@activity('Get Contents of fileformat File').output.value[0].Prop_0",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "Get PipelineRunID",
+                  "type": "SetVariable",
+                  "dependsOn": [],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "PipelineRunId",
+                    "value": {
+                      "value": "@split(pipeline().RunId, '-')[0]",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "AppendFileName with PipelineRunID",
+                  "type": "SetVariable",
+                  "dependsOn": [
+                    {
+                      "activity": "Get PipelineRunID",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "FileNamewithPipelineId",
+                    "value": {
+                      "value": "@concat(item(),'_',variables('PipelineRunId'))",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "Clean-up FileFormats",
+                  "type": "ExecutePipeline",
+                  "dependsOn": [
+                    {
+                      "activity": "POST fileFormat using LogicApp",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "pipeline": {
+                      "referenceName": "Clean File Formats",
+                      "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                      "FilenameToClean": {
+                        "value": "@item()",
+                        "type": "Expression"
+                      },
+                      "MaskingEngineIP": {
+                        "value": "@pipeline().parameters.MaskingEngineIP",
+                        "type": "Expression"
+                      },
+                      "LogicappURL": {
+                        "value": "@pipeline().parameters.LogicappURL",
+                        "type": "Expression"
+                      },
+                      "PipelineRunId": {
+                        "value": "@variables('PipelineRunId')",
+                        "type": "Expression"
+                      },
+                      "authkey": {
+                        "value": "@activity('Delphix Login').output.Authorization",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                },
+                {
+                  "name": "Copy files to uploaded file Format",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "POST fileFormat using LogicApp",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "fileFormatDataSetPiped",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "fileName": "@item()",
+                        "directoryName": "current-fileformat/fileformat"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "fileFormatDataSetPiped",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "fileName": "@item()",
+                        "directoryName": "uploaded-fileformat/fileformat"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "Get Compliance Engine User",
+            "description": "This web activity gets the Compliance engine username from the Key Vault.",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Copy Data to File Format Directory",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.VaultURLForUsername",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {},
+              "authentication": {
+                "type": "MSI",
+                "resource": "https://vault.azure.net"
+              }
+            }
+          },
+          {
+            "name": "Get Compliance Engine Password",
+            "description": "This web activity gets the Compliance engine Password from the Key Vault.",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Get Compliance Engine User",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.VaultURLForPassword",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {},
+              "authentication": {
+                "type": "MSI",
+                "resource": "https://vault.azure.net"
+              }
+            }
+          },
+          {
+            "name": "Check if current file format was uploaded",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Filter already uploaded files",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Filter already uploaded files').output.Value",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Append if fileFormat has changed",
+                  "type": "IfCondition",
+                  "dependsOn": [
+                    {
+                      "activity": "Lookup in uploaded file format",
+                      "dependencyConditions": [
+                        "Completed"
+                      ]
+                    }
+                  ],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@and(not(equals(activity('Lookup in current file format').output.value,activity('Lookup in uploaded file format').output.value)),contains(variables('schemaName'),variables('currentSchema')))",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Append to file to be uploaded",
+                        "description": "",
+                        "type": "AppendVariable",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "FileToBeUploaded",
+                          "value": {
+                            "value": "@item().name",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "Lookup in current file format",
+                  "type": "Lookup",
+                  "dependsOn": [
+                    {
+                      "activity": "Set currentSchema",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "dataset": {
+                      "referenceName": "fileFormatDataSetPiped",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "fileName": "@item().name",
+                        "directoryName": "current-fileformat/fileformat"
+                      }
+                    },
+                    "firstRowOnly": false
+                  }
+                },
+                {
+                  "name": "Lookup in uploaded file format",
+                  "type": "Lookup",
+                  "dependsOn": [
+                    {
+                      "activity": "Lookup in current file format",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "dataset": {
+                      "referenceName": "fileFormatDataSetPiped",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "fileName": "@item().name",
+                        "directoryName": "uploaded-fileformat/fileformat"
+                      }
+                    },
+                    "firstRowOnly": false
+                  }
+                },
+                {
+                  "name": "Set currentSchema",
+                  "type": "SetVariable",
+                  "dependsOn": [],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "currentSchema",
+                    "value": {
+                      "value": "@split(item().name,'.')[0]",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Get Source File List",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Setup folder structure",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "scehmaFileDataSetColumnDelim",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": "@pipeline().parameters.ContainerRootFolder",
+                  "fileName": "*"
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Copy Data to File Format Directory",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Source File List",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Source File List').output.childItems",
+                "type": "Expression"
+              },
+              "isSequential": true,
+              "activities": [
+                {
+                  "name": "Contents of current file format",
+                  "type": "Lookup",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "dataset": {
+                      "referenceName": "semicolonDataSetDefaultRow",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/schemafile",
+                        "fileName": "@item().name"
+                      }
+                    }
+                  }
+                },
+                {
+                  "name": "Copy fileFormat to output directory",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "Contents of current file format",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "additionalColumns": [
+                        {
+                          "name": "NAME",
+                          "value": {
+                            "value": "@activity('Contents of current file format').output.firstRow.Prop_0",
+                            "type": "Expression"
+                          }
+                        }
+                      ],
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "mappings": [
+                        {
+                          "source": {
+                            "name": "NAME",
+                            "type": "String"
+                          },
+                          "sink": {
+                            "ordinal": 1
+                          }
+                        }
+                      ],
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "noescapeDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/Empty",
+                        "fileName": "Empty.csv"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "noescapeDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/Output",
+                        "fileName": "@item().name"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Copy to file format directory",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "Copy fileFormat to output directory",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "semicolonDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/Output",
+                        "fileName": "@item().name"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "noescapeDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/fileformat",
+                        "fileName": "@item().name"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "Setup Masking Engine",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "Delphix Login",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "Setup Source Connector and Ruleset",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "FileShareUserName": {
+                  "value": "@pipeline().parameters.FileShareUserName",
+                  "type": "Expression"
+                },
+                "FileSharePassword": {
+                  "value": "@pipeline().parameters.FileSharePassword",
+                  "type": "Expression"
+                },
+                "FileShareMountPointName": {
+                  "value": "@pipeline().parameters.FileShareMountPointName",
+                  "type": "Expression"
+                },
+                "FileShareUrl": {
+                  "value": "@pipeline().parameters.FileShareUrl",
+                  "type": "Expression"
+                },
+                "FileShareName": {
+                  "value": "@pipeline().parameters.FileShareName",
+                  "type": "Expression"
+                },
+                "ApplicationName": {
+                  "value": "@pipeline().parameters.ApplicationName",
+                  "type": "Expression"
+                },
+                "MaskingEngineIP": {
+                  "value": "@pipeline().parameters.MaskingEngineIP",
+                  "type": "Expression"
+                },
+                "AuthKey": {
+                  "value": "@activity('Delphix Login').output.Authorization",
+                  "type": "Expression"
+                },
+                "SourceEnvironmentName": {
+                  "value": "@pipeline().parameters.SourceEnvironmentName",
+                  "type": "Expression"
+                },
+                "TargetEnvironmentName": {
+                  "value": "@pipeline().parameters.TargetEnvironmentName",
+                  "type": "Expression"
+                },
+                "SourceConnectorName": {
+                  "value": "@pipeline().parameters.SourceConnectorName",
+                  "type": "Expression"
+                },
+                "TargetConnectorName": {
+                  "value": "@pipeline().parameters.TargetConnectorName",
+                  "type": "Expression"
+                },
+                "SourceRulesetName": {
+                  "value": "@pipeline().parameters.SourceRulesetName",
+                  "type": "Expression"
+                },
+                "TargetRulesetName": {
+                  "value": "@pipeline().parameters.TargetRulesetName",
+                  "type": "Expression"
+                },
+                "RootFolder": {
+                  "value": "@pipeline().parameters.fileShareRootFolder",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "Get Source Metadata",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Copy Data to File Format Directory",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "fileFormatDataSetPiped",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.ContainerRootFolder",
+                    "type": "Expression"
+                  },
+                  "fileName": "*",
+                  "directoryName": "current-fileformat/fileformat"
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Get Target Metadata",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Copy Data to File Format Directory",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "rootDataSet",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.ContainerRootFolder",
+                    "type": "Expression"
+                  },
+                  "directoryName": "uploaded-fileformat/fileformat",
+                  "fileName": "*"
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Filter not uploaded files",
+            "type": "Filter",
+            "dependsOn": [
+              {
+                "activity": "Get Target Metadata",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Get Source Metadata",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Source Metadata').output.childItems",
+                "type": "Expression"
+              },
+              "condition": {
+                "value": "@not(contains(activity('Get Target Metadata').output.childItems, item()))",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Filter already uploaded files",
+            "type": "Filter",
+            "dependsOn": [
+              {
+                "activity": "Get Target Metadata",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Get Source Metadata",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Source Metadata').output.childItems",
+                "type": "Expression"
+              },
+              "condition": {
+                "value": "@contains(activity('Get Target Metadata').output.childItems, item())",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Append to the fileName array",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Filter not uploaded files",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Filter not uploaded files').output.Value",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Append name to file to be uploaded",
+                  "description": "",
+                  "type": "AppendVariable",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "FileToBeUploaded",
+                    "value": {
+                      "value": "@item().name",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Setup folder structure",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "Copy Table Schema to Blob Storage",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "Setup Directories",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "rootFolder": {
+                  "value": "@pipeline().parameters.ContainerRootFolder",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "Set execution status",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Setup Masking Engine",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "Execution",
+              "value": true
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "VaultURLForUsername": {
+            "type": "securestring"
+          },
+          "VaultURLForPassword": {
+            "type": "securestring"
+          },
+          "MaskingEngineIP": {
+            "type": "string"
+          },
+          "LogicappURL": {
+            "type": "string"
+          },
+          "QueryToGetTableSchema": {
+            "type": "string"
+          },
+          "FileShareUserName": {
+            "type": "securestring"
+          },
+          "FileSharePassword": {
+            "type": "securestring"
+          },
+          "FileShareMountPointName": {
+            "type": "string"
+          },
+          "FileShareUrl": {
+            "type": "string"
+          },
+          "FileShareName": {
+            "type": "string"
+          },
+          "ApplicationName": {
+            "type": "string"
+          },
+          "SourceEnvironmentName": {
+            "type": "string",
+            "defaultValue": "SourceEnvironment"
+          },
+          "TargetEnvironmentName": {
+            "type": "string",
+            "defaultValue": "TargetEnvironment"
+          },
+          "SourceConnectorName": {
+            "type": "string",
+            "defaultValue": "SourceConnector"
+          },
+          "TargetConnectorName": {
+            "type": "string",
+            "defaultValue": "TargetConnector"
+          },
+          "SourceRulesetName": {
+            "type": "string",
+            "defaultValue": "SourceRuleset"
+          },
+          "TargetRulesetName": {
+            "type": "string",
+            "defaultValue": "TargetRuleset"
+          },
+          "ContainerRootFolder": {
+            "type": "string"
+          },
+          "FileShareRootFolder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "ContentBody": {
+            "type": "String"
+          },
+          "SanitizedString": {
+            "type": "String"
+          },
+          "FileName": {
+            "type": "String"
+          },
+          "PipelineId": {
+            "type": "String"
+          },
+          "FileNamewithPipelineId": {
+            "type": "String"
+          },
+          "FileContents": {
+            "type": "String"
+          },
+          "DummyFile": {
+            "type": "String"
+          },
+          "PipelineRunId": {
+            "type": "String"
+          },
+          "FileToBeUploaded": {
+            "type": "Array"
+          },
+          "newvar": {
+            "type": "String"
+          },
+          "Filecontent": {
+            "type": "String"
+          },
+          "Filenameupload": {
+            "type": "String"
+          },
+          "abc": {
+            "type": "String"
+          },
+          "UploadedFileformat": {
+            "type": "String"
+          },
+          "EmptyVariable": {
+            "type": "String"
+          },
+          "FileformatSourceContent": {
+            "type": "Array"
+          },
+          "sourceRuleset": {
+            "type": "Boolean"
+          },
+          "targetRuleset": {
+            "type": "Boolean"
+          },
+          "schemaName": {
+            "type": "Array"
+          },
+          "fileFormatContent": {
+            "type": "String"
+          },
+          "sourceSetup": {
+            "type": "Boolean"
+          },
+          "maskingSetupSuccess": {
+            "type": "Boolean"
+          },
+          "Execution": {
+            "type": "Boolean"
+          },
+          "uploadStatus": {
+            "type": "String"
+          },
+          "targetSetup": {
+            "type": "String"
+          },
+          "currentSchema": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [
+          "Delphix",
+          "Sensitive Data Discovery",
+          "Profiling",
+          "Compliance"
+        ],
+        "lastPublishTime": "2022-12-19T08:01:02Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/ConnectToSourceData')]",
+        "[concat(variables('factoryId'), '/datasets/scehmaFileDataSetColumnDelim')]",
+        "[concat(variables('factoryId'), '/pipelines/Setup Source Connector and Ruleset')]",
+        "[concat(variables('factoryId'), '/datasets/fileFormatDataSetPiped')]",
+        "[concat(variables('factoryId'), '/datasets/rootDataSet')]",
+        "[concat(variables('factoryId'), '/pipelines/Setup Directories')]",
+        "[concat(variables('factoryId'), '/datasets/rootDataSetRowHeader')]",
+        "[concat(variables('factoryId'), '/datasets/ConnectToTargetFileShare')]",
+        "[concat(variables('factoryId'), '/pipelines/Clean File Formats')]",
+        "[concat(variables('factoryId'), '/datasets/semicolonDataSetDefaultRow')]",
+        "[concat(variables('factoryId'), '/datasets/noescapeDataSet')]",
+        "[concat(variables('factoryId'), '/datasets/semicolonDataSet')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/ConnectToSourceData')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureSqlDatabaseLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "TableName": {
+            "type": "string"
+          },
+          "TableSchema": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure SQL Database"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+          {
+            "name": "Street",
+            "type": "varchar"
+          },
+          {
+            "name": "city",
+            "type": "varchar"
+          },
+          {
+            "name": "Zip",
+            "type": "int",
+            "precision": 10
+          },
+          {
+            "name": "Country",
+            "type": "varchar"
+          }
+        ],
+        "typeProperties": {
+          "schema": {
+            "value": "@dataset().TableSchema",
+            "type": "Expression"
+          },
+          "table": {
+            "value": "@dataset().TableName",
+            "type": "Expression"
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/scehmaFileDataSetColumnDelim')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": "current-fileformat/schemafile",
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": true,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/Setup Source Connector and Ruleset')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "activities": [
+          {
+            "name": "Mount File share",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Get fileshare Password",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/mount-filesystem')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"mountName\":\"@{pipeline().parameters.FileShareMountPointName}\",\n\"hostAddress\":\"@{pipeline().parameters.FileShareUrl}\",\n\"mountPath\":\"/@{pipeline().parameters.FileShareName}\",\n\"type\":\"CIFS\",\n\"options\":\"username=@{activity('Get fileshare User').output.value},password=@{activity('Get fileshare Password').output.value}\",\n\"connectOnStartup\":true}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Activate File share Mount Point",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Set mountId",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/mount-filesystem/',activity('Mount File share').output.mountId,'/connect')",
+                "type": "Expression"
+              },
+              "method": "PUT",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {}
+            }
+          },
+          {
+            "name": "Create Application",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Wait for mount",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/applications')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"applicationName\":\"@{pipeline().parameters.ApplicationName}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Create Source Environment",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Wait for application",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/environments')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\n  \"environmentName\": \"@{pipeline().parameters.SourceEnvironmentName}\",\n  \"applicationId\": \"@{variables('applicationId')}\",\n  \"purpose\": \"MASK\"\n}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Create Source Connector",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Wait for sourceID",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\n  \"connectorName\": \"@{pipeline().parameters.SourceConnectorName}\",\n  \"environmentId\": \"@{variables('sourceEnvironmentId')}\",\n  \"fileType\": \"DELIMITED\",\n  \"connectionInfo\": {\n    \"connectionMode\": \"MOUNT\",\n    \"path\": \"@{pipeline().parameters.RootFolder}/Source\",\n    \"mountId\": \" @{variables('mountId')}\",\n    \"userDirIsRoot\": false\n  }\n}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Get Application Name",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Create Application",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/applications')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "ForEach Application",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Application Name",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Application Name').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition Application",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@contains(string(item()),pipeline().parameters.ApplicationName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set variable application",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "applicationId",
+                          "value": {
+                            "value": "@string(item().applicationId)",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set applicationId for Application",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Create Application",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "applicationId",
+              "value": {
+                "value": "@string(activity('Create Application').output.applicationId)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Get Source Environment Id",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Create Source Environment",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/environments?application_id=',variables('applicationId'))",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"applicationName\":\"@{pipeline().parameters.ApplicationName}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ForEach Source",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Source Environment Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Source Environment Id').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition SourceEnv",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@equals(string(item().environmentName),pipeline().parameters.SourceEnvironmentName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set variable SourceEnv",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "sourceEnvironmentId",
+                          "value": {
+                            "value": "@string(item().environmentId)",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set source Environment Id",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Create Source Environment",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "sourceEnvironmentId",
+              "value": {
+                "value": "@string(activity('Create Source Environment').output.environmentId)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Get Mount File System",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Mount File share",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/mount-filesystem')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "ForEach file mount",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Mount File System",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Mount File System').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If mount created",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@equals(string(item().mountName),pipeline().parameters.FileShareMountPointName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set mount Id",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "mountId",
+                          "value": {
+                            "value": "@string(item().mountId)",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set mountId",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Mount File share",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "mountId",
+              "value": {
+                "value": "@string(activity('Mount File share').output.mountId)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Wait for sourceID",
+            "type": "Wait",
+            "dependsOn": [
+              {
+                "activity": "ForEach Source",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Set source Environment Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          },
+          {
+            "name": "Edit Source Connector",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "ForEach Source Connector",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors/',variables('sourceConnectorId'))",
+                "type": "Expression"
+              },
+              "method": "PUT",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\n  \"connectorName\": \"@{pipeline().parameters.SourceConnectorName}\",\n  \"environmentId\": \"@{variables('sourceEnvironmentId')}\",\n  \"fileType\": \"DELIMITED\",\n  \"connectionInfo\": {\n    \"connectionMode\": \"MOUNT\",\n    \"path\": \"@{pipeline().parameters.RootFolder}/Source\",\n    \"mountId\": \" @{variables('mountId')}\",\n    \"userDirIsRoot\": false\n  }\n}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Get Source Connector Id",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Create Source Connector",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"applicationName\":\"@{pipeline().parameters.ApplicationName}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ForEach Source Connector",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Source Connector Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Source Connector Id').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition for Souce Conector",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@contains(string(item()),pipeline().parameters.SourceConnectorName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set source Connector",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "sourceConnectorId",
+                          "value": {
+                            "value": "@string(item().fileConnectorId)",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set Source Connector Id",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Create Source Connector",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "sourceConnectorId",
+              "value": {
+                "value": "@string(activity('Create Source Connector').output.fileConnectorId)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Create Taget Connector",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "Wait for application",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "Setup Target Connector and Ruleset",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "MaskingEngineIP": {
+                  "value": "@pipeline().parameters.MaskingEngineIP",
+                  "type": "Expression"
+                },
+                "AuthKey": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "TargetEnvironmentName": {
+                  "value": "@pipeline().parameters.TargetEnvironmentName",
+                  "type": "Expression"
+                },
+                "TargetConnectorName": {
+                  "value": "@pipeline().parameters.TargetConnectorName",
+                  "type": "Expression"
+                },
+                "TargetRulesetName": {
+                  "value": "@pipeline().parameters.TargetRulesetName",
+                  "type": "Expression"
+                },
+                "applicationId": {
+                  "value": "@variables('applicationId')",
+                  "type": "Expression"
+                },
+                "mountId": {
+                  "value": "@variables('mountId')",
+                  "type": "Expression"
+                },
+                "ApplicationName": {
+                  "value": "@pipeline().parameters.ApplicationName",
+                  "type": "Expression"
+                },
+                "RootFolder": {
+                  "value": "@pipeline().parameters.RootFolder",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "Wait for mount",
+            "type": "Wait",
+            "dependsOn": [
+              {
+                "activity": "Activate File share Mount Point",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "ForEach file mount",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          },
+          {
+            "name": "Wait for application",
+            "type": "Wait",
+            "dependsOn": [
+              {
+                "activity": "Set applicationId for Application",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "ForEach Application",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          },
+          {
+            "name": "Wait for source Connector",
+            "type": "Wait",
+            "dependsOn": [
+              {
+                "activity": "Set Source Connector Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Edit Source Connector",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          },
+          {
+            "name": "Get Source RuleSet",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Wait for source Connector",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              }
+            }
+          },
+          {
+            "name": "ForEach Source Ruleset",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Source RuleSet",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Source RuleSet').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition for Souce Ruleset",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@equals(string(item().rulesetName),pipeline().parameters.SourceRulesetName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set sourceRuleset",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "sourceRuleset",
+                          "value": true
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Check if ruleset was created",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "ForEach Source Ruleset",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@equals(variables('sourceRuleset'),true)",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "Create Source RuleSet",
+                  "type": "WebActivity",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "url": {
+                      "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets')",
+                      "type": "Expression"
+                    },
+                    "method": "POST",
+                    "headers": {
+                      "Authorization": {
+                        "value": "@pipeline().parameters.AuthKey",
+                        "type": "Expression"
+                      },
+                      "Content-Type": "application/json",
+                      "Accept": "application/json"
+                    },
+                    "body": {
+                      "value": "{\n  \"rulesetName\": \"@{pipeline().parameters.SourceRulesetName}\",\n  \"fileConnectorId\": @{variables('sourceConnectorId')}\n}",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set targetSetup",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Create Taget Connector",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "targetSetup",
+              "value": "hello"
+            }
+          },
+          {
+            "name": "Get fileshare User",
+            "description": "This web activity gets the Compliance engine username from the Key Vault.",
+            "type": "WebActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.FileShareUserName",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {},
+              "authentication": {
+                "type": "MSI",
+                "resource": "https://vault.azure.net"
+              }
+            }
+          },
+          {
+            "name": "Get fileshare Password",
+            "description": "This web activity gets the Compliance engine Password from the Key Vault.",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Get fileshare User",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.FileSharePassword",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {},
+              "authentication": {
+                "type": "MSI",
+                "resource": "https://vault.azure.net"
+              }
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "FileShareUserName": {
+            "type": "securestring"
+          },
+          "FileSharePassword": {
+            "type": "securestring"
+          },
+          "FileShareMountPointName": {
+            "type": "string"
+          },
+          "FileShareUrl": {
+            "type": "string"
+          },
+          "FileShareName": {
+            "type": "string"
+          },
+          "ApplicationName": {
+            "type": "string"
+          },
+          "MaskingEngineIP": {
+            "type": "string"
+          },
+          "AuthKey": {
+            "type": "string"
+          },
+          "SourceEnvironmentName": {
+            "type": "string"
+          },
+          "TargetEnvironmentName": {
+            "type": "string"
+          },
+          "SourceConnectorName": {
+            "type": "string"
+          },
+          "TargetConnectorName": {
+            "type": "string"
+          },
+          "SourceRulesetName": {
+            "type": "string"
+          },
+          "TargetRulesetName": {
+            "type": "string"
+          },
+          "RootFolder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "Output": {
+            "type": "String"
+          },
+          "appId": {
+            "type": "String"
+          },
+          "final": {
+            "type": "String"
+          },
+          "applicationId": {
+            "type": "String"
+          },
+          "sourceEnvironmentId": {
+            "type": "String"
+          },
+          "mountId": {
+            "type": "String"
+          },
+          "sourceConnectorId": {
+            "type": "String"
+          },
+          "sourceRuleset": {
+            "type": "Boolean"
+          },
+          "targetRuleset": {
+            "type": "Boolean"
+          },
+          "sourceSetup": {
+            "type": "Boolean"
+          },
+          "maskingSetupSuccess": {
+            "type": "Boolean"
+          },
+          "Execution": {
+            "type": "Boolean"
+          },
+          "uploadStatus": {
+            "type": "String"
+          },
+          "targetSetup": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [],
+        "lastPublishTime": "2022-12-19T08:01:02Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/pipelines/Setup Target Connector and Ruleset')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/fileFormatDataSetPiped')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": "|",
+          "rowDelimiter": "|",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/rootDataSet')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/Setup Directories')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "activities": [
+          {
+            "name": "List Source Files",
+            "type": "GetMetadata",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "scehmaFileDataSet",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.rootFolder",
+                    "type": "Expression"
+                  },
+                  "fileName": "*"
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Checks for fileformat Directory",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Set File Name",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "fileFormatDataSet",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.rootFolder",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@variables('DummyFile')",
+                    "type": "Expression"
+                  }
+                }
+              },
+              "fieldList": [
+                "exists"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Set File Name",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "List Source Files",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "DummyFile",
+              "value": {
+                "value": "@activity('List Source Files').output.childItems[1].name",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "If fileformat Directory exists",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "Checks for fileformat Directory",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@activity('Checks for fileformat Directory').output.exists",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "Created fileformat directory",
+                  "description": "Copy data has been used here because copy data will create the output directory. This will be executed only once.",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "rootDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.rootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/schemafile",
+                        "fileName": {
+                          "value": "@variables('DummyFile')",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "rootDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.rootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/fileformat",
+                        "fileName": {
+                          "value": "@variables('DummyFile')",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "ifTrueActivities": [
+                {
+                  "name": "Delete Current fileformat",
+                  "type": "Delete",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "dataset": {
+                      "referenceName": "fileFormatDataSetPiped",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.rootFolder",
+                          "type": "Expression"
+                        },
+                        "fileName": "*",
+                        "directoryName": "current-fileformat/fileformat"
+                      }
+                    },
+                    "enableLogging": false,
+                    "storeSettings": {
+                      "type": "AzureBlobStorageReadSettings",
+                      "recursive": true,
+                      "wildcardFileName": "*",
+                      "enablePartitionDiscovery": false
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Create Empty File",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "If fileformat Directory exists",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "additionalColumns": [
+                  {
+                    "name": "NAME",
+                    "value": {
+                      "value": "@variables('EmptyVariable')",
+                      "type": "Expression"
+                    }
+                  }
+                ],
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": true,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "DelimitedTextSink",
+                "storeSettings": {
+                  "type": "AzureBlobStorageWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextWriteSettings",
+                  "quoteAllText": true,
+                  "fileExtension": ".txt"
+                }
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "name": "NAME",
+                      "type": "String"
+                    },
+                    "sink": {
+                      "ordinal": 1
+                    }
+                  }
+                ],
+                "typeConversion": true,
+                "typeConversionSettings": {
+                  "allowDataTruncation": true,
+                  "treatBooleanAsNumber": false
+                }
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "pipeRowDelimDataSet",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.rootFolder",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@activity('List Source Files').output.childItems[1].name",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "rootDataSet",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.rootFolder",
+                    "type": "Expression"
+                  },
+                  "directoryName": "current-fileformat/Empty",
+                  "fileName": "Empty.csv"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Checks for uploaded fileformat Directory",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Set File Name",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "rootDataSet",
+                "type": "DatasetReference",
+                "parameters": {
+                  "containerName": {
+                    "value": "@pipeline().parameters.rootFolder",
+                    "type": "Expression"
+                  },
+                  "directoryName": "uploaded-fileformat/fileformat",
+                  "fileName": "dummy.csv"
+                }
+              },
+              "fieldList": [
+                "exists"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "If uploaded fileformat Directory exists",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "Checks for uploaded fileformat Directory",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@activity('Checks for uploaded fileformat Directory').output.exists",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "Create uploaded fileformat directory",
+                  "description": "Copy data has been used here because copy data will create the uploaded file format directory. This will be executed only once.",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "rootDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.rootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "current-fileformat/schemafile",
+                        "fileName": {
+                          "value": "@activity('List Source Files').output.childItems[1].name",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "rootDataSet",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.rootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "uploaded-fileformat/fileformat",
+                        "fileName": "dummy.csv"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "rootFolder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "DummyFile": {
+            "type": "String"
+          },
+          "EmptyVariable": {
+            "type": "String"
+          },
+          "sourceSetup": {
+            "type": "Boolean"
+          },
+          "maskingSetupSuccess": {
+            "type": "Boolean"
+          },
+          "Execution": {
+            "type": "Boolean"
+          },
+          "uploadStatus": {
+            "type": "String"
+          },
+          "targetSetup": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [],
+        "lastPublishTime": "2022-12-14T12:55:50Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/scehmaFileDataSet')]",
+        "[concat(variables('factoryId'), '/datasets/fileFormatDataSet')]",
+        "[concat(variables('factoryId'), '/datasets/pipeRowDelimDataSet')]",
+        "[concat(variables('factoryId'), '/datasets/rootDataSet')]",
+        "[concat(variables('factoryId'), '/datasets/fileFormatDataSetPiped')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/rootDataSetRowHeader')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": true,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/ConnectToTargetFileShare')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureFileStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "DirectoryName": {
+            "type": "string"
+          },
+          "FileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure File Shares"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureFileStorageLocation",
+            "fileName": {
+              "value": "@dataset().FileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().DirectoryName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": false,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/Clean File Formats')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "activities": [
+          {
+            "name": "Get all fileformats on Delphix Engine",
+            "type": "WebActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 5,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-formats')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Accept": "application/json",
+                "Authorization": {
+                  "value": "@pipeline().parameters.authkey",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "Check if fileFormat should exist",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get all fileformats on Delphix Engine",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get all fileformats on Delphix Engine').output.responseList",
+                "type": "Expression"
+              },
+              "isSequential": false,
+              "activities": [
+                {
+                  "name": "Append uploaded file Format",
+                  "type": "AppendVariable",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "UploadedFileformatArray",
+                    "value": {
+                      "value": "@concat(item().fileFormatName,':',string(item().fileFormatId))",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Clean up file formats",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Filter fileFormats to be cleaned",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Filter fileFormats to be cleaned').output.value",
+                "type": "Expression"
+              },
+              "isSequential": true,
+              "activities": [
+                {
+                  "name": "Set fileToDelete",
+                  "type": "SetVariable",
+                  "dependsOn": [],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "FileToDelete",
+                    "value": {
+                      "value": "@split(item(),':')[1]",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "Check if the fileFormat was just uploaded",
+                  "type": "IfCondition",
+                  "dependsOn": [
+                    {
+                      "activity": "Set fileToDelete",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@not(contains(item(), pipeline().parameters.PipelineRunId))",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Delete file format",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                          "timeout": "0.12:00:00",
+                          "retry": 0,
+                          "retryIntervalInSeconds": 30,
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "url": {
+                            "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-formats/',variables('FileToDelete'))",
+                            "type": "Expression"
+                          },
+                          "method": "DELETE",
+                          "headers": {
+                            "Accept": "application/json",
+                            "Authorization": {
+                              "value": "@pipeline().parameters.authkey",
+                              "type": "Expression"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "name": "Set uploadStatus",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                          {
+                            "activity": "Delete file format",
+                            "dependencyConditions": [
+                              "Failed"
+                            ]
+                          }
+                        ],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "uploadStatus",
+                          "value": {
+                            "value": "@activity('Delete file format').output.errorMessage",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Filter fileFormats to be cleaned",
+            "type": "Filter",
+            "dependsOn": [
+              {
+                "activity": "Check if fileFormat should exist",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@variables('UploadedFileformatArray')",
+                "type": "Expression"
+              },
+              "condition": {
+                "value": "@contains(item(),pipeline().parameters.FilenameToClean)",
+                "type": "Expression"
+              }
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "FilenameToClean": {
+            "type": "string"
+          },
+          "MaskingEngineIP": {
+            "type": "string"
+          },
+          "LogicappURL": {
+            "type": "string"
+          },
+          "PipelineRunId": {
+            "type": "string"
+          },
+          "authkey": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "UploadedFileformat": {
+            "type": "String"
+          },
+          "UploadedFileformatArray": {
+            "type": "Array"
+          },
+          "masterabc": {
+            "type": "String"
+          },
+          "FilenameToCheck": {
+            "type": "String"
+          },
+          "FileToDelete": {
+            "type": "String"
+          },
+          "DeleteFile": {
+            "type": "String"
+          },
+          "RunId": {
+            "type": "String"
+          },
+          "PipelineRunId": {
+            "type": "String"
+          },
+          "FileContent": {
+            "type": "String"
+          },
+          "FileNameWithRunId": {
+            "type": "String"
+          },
+          "ifcond": {
+            "type": "Boolean"
+          },
+          "wastevar": {
+            "type": "String"
+          },
+          "sourceRuleset": {
+            "type": "Boolean"
+          },
+          "targetRuleset": {
+            "type": "Boolean"
+          },
+          "schemaName": {
+            "type": "Array"
+          },
+          "uploadStatus": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [],
+        "lastPublishTime": "2022-12-11T05:20:32Z"
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/semicolonDataSetDefaultRow')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ";",
+          "escapeChar": "\\",
+          "firstRowAsHeader": false,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/noescapeDataSet')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "",
+          "firstRowAsHeader": false,
+          "quoteChar": ""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/semicolonDataSet')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ";",
+          "rowDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": false,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/Setup Target Connector and Ruleset')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "activities": [
+          {
+            "name": "Create Target Environment",
+            "type": "WebActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/environments')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\n  \"environmentName\": \"@{pipeline().parameters.TargetEnvironmentName}\",\n  \"applicationId\": \"@{pipeline().parameters.applicationId}\",\n  \"purpose\": \"MASK\"\n}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Create Target Connector",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Wait for targetId",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\n  \"connectorName\": \"@{pipeline().parameters.TargetConnectorName}\",\n  \"environmentId\": \"@{variables('targetEnvironmentId')}\",\n  \"fileType\": \"DELIMITED\",\n  \"connectionInfo\": {\n    \"connectionMode\": \"MOUNT\",\n    \"path\": \"@{pipeline().parameters.RootFolder}/Target\",\n    \"mountId\": \" @{pipeline().parameters.mountId}\",\n    \"userDirIsRoot\": false\n  }\n}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Get Target Environment Id",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Create Target Environment",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/environments?application_id=',pipeline().parameters.applicationId)",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"applicationName\":\"@{pipeline().parameters.ApplicationName}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ForEach Target",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Target Environment Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Target Environment Id').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition for Target Env",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@equals(string(item().environmentName),pipeline().parameters.TargetEnvironmentName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set targetEnvVariable",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "targetEnvironmentId",
+                          "value": {
+                            "value": "@string(item().environmentId)",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set Target Environment Id",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Create Target Environment",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "targetEnvironmentId",
+              "value": {
+                "value": "@string(activity('Create Target Environment').output.environmentId)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Wait for targetId",
+            "type": "Wait",
+            "dependsOn": [
+              {
+                "activity": "ForEach Target",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Set Target Environment Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          },
+          {
+            "name": "Edit Target Connector",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "ForEach Target Connector",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors/',variables('targetConnectorId'))",
+                "type": "Expression"
+              },
+              "method": "PUT",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\n  \"connectorName\": \"@{pipeline().parameters.TargetConnectorName}\",\n  \"environmentId\": \"@{variables('targetEnvironmentId')}\",\n  \"fileType\": \"DELIMITED\",\n  \"connectionInfo\": {\n    \"connectionMode\": \"MOUNT\",\n    \"path\": \"@{pipeline().parameters.RootFolder}/Target\",\n    \"mountId\": \" @{pipeline().parameters.mountId}\",\n    \"userDirIsRoot\": false\n  }\n}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Get Target Connector Id",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Create Target Connector",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-connectors')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"applicationName\":\"@{pipeline().parameters.ApplicationName}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ForEach Target Connector",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Target Connector Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Target Connector Id').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition for Target Conector",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@contains(string(item()),pipeline().parameters.TargetConnectorName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set target Connector",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "targetConnectorId",
+                          "value": {
+                            "value": "@string(item().fileConnectorId)",
+                            "type": "Expression"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Set Target Connector Id",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "Create Target Connector",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "targetConnectorId",
+              "value": {
+                "value": "@string(activity('Create Target Connector').output.fileConnectorId)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Wait for targetConnector",
+            "type": "Wait",
+            "dependsOn": [
+              {
+                "activity": "Edit Target Connector",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              },
+              {
+                "activity": "Set Target Connector Id",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          },
+          {
+            "name": "Get Target RuleSet",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Wait for targetConnector",
+                "dependencyConditions": [
+                  "Skipped"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets')",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {
+                "Authorization": {
+                  "value": "@pipeline().parameters.AuthKey",
+                  "type": "Expression"
+                },
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              }
+            }
+          },
+          {
+            "name": "ForEach Target Ruleset",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Get Target RuleSet",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('Get Target RuleSet').output.responseList",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "If Condition for Target Ruleset",
+                  "type": "IfCondition",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@equals(string(item().rulesetName),pipeline().parameters.TargetRulesetName)",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "Set target Ruleset",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "policy": {
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                          "variableName": "targetRuleset",
+                          "value": true
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Check if target ruleset was created",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "ForEach Target Ruleset",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@equals(variables('targetRuleset'),true)",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "Create Target RuleSet",
+                  "type": "WebActivity",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "url": {
+                      "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/file-rulesets')",
+                      "type": "Expression"
+                    },
+                    "method": "POST",
+                    "headers": {
+                      "Authorization": {
+                        "value": "@pipeline().parameters.AuthKey",
+                        "type": "Expression"
+                      },
+                      "Content-Type": "application/json",
+                      "Accept": "application/json"
+                    },
+                    "body": {
+                      "value": "{\n  \"rulesetName\": \"@{pipeline().parameters.TargetRulesetName}\",\n  \"fileConnectorId\": @{variables('targetConnectorId')}\n}",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "MaskingEngineIP": {
+            "type": "string"
+          },
+          "AuthKey": {
+            "type": "string"
+          },
+          "TargetEnvironmentName": {
+            "type": "string"
+          },
+          "TargetConnectorName": {
+            "type": "string"
+          },
+          "TargetRulesetName": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "mountId": {
+            "type": "string"
+          },
+          "ApplicationName": {
+            "type": "string"
+          },
+          "RootFolder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "targetEnvironmentId": {
+            "type": "String"
+          },
+          "targetConnectorId": {
+            "type": "String"
+          },
+          "sourceRuleset": {
+            "type": "Boolean"
+          },
+          "targetRuleset": {
+            "type": "Boolean"
+          },
+          "uploadStatus": {
+            "type": "String"
+          },
+          "targetSetup": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [],
+        "lastPublishTime": "2022-12-09T09:29:15Z"
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/scehmaFileDataSet')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": "current-fileformat/schemafile",
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ";",
+          "rowDelimiter": ",",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/fileFormatDataSet')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": "current-fileformat/fileformat",
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": "|",
+          "rowDelimiter": "|",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/pipeRowDelimDataSet')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": "current-fileformat/schemafile",
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "rowDelimiter": "|",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    }
+  ]
+}

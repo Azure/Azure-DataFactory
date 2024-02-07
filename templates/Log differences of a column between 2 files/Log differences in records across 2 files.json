@@ -1,0 +1,382 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"BlobStorage": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LogUnprocessedRecords')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CheckForUnprocessedData",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DfLogUnProcessedRecords",
+								"type": "DataFlowReference",
+								"parameters": {
+									"SourceKeyColumn": {
+										"value": "'@{pipeline().parameters.SourceKeyColumn}'",
+										"type": "Expression"
+									},
+									"StagingKeyColumn": {
+										"value": "'@{pipeline().parameters.StagingKeyColumn}'",
+										"type": "Expression"
+									},
+									"DiffFileName": {
+										"value": "'@{concat(\n    pipeline().Pipeline,\n    '-',\n    pipeline().RunId,\n    '.txt'\n)}'",
+										"type": "Expression"
+									}
+								},
+								"datasetParameters": {
+									"csvSource": {
+										"SourceContainerName": "test-sample",
+										"SourceFolderPath": {
+											"value": "@pipeline().parameters.SourceFolderPath",
+											"type": "Expression"
+										},
+										"SourceFileName": {
+											"value": "@pipeline().parameters.SourceFileName",
+											"type": "Expression"
+										}
+									},
+									"stagingFiles": {
+										"StagingContainerName": "test-sample",
+										"StagingFolderPath": {
+											"value": "@pipeline().parameters.StagingFolderPath",
+											"type": "Expression"
+										}
+									},
+									"writeDiffToFile": {
+										"ErrorFolder": {
+											"value": "@pipeline().parameters.StagingFolderPath",
+											"type": "Expression"
+										},
+										"ErrorFileName": {
+											"value": "@concat(\n    pipeline().Pipeline,\n    '-',\n    pipeline().RunId,\n    '.txt'\n)",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"parameters": {
+					"SourceFolderPath": {
+						"type": "string",
+						"defaultValue": "log-unprocessed-records/source"
+					},
+					"SourceFileName": {
+						"type": "string",
+						"defaultValue": "source.csv"
+					},
+					"StagingFolderPath": {
+						"type": "string",
+						"defaultValue": "log-unprocessed-records/staging"
+					},
+					"SourceKeyColumn": {
+						"type": "string",
+						"defaultValue": "source_primary_key"
+					},
+					"StagingKeyColumn": {
+						"type": "string",
+						"defaultValue": "staging_primary_key"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DfLogUnProcessedRecords')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DfLogUnProcessedRecords')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "LogUnProcessedRecords"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "CSVSource",
+								"type": "DatasetReference"
+							},
+							"name": "csvSource"
+						},
+						{
+							"dataset": {
+								"referenceName": "StagingSource",
+								"type": "DatasetReference"
+							},
+							"name": "stagingFiles"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "UnProcessedLogs",
+								"type": "DatasetReference"
+							},
+							"name": "writeDiffToFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "checkDataThatMatches"
+						},
+						{
+							"name": "selectStagingColumnName"
+						},
+						{
+							"name": "selectSourceColumnName"
+						},
+						{
+							"name": "RenameColumn"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     SourceKeyColumn as string,",
+						"     StagingKeyColumn as string,",
+						"     DiffFileName as string",
+						"}",
+						"source(output(",
+						"          {Cost Center} as string,",
+						"          {Company Code} as short,",
+						"          {Functional Area} as integer,",
+						"          {International Cost Center ID} as string,",
+						"          {Function ID} as string,",
+						"          {Product Category} as string,",
+						"          Description as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> csvSource",
+						"source(output(",
+						"          {Cost Center} as string,",
+						"          {Company Code} as string,",
+						"          {Functional Area} as short,",
+						"          {International Cost Center ID} as string,",
+						"          {Function ID} as string,",
+						"          {Product Category} as string,",
+						"          Description as string,",
+						"          {CCC GUID} as string,",
+						"          {CompanyCode GUID} as string,",
+						"          {Legal Entity Name} as string,",
+						"          {Function UUID} as string,",
+						"          {ProductCategory UUID} as string,",
+						"          {CRG UUID} as string,",
+						"          {ERP CC Company Code} as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> stagingFiles",
+						"selectSourceColumnName, selectStagingColumnName exists(byName('SourceColumnToCompare') == byName('StagingColumnToCompare'),",
+						"     negate:true,",
+						"     broadcast: 'both')~> checkDataThatMatches",
+						"stagingFiles select(mapColumn(",
+						"          each(match(rtrim(ltrim(name))==$StagingKeyColumn),",
+						"               'StagingColumnToCompare' = $$)",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectStagingColumnName",
+						"csvSource select(mapColumn(",
+						"          each(match(rtrim(ltrim(name))==$SourceKeyColumn),",
+						"               'SourceColumnToCompare' = $$)",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectSourceColumnName",
+						"checkDataThatMatches select(mapColumn(",
+						"          each(match(name=='SourceColumnToCompare'),",
+						"               concat('Missing ',$SourceKeyColumn) = $$)",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> RenameColumn",
+						"RenameColumn sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:[($DiffFileName)],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> writeDiffToFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/CSVSource')]",
+				"[concat(variables('factoryId'), '/datasets/StagingSource')]",
+				"[concat(variables('factoryId'), '/datasets/UnProcessedLogs')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CSVSource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('BlobStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SourceContainerName": {
+						"type": "string",
+						"defaultValue": "integration-data"
+					},
+					"SourceFolderPath": {
+						"type": "string"
+					},
+					"SourceFileName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "LogUnprocessedRecords"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().SourceFileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().SourceFolderPath",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().SourceContainerName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/StagingSource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('BlobStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"StagingContainerName": {
+						"type": "string",
+						"defaultValue": "integration-data"
+					},
+					"StagingFolderPath": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "LogUnprocessedRecords"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().StagingFolderPath",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().StagingContainerName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/UnProcessedLogs')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('BlobStorage')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"ErrorFolder": {
+						"type": "string"
+					},
+					"ErrorFileName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "LogUnprocessedRecords"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().ErrorFileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@concat('log-unprocessed-records/un-processed/' , dataset().ErrorFolder)",
+							"type": "Expression"
+						},
+						"container": "test-sample"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}

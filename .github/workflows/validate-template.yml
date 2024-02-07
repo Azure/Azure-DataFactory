@@ -1,6 +1,6 @@
 name: Template Validation
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
 
@@ -20,7 +20,7 @@ jobs:
           path: $GITHUB_WORKSPACE
 
       - name: Create comment
-        if: ${{ steps.validate-template.outputs.status != 0 && !github.event.repository.fork }}
+        if: ${{ steps.validate-template.outputs.status != 0 && !github.event.pull_request.head.repo.fork }}
         uses: peter-evans/create-or-update-comment@v1
         with:
           issue-number: ${{ github.event.pull_request.number }}
