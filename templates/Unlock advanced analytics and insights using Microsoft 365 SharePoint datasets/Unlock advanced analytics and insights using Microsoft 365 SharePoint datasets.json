@@ -765,7 +765,7 @@
 					"Microsoft",
 					"Office"
 				],
-				"lastPublishTime": "2024-02-02T00:57:17Z"
+				"lastPublishTime": "2024-02-03T00:30:43Z"
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/DS_GroupMembers_Source')]",
@@ -979,7 +979,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "9b44e9ab-c451-48dc-8eb3-ac1fbd9d5be1"
+						"spark.autotune.trackingId": "9e09f851-3991-41f1-90c1-90ad39985a7a"
 					}
 				},
 				"metadata": {
@@ -1403,7 +1403,7 @@
 							"    \"\"\"\r\n",
 							"    find_next = True\r\n",
 							"    current_level = 0\r\n",
-							"    total_levels_to_use = 8\r\n",
+							"    total_levels_to_use = 6\r\n",
 							"    while find_next and current_level < total_levels_to_use:\r\n",
 							"        print(f\"Current level: {current_level}\")\r\n",
 							"        dfMembersWithLevel.createOrReplaceTempView(\"dfMembersWithLevel_Sql\")\r\n",
@@ -2127,10 +2127,6 @@
 				},
 				"metadata": {
 					"saveOutput": true,
-					"synapse_widget": {
-						"version": "0.1",
-						"state": {}
-					},
 					"enableDebugMode": false,
 					"kernelspec": {
 						"name": "synapse_spark",
@@ -2228,8 +2224,7 @@
 							"println(\"Application Id: \" + spark.sparkContext.applicationId )\r\n",
 							"println(\"Application Name: \" + spark.sparkContext.appName)"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2267,8 +2262,7 @@
 							"val storageAccountName = \"<<PipelineParameters:FillStorageAccountName>>\" // replace with your blob name\r\n",
 							"val storageContainerName = \"<<PipelineParameters:FillStorageAccountContainerName>>\" //replace with your container name"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2339,8 +2333,7 @@
 							"\r\n",
 							""
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2379,8 +2372,7 @@
 							"\r\n",
 							"//display(expandedAADGroupMembersDF.filter(\"GroupId == '00000000-0000-0000-0000-000000000000'\"))"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2422,8 +2414,7 @@
 							"      .withColumn(\"MemberLevel\",lit(0))\r\n",
 							"      .withColumn(\"MemberType\",lit(\"User\"))"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2500,8 +2491,7 @@
 							"\r\n",
 							"  "
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2576,8 +2566,7 @@
 							"                                                ,\"Members\"                                               \r\n",
 							"                                                )"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2621,8 +2610,7 @@
 							"                                                    ).as(\"Members\")\r\n",
 							"                                            )"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2669,8 +2657,7 @@
 							"                                            )\r\n",
 							""
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2707,8 +2694,7 @@
 							"//display(spGroupsMembersExpandedAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\",\"GroupType\"))\r\n",
 							""
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2802,8 +2788,7 @@
 							"\r\n",
 							""
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2837,8 +2822,7 @@
 							"val spGroupOwnersAndMembersAgg =spGroupsMembersExpandedAgg.join(spGroupsOwnersExpandedAgg,List(\"ptenant\",\"SiteId\",\"GroupId\")).select (spGroupsMembersExpandedAgg(\"*\"),spGroupsOwnersExpandedAgg(\"Owners\"))\r\n",
 							"//display(spGroupOwnersAndMembersAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2891,8 +2875,7 @@
 							"    .mode(\"overwrite\")\r\n",
 							"    .save(latestSPGroupsMembersOnlyPath)"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -2978,8 +2961,7 @@
 							"\r\n",
 							""
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					},
 					{
 						"cell_type": "markdown",
@@ -3021,8 +3003,7 @@
 							"    .mode(\"overwrite\")\r\n",
 							"    .save(latestSitesPath)"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					}
 				]
 			},
