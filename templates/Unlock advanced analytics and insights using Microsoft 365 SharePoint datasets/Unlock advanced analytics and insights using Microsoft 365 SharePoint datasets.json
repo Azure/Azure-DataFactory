@@ -979,7 +979,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "9e09f851-3991-41f1-90c1-90ad39985a7a"
+						"spark.autotune.trackingId": "7e99fb01-9487-4a7d-a637-5836fb2ac71d"
 					}
 				},
 				"metadata": {
@@ -1368,6 +1368,8 @@
 							"collapsed": false
 						},
 						"source": [
+							"\r\n",
+							"\r\n",
 							"%%pyspark\r\n",
 							"\r\n",
 							"## Updated line number 25 to fix the level derivation issue\r\n",
@@ -1387,38 +1389,42 @@
 							"             , this.level as level\r\n",
 							"             , true as tobe_expanded\r\n",
 							"             , this.ODataType, this.DisplayName, this.EMail, this.ptenant, this.GroupDisplayName, this.GroupPath\r\n",
-							"          from dfMembersWithLevel_Sql this\r\n",
-							"         where this.ODataType = '#microsoft.graph.user'\r\n",
+							"          from data this\r\n",
+							"         where this.ODataType = '#microsoft.graph.user' \r\n",
+							"           and GroupId != MemberId\r\n",
 							"         union \r\n",
 							"        select next.MemberId MemberId\r\n",
 							"             , this.GroupId as GroupId\r\n",
 							"             , this.level + 1 + next.level as level\r\n",
 							"             , next.ODataType = '#microsoft.graph.group' as tobe_expanded\r\n",
 							"             , next.ODataType, next.DisplayName, next.EMail, next.ptenant, this.GroupDisplayName, CONCAT(this.GroupPath,\"->\",next.GroupPath) AS GroupPath\r\n",
-							"          from dfMembersWithLevel_Sql this\r\n",
-							"          join dfMembersWithLevel_Sql next\r\n",
+							"          from data this\r\n",
+							"          join data next\r\n",
 							"            on this.MemberId = next.GroupId\r\n",
 							"           and this.ptenant = next.ptenant\r\n",
 							"         where this.ODataType = '#microsoft.graph.group'\r\n",
+							"           \r\n",
 							"    \"\"\"\r\n",
 							"    find_next = True\r\n",
 							"    current_level = 0\r\n",
 							"    total_levels_to_use = 6\r\n",
 							"    while find_next and current_level < total_levels_to_use:\r\n",
 							"        print(f\"Current level: {current_level}\")\r\n",
-							"        dfMembersWithLevel.createOrReplaceTempView(\"dfMembersWithLevel_Sql\")\r\n",
+							"        dfMembersWithLevel.filter(\"GroupId != MemberId \").createOrReplaceTempView(\"data\")\r\n",
 							"        dfMembersWithLevel = spark.sql(sql)\r\n",
 							"        find_next = dfMembersWithLevel.selectExpr(\"ANY(tobe_expanded = True and ODataType = '#microsoft.graph.group')\").collect()[0][0]\r\n",
 							"        current_level +=1 \r\n",
 							"        \r\n",
 							"    return dfMembersWithLevel.drop('tobe_expanded')\r\n",
 							"\r\n",
-							"dfGroupMembersCustom = spark.sql('select GroupId,MemberId,ODataType,DisplayName,EMail,ptenant,GroupDisplayName, GroupDisplayName AS GroupPath from GroupMembersCustom')\r\n",
+							"dfGroupMembersCustom = spark.sql('select GroupId,MemberId,ODataType,DisplayName,EMail,ptenant,GroupDisplayName, GroupDisplayName AS GroupPath  from GroupMembersCustom')\r\n",
 							"result = recursively_expand_members(dfGroupMembersCustom)\r\n",
-							"groupMembersCustomExpanded = result.withColumnRenamed('DisplayName','MemberDisplayName').withColumnRenamed('EMail','MemberEMail').withColumnRenamed('ptenant','Memberptenant').withColumnRenamed('Level','MemberLevel').withColumn('MemberType',lit('User'))\r\n",
+							"groupMembersCustomExpanded = result.filter(\"GroupId != MemberId \").withColumnRenamed(\r\n",
+							"    'DisplayName','MemberDisplayName').withColumnRenamed('EMail','MemberEMail').withColumnRenamed('ptenant','Memberptenant').withColumnRenamed('Level','MemberLevel').withColumn('MemberType',lit('User'))\r\n",
 							"\r\n",
 							"groupMembersCustomExpanded.createOrReplaceTempView(\"groupMembersCustomExpanded\")\r\n",
-							"# display(groupMembersCustomExpanded.filter(\"GroupId == '00000000-0000-0000-0000-000000000000'\"))"
+							"\r\n",
+							""
 						],
 						"outputs": [],
 						"execution_count": null
@@ -1476,12 +1482,6 @@
 							"val dfFinalGroups = groupDetailsCustom\r\n",
 							"                                .join(dfFinalGroupsWithOnlyOwnersNormalized.groupBy(\"GroupId\").agg(collect_set(col(\"Owners\")).alias(\"Owners\")),Seq(\"GroupId\"),\"left\")\r\n",
 							"                                .join(dfFinalGroupsWithOnlyMembersNormalized.groupBy(\"GroupId\").agg(collect_set(col(\"Members\")).alias(\"Members\")),Seq(\"GroupId\"),\"left\")\r\n",
-							"\r\n",
-							"/*\r\n",
-							"display(dfFinalGroups.filter(col(\"GroupId\") === \"00000000-0000-0000-0000-000000000000\"))\r\n",
-							"display(dfFinalGroupsWithOnlyOwnersNormalized.filter(col(\"GroupId\") === \"00000000-0000-0000-0000-000000000000\"))\r\n",
-							"display(dfFinalGroupsWithOnlyMembersNormalized.filter(col(\"GroupId\") === \"00000000-0000-0000-0000-000000000000\"))\r\n",
-							"*/\r\n",
 							"\r\n",
 							""
 						],
@@ -2122,11 +2122,15 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c2c42a22-b213-4221-ba4f-5720ed61775c"
+						"spark.autotune.trackingId": "0eeceeea-5617-42e7-a9f1-d698e523b5ef"
 					}
 				},
 				"metadata": {
 					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1",
+						"state": {}
+					},
 					"enableDebugMode": false,
 					"kernelspec": {
 						"name": "synapse_spark",
@@ -2224,7 +2228,8 @@
 							"println(\"Application Id: \" + spark.sparkContext.applicationId )\r\n",
 							"println(\"Application Name: \" + spark.sparkContext.appName)"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2262,7 +2267,8 @@
 							"val storageAccountName = \"<<PipelineParameters:FillStorageAccountName>>\" // replace with your blob name\r\n",
 							"val storageContainerName = \"<<PipelineParameters:FillStorageAccountContainerName>>\" //replace with your container name"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2333,7 +2339,8 @@
 							"\r\n",
 							""
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2368,11 +2375,10 @@
 							"      .read\r\n",
 							"      .format(\"json\")\r\n",
 							"      .option(\"recursiveFileLookup\", \"false\")\r\n",
-							"      .load(latestGroupsMembersOnlyPath)\r\n",
-							"\r\n",
-							"//display(expandedAADGroupMembersDF.filter(\"GroupId == '00000000-0000-0000-0000-000000000000'\"))"
+							"      .load(latestGroupsMembersOnlyPath)"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2414,7 +2420,8 @@
 							"      .withColumn(\"MemberLevel\",lit(0))\r\n",
 							"      .withColumn(\"MemberType\",lit(\"User\"))"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2487,11 +2494,10 @@
 							"    .withColumn(\"GroupType\",lit(\"SharePointGroup\"))\r\n",
 							"    .select(\"ptenant\",\"SiteId\",\"GroupId\",\"GroupDisplayName\",\"Description\",\"EMail\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\",\"Owner\",\"Members\")        \r\n",
 							"            \r\n",
-							"//display(spgroupsCustom.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))            \r\n",
-							"\r\n",
 							"  "
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2566,7 +2572,8 @@
 							"                                                ,\"Members\"                                               \r\n",
 							"                                                )"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2610,7 +2617,8 @@
 							"                                                    ).as(\"Members\")\r\n",
 							"                                            )"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2657,7 +2665,8 @@
 							"                                            )\r\n",
 							""
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2690,11 +2699,10 @@
 							"\r\n",
 							"val spGroupsMembersExpandedAgg= spGroupsMembersExpanded.groupBy(\"ptenant\",\"SiteId\",\"GroupId\",\"GroupDisplayName\",\"Description\",\"Email\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\").agg(collect_set(col(\"Members\")).alias(\"Members\"))\r\n",
 							"\r\n",
-							"//display(spGroupsMembersExpanded.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\",\"GroupType\"))\r\n",
-							"//display(spGroupsMembersExpandedAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\",\"GroupType\"))\r\n",
 							""
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2774,21 +2782,14 @@
 							"                                                        )\r\n",
 							"                                               \r\n",
 							"\r\n",
-							"//display(spgroupsWithSPGroupTypeOwners)\r\n",
-							"//display(spgroupsWithSecurityTypeOwners)\r\n",
-							"//display(spgroupsWithMiscTypeOwners)\r\n",
 							"val spGroupsOwnersExpanded = spGroupsWithMembersExpandedForAADAndSPGroupTypes.unionByName(spgroupsWithMiscTypeOwners).dropDuplicates()\r\n",
 							"val spGroupsOwnersExpandedAgg= spGroupsOwnersExpanded.groupBy(\"ptenant\",\"SiteId\",\"GroupId\",\"GroupDisplayName\",\"Description\",\"Email\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\")\r\n",
 							"                                                        .agg(collect_set(col(\"Owners\")).alias(\"Owners\"))\r\n",
 							"\r\n",
-							"\r\n",
-							"//display(spGroupsOwnersExpanded.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))\r\n",
-							"//display(spGroupsOwnersExpandedAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))\r\n",
-							"\r\n",
-							"\r\n",
 							""
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2819,10 +2820,10 @@
 						},
 						"source": [
 							"\r\n",
-							"val spGroupOwnersAndMembersAgg =spGroupsMembersExpandedAgg.join(spGroupsOwnersExpandedAgg,List(\"ptenant\",\"SiteId\",\"GroupId\")).select (spGroupsMembersExpandedAgg(\"*\"),spGroupsOwnersExpandedAgg(\"Owners\"))\r\n",
-							"//display(spGroupOwnersAndMembersAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))"
+							"val spGroupOwnersAndMembersAgg =spGroupsMembersExpandedAgg.join(spGroupsOwnersExpandedAgg,List(\"ptenant\",\"SiteId\",\"GroupId\")).select (spGroupsMembersExpandedAgg(\"*\"),spGroupsOwnersExpandedAgg(\"Owners\"))"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2875,7 +2876,8 @@
 							"    .mode(\"overwrite\")\r\n",
 							"    .save(latestSPGroupsMembersOnlyPath)"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -2961,7 +2963,8 @@
 							"\r\n",
 							""
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -3003,7 +3006,8 @@
 							"    .mode(\"overwrite\")\r\n",
 							"    .save(latestSitesPath)"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
