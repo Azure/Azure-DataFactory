@@ -25,7 +25,19 @@
         }
     },
     "author": "ulrichchrist@microsoft.com",
-    "annotations": [],
-    "services": [],
-    "categories": []
+    "documentation":"https://review.learn.microsoft.com/en-us/fabric/data-factory/change-data-capture-from-sap-to-onelake-with-azure-data-factory?branch=pr-en-us-3144",
+    "annotations":[  
+        "Change Data",
+        "SAP Table",
+        "Microsoft Fabric", 
+        "Fabric Lakehouse"
+    ],
+    "services":[  
+        "SAP",
+        "Microsoft Fabric"
+    ],
+    "categories":[  
+        "Data flow", 
+        "SAP", 
+    ],
 }
