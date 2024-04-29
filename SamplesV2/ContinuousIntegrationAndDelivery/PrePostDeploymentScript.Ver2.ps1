@@ -544,8 +544,21 @@ try {
         Write-Host "##[warning] The script is not compatible with your current PowerShell version $($PSVersionTable.PSVersion). Use either PowerShell Core or at least PS version 7.0, otherwise the script may fail to compare the trigger payload and always stop/start the trigger(s)"
     }
 
-    $templateJson = Get-Content $ArmTemplate | ConvertFrom-Json
-    $resources = $templateJson.resources
+    if ($ArmTemplate.EndsWith("ArmTemplate_master.json")) {
+        $resources = @()
+        $templateFile = Get-ChildItem -Path $ArmTemplate
+        $linkedTemplateFiles = (Get-ChildItem -Path $templateFile.Directory.FullName -File -Filter "*.json").where({
+                (@("ArmTemplate_master.json", "ArmTemplateParameters_master.json") -inotcontains $PSItem.Name)
+            }
+        )
+        foreach ($linkedTemplateFile in $linkedTemplateFiles) {
+            $templateJson = Get-Content $linkedTemplateFile.FullName | ConvertFrom-Json
+            $resources += $templateJson.resources
+        }
+    } else {
+        $templateJson = Get-Content $ArmTemplate | ConvertFrom-Json
+        $resources = $templateJson.resources
+    }
 
     if (-not $ArmTemplateParameters) {
         $ArmTemplateParameters = Join-Path -Path (Split-Path $ArmTemplate -Parent) -ChildPath 'ArmTemplateParametersForFactory.json'
