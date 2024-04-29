@@ -50,15 +50,12 @@ function Get-PipelineDependency {
     $result = @()
     if ($activity.Pipeline) {
         $result += $activity.Pipeline.ReferenceName
-    }
-    elseif ($activity.Activities) {
+    } elseif ($activity.Activities) {
         $activity.Activities | ForEach-Object { $result += Get-PipelineDependency -activity $_ }
-    }
-    elseif ($activity.ifFalseActivities -or $activity.ifTrueActivities) {
+    } elseif ($activity.ifFalseActivities -or $activity.ifTrueActivities) {
         $activity.ifFalseActivities | Where-Object { $_ -ne $null } | ForEach-Object { $result += Get-PipelineDependency -activity $_ }
         $activity.ifTrueActivities | Where-Object { $_ -ne $null } | ForEach-Object { $result += Get-PipelineDependency -activity $_ }
-    }
-    elseif ($activity.defaultActivities) {
+    } elseif ($activity.defaultActivities) {
         $activity.defaultActivities | ForEach-Object { $result += Get-PipelineDependency -activity $_ }
         if ($activity.cases) {
             $activity.cases | ForEach-Object { $_.activities } | ForEach-Object { $result += Get-PipelineDependency -activity $_ }
@@ -79,7 +76,7 @@ function Push-PipelinesToList {
         return;
     }
     $visited[$pipeline.Name] = $true;
-    $pipeline.Activities | ForEach-Object { Get-PipelineDependency -activity $_ -pipelineNameResourceDict $pipelineNameResourceDict }  | ForEach-Object {
+    $pipeline.Activities | ForEach-Object { Get-PipelineDependency -activity $_ -pipelineNameResourceDict $pipelineNameResourceDict } | ForEach-Object {
         Push-PipelinesToList -pipeline $pipelineNameResourceDict[$_] -pipelineNameResourceDict $pipelineNameResourceDict -visited $visited -sortedList $sortedList
     }
     $sortedList.Push($pipeline)
@@ -93,10 +90,10 @@ function Get-SortedPipeline {
     $pipelines = Get-AzDataFactoryV2Pipeline -DataFactoryName $DataFactoryName -ResourceGroupName $ResourceGroupName
     $ppDict = @{}
     $visited = @{}
-    $stack = new-object System.Collections.Stack
+    $stack = New-Object System.Collections.Stack
     $pipelines | ForEach-Object { $ppDict[$_.Name] = $_ }
     $pipelines | ForEach-Object { Push-PipelinesToList -pipeline $_ -pipelineNameResourceDict $ppDict -visited $visited -sortedList $stack }
-    $sortedList = new-object Collections.Generic.List[Microsoft.Azure.Commands.DataFactoryV2.Models.PSPipeline]
+    $sortedList = New-Object Collections.Generic.List[Microsoft.Azure.Commands.DataFactoryV2.Models.PSPipeline]
 
     while ($stack.Count -gt 0) {
         $sortedList.Add($stack.Pop())
@@ -131,10 +128,10 @@ function Get-SortedTrigger {
     $triggers = Get-AzDataFactoryV2Trigger -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
     $triggerDict = @{}
     $visited = @{}
-    $stack = new-object System.Collections.Stack
+    $stack = New-Object System.Collections.Stack
     $triggers | ForEach-Object { $triggerDict[$_.Name] = $_ }
     $triggers | ForEach-Object { Push-TriggersToList -trigger $_ -triggerNameResourceDict $triggerDict -visited $visited -sortedList $stack }
-    $sortedList = new-object Collections.Generic.List[Microsoft.Azure.Commands.DataFactoryV2.Models.PSTrigger]
+    $sortedList = New-Object Collections.Generic.List[Microsoft.Azure.Commands.DataFactoryV2.Models.PSTrigger]
     while ($stack.Count -gt 0) {
         $sortedList.Add($stack.Pop())
     }
@@ -156,11 +153,9 @@ function Get-SortedLinkedService {
     $linkedServices | ForEach-Object {
         if ($_.Properties.GetType().Name -in $LinkedServiceHasDependencies) {
             $HighOrderList.Add($_)
-        }
-        elseif ($_.Properties.GetType().Name -eq $Akv) {
+        } elseif ($_.Properties.GetType().Name -eq $Akv) {
             $AkvList.Add($_)
-        }
-        else {
+        } else {
             $RegularList.Add($_)
         }
     }
@@ -211,20 +206,17 @@ function Compare-TriggerPayload {
                 [Microsoft.Azure.Management.DataFactory.Models.ScheduleTrigger],
                 $serializerOptions)
             return Compare-ScheduleTrigger -triggerDeployed $triggerDeployed -triggerPayload $triggerPayload
-        }
-        elseif ($triggerDeployed.Properties.GetType().Name -eq [Microsoft.Azure.Management.DataFactory.Models.TumblingWindowTrigger].Name) {
+        } elseif ($triggerDeployed.Properties.GetType().Name -eq [Microsoft.Azure.Management.DataFactory.Models.TumblingWindowTrigger].Name) {
             $triggerPayload = [System.Text.Json.JsonSerializer]::Deserialize($updatedTemplateJson,
                 [Microsoft.Azure.Management.DataFactory.Models.TumblingWindowTrigger],
                 $serializerOptions)
             return Compare-TumblingWindowTrigger -triggerDeployed $triggerDeployed -triggerPayload $triggerPayload
-        }
-        elseif ($triggerDeployed.Properties.GetType().Name -eq [Microsoft.Azure.Management.DataFactory.Models.BlobEventsTrigger].Name) {
+        } elseif ($triggerDeployed.Properties.GetType().Name -eq [Microsoft.Azure.Management.DataFactory.Models.BlobEventsTrigger].Name) {
             $triggerPayload = [System.Text.Json.JsonSerializer]::Deserialize($updatedTemplateJson,
                 [Microsoft.Azure.Management.DataFactory.Models.BlobEventsTrigger],
                 $serializerOptions)
             return Compare-BlobEventsTrigger -triggerDeployed $triggerDeployed -triggerPayload $triggerPayload
-        }
-        elseif ($triggerDeployed.Properties.GetType().Name -eq [Microsoft.Azure.Management.DataFactory.Models.CustomEventsTrigger].Name) {
+        } elseif ($triggerDeployed.Properties.GetType().Name -eq [Microsoft.Azure.Management.DataFactory.Models.CustomEventsTrigger].Name) {
             $triggerPayload = [System.Text.Json.JsonSerializer]::Deserialize($updatedTemplateJson,
                 [Microsoft.Azure.Management.DataFactory.Models.CustomEventsTrigger],
                 $serializerOptions)
@@ -233,8 +225,7 @@ function Compare-TriggerPayload {
 
         Write-Host "##[warning] Comparison terminated as trigger type '$($triggerDeployed.Properties.GetType().Name)' not match"
         return $True
-    }
-    catch {
+    } catch {
         Write-Host "##[warning] Unable to compare '$($triggerDeployed.Name)' trigger payload, this is not a failure. You can post the issue to https://github.com/Azure/Azure-DataFactory/issues to check if this is user error or limitation."
         Write-Host "##[warning] $_ from Line: $($_.InvocationInfo.ScriptLineNumber)"
         return $True;
@@ -265,7 +256,7 @@ function Compare-ScheduleTrigger {
         if ($null -eq $changes) {
             $scheduleChanged = $True;
             if ($null -ne $deployedTriggerProps.Recurrence.Schedule.MonthlyOccurrences -and $null -ne $triggerPayload.Recurrence.Schedule.MonthlyOccurrences) {
-                $changes =Compare-Object -ReferenceObject $deployedTriggerProps.Recurrence.Schedule.MonthlyOccurrences -DifferenceObject $triggerPayload.Recurrence.Schedule.MonthlyOccurrences `
+                $changes = Compare-Object -ReferenceObject $deployedTriggerProps.Recurrence.Schedule.MonthlyOccurrences -DifferenceObject $triggerPayload.Recurrence.Schedule.MonthlyOccurrences `
                     -Property Day, Occurrence
             } elseif ($null -eq $deployedTriggerProps.Recurrence.Schedule.MonthlyOccurrences -and $null -eq $triggerPayload.Recurrence.Schedule.MonthlyOccurrences) {
                 $scheduleChanged = $False;
@@ -322,7 +313,7 @@ function Compare-TumblingWindowTrigger {
         -payloadAdditionalProps $triggerPayload.AdditionalProperties
 
     if (($null -ne $propertyChanges) -or ($null -ne $annotationChanges) -or ($null -ne $retryPolicyChanges) -or `
-        $pipelineRefChanged -or $additionalPropsChanged) {
+            $pipelineRefChanged -or $additionalPropsChanged) {
         Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), retryPolicyChanges=$($retryPolicyChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
@@ -376,7 +367,7 @@ function Compare-CustomEventsTrigger {
         -payloadAdditionalProps $triggerPayload.AdditionalProperties
 
     if (($null -ne $propertyChanges) -or ($null -ne $eventChanges) -or ($null -ne $annotationChanges) -or `
-        $pipelineRefChanged -or $additionalPropsChanged) {
+            $pipelineRefChanged -or $additionalPropsChanged) {
         Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), eventChanges=$($eventChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
@@ -396,8 +387,7 @@ function Compare-TriggerPipelineReference {
         $changes = Compare-Object -ReferenceObject $tprDeployed.PipelineReference -DifferenceObject $tprPayload.PipelineReference `
             -Property Name, ReferenceName
         $pipelineRefchanged = $changes.Length -gt 0
-    }
-    elseif ($null -eq $tprDeployed.PipelineReference -and $null -eq $tprPayload.PipelineReference) {
+    } elseif ($null -eq $tprDeployed.PipelineReference -and $null -eq $tprPayload.PipelineReference) {
         $pipelineRefchanged = $False;
     }
 
@@ -417,8 +407,7 @@ function Compare-TriggerPipelineReference {
                         !$deployedPipelineRef.Parameters.TryGetValue($key, [ref]$deployedValue) ) {
                         $paramsChanged = $True
                         break
-                    }
-                    else {
+                    } else {
                         if ($deployedValue.GetType().Name -in @("JObject", "JArray")) {
                             if (($deployedValue.ToString() | ConvertFrom-Json).type -eq "SecureString") {
                                 $paramsChanged = $True
@@ -438,8 +427,7 @@ function Compare-TriggerPipelineReference {
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 $paramsChanged = $True
                 break;
             }
@@ -466,8 +454,7 @@ function Compare-TriggerAdditionalProperty {
                     !$deployedAdditionalProps.TryGetValue($key, [ref]$deployedValue)) {
                     $additionalPropchanged = $True
                     break
-                }
-                else {
+                } else {
                     $payloadJObect = [Newtonsoft.Json.Linq.JObject]::Parse($payloadValue)
                     $additionalPropValueChanges = Compare-Object -ReferenceObject $deployedValue -DifferenceObject $payloadJObect
                     if ($null -ne $additionalPropValueChanges) {
@@ -477,8 +464,7 @@ function Compare-TriggerAdditionalProperty {
                 }
             }
         }
-    }
-    elseif ($null -eq $deployedAdditionalProps -and $null -eq $payloadAdditionalProps) {
+    } elseif ($null -eq $deployedAdditionalProps -and $null -eq $payloadAdditionalProps) {
         $additionalPropchanged = $False;
     }
 
@@ -491,8 +477,7 @@ function Update-TriggerTimeFormat {
     )
     foreach ($key in $deployedAdditionalProps.Keys) {
         $deployedValue = $null;
-        if ($deployedAdditionalProps.TryGetValue($key, [ref]$deployedValue) -and $deployedValue["recurrence"]["timeZone"] -ne "UTC")
-        {
+        if ($deployedAdditionalProps.TryGetValue($key, [ref]$deployedValue) -and $deployedValue["recurrence"]["timeZone"] -ne "UTC") {
             if ($null -ne $deployedValue["recurrence"]["startTime"]) {
                 $startTimeString = $deployedValue["recurrence"]["startTime"].ToString("yyyy-MM-ddTHH:mm:ss");
                 $startDateTime = Get-Date -Date $startTimeString;
@@ -635,8 +620,7 @@ try {
         } elseif ($ExplicitStopTriggerList -and $ExplicitStopTriggerList.Count -gt 0) {
             Write-Host "No matching trigger (in started state) to stop from explicit stop-trigger list"
         }
-    }
-    else {
+    } else {
         #Deleted resources
         #pipelines
         Write-Host "Getting pipelines"
@@ -678,7 +662,7 @@ try {
         }
         $triggersToDelete | ForEach-Object {
             Write-Host "Deleting trigger $($_.Name)"
-            $trig = Get-AzDataFactoryV2Trigger -name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
+            $trig = Get-AzDataFactoryV2Trigger -Name $_.Name -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
             if ($trig.RuntimeState -eq 'Started') {
                 if ($_.TriggerType -eq 'BlobEventsTrigger') {
                     Write-Host "Unsubscribing trigger $($_.Name) from events"
@@ -726,11 +710,12 @@ try {
 
             Write-Host "Deployment to be deleted: $deploymentName"
             $deploymentOperations = Get-AzResourceGroupDeploymentOperation -DeploymentName $deploymentName -ResourceGroupName $ResourceGroupName
-            $deploymentsToDelete = $deploymentOperations | Where-Object { $_.properties.targetResource.id -like "*Microsoft.Resources/deployments*" }
+            $deploymentsToDelete = $deploymentOperations | Where-Object { $_.Id -like "*Microsoft.Resources/deployments*" }
 
             $deploymentsToDelete | ForEach-Object {
-                Write-Host "Deleting inner deployment: $($_.properties.targetResource.id)"
-                Remove-AzResourceGroupDeployment -Id $_.properties.targetResource.id
+                $innerDeploymentName = $_.TargetResource.Split("/")[-1]
+                Write-Host "Deleting inner deployment: $innerDeploymentName"
+                Remove-AzResourceGroupDeployment -Id $_.TargetResource
             }
             Write-Host "Deleting deployment: $deploymentName"
             Remove-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -Name $deploymentName
