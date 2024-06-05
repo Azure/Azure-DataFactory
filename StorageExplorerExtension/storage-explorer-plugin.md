@@ -1,4 +1,4 @@
-# Storage Explorer extension （Deprecated)
+# Storage Explorer extension (Deprecated)
 
 ## Overview
 
