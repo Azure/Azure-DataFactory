@@ -1,10 +1,10 @@
-# Storage Explorer extension 
+# Storage Explorer extension (Deprecated)
 
 ## Overview
 
-Microsoft Azure Storage Explorer is a standalone app that makes it easy to work with Azure Storage data on Windows, macOS, and Linux. With the **Azure Data Factory extension for Storage Explorer**, you can now move data from **Amazon S3** to Azure Storage without having to author a data factory pipeline and with the same ease-of-use that you get with storage explorer for performing simple backup tasks/ copying data into Azure. 
+Microsoft Azure Storage Explorer is a standalone app that makes it easy to work with Azure Storage data on Windows, macOS, and Linux. With the **Azure Data Factory extension for Storage Explorer**, you can now move data from **Amazon S3** or **Google Cloud Storage** to Azure Storage without having to author a data factory pipeline and with the same ease-of-use that you get with storage explorer for performing simple backup tasks/ copying data into Azure. 
 
-> Note: The Storage Explorer extension provides basic binary copy functionalities with a simplified user-experience, suited for customer's moving data to storage from Amazon S3 (binary copy) in a Azure Storage like experience. For advanced scenarios (schema aware copy, transformation) we suggest using [Azure Data Factory UI](https://adf.azure.com).
+> Note: The Storage Explorer extension provides basic binary copy functionalities with a simplified user-experience, suited for customer's moving data to storage from Amazon S3 or Google Cloud Storage (binary copy) in a Azure Storage like experience. For advanced scenarios (schema aware copy, transformation) we suggest using [Azure Data Factory UI](https://adf.azure.com).
 
 In this article, you'll learn how to use the Azure Data Factory extension for moving data from Amazon S3 to Azure Storage (Blob, Gen2).
 
@@ -27,7 +27,7 @@ alt="IMAGE ALT TEXT HERE" width="480" height="360" border="10" /></a>
 
 ## Download and install
 
-- To download and install Azure Data Factory extension, navigate to [Azure Data Factory extension](https://go.microsoft.com/fwlink/?linkid=2147106). 
+- To download and install Azure Data Factory extension, navigate to [Azure Data Factory extension]. (As part of the deprecation, we removed the download link.)
 
 - Run the downloaded extension (.seix) to install. The process will automatically open up the storage explorer (if not already open) with the ADF extension enabled. 
 
@@ -88,7 +88,7 @@ alt="IMAGE ALT TEXT HERE" width="480" height="360" border="10" /></a>
 
 4. Who is the plugin for?
 
-   - *For anyone requiring to move data (binary copy) from Amazon S3 to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (https://adf.azure.com).*  
+   - *For anyone requiring to move data (binary copy) from Amazon S3 or Google Cloud Storage to Azure storage. This does not require you to understand ADF concepts at all, through you can always find the created pipelines under the ADF instance by logging in the ADF UI (https://adf.azure.com).*  
 
      *E.g. Many interactive data science experiments may require bringing data from various sources (S3) to Azure storage before running the experiment.* 
 

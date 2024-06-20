@@ -1,0 +1,1579 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": "Data Factory name"
+    },
+    "AzureSqlDatabaseSALabDataverseSQL": {
+      "type": "string"
+    },
+    "AzureDataLakeStorage_devorg2_unq3cd674d243f4ec11811d0022480cd": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('factoryName'), '/DataverseToSQL_Orchestrator')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Once you have Synapse Link for Dataverse set up with incremental updates, use this template to orchestrate pipeline execution that will copy data from ADLS Gen 2 to an Azure SQL Database. This pipeline also executes pipeline for copying option set metadata. \n*Please make sure you read the attached documentation thoroughly before you use this template.* \n\nStatus in Processing Log table\n0=Failure\n1=Success\n2=Running\n3=Skipped",
+        "activities": [
+          {
+            "name": "SetupProcessingLog",
+            "description": "Create processing log and set status to running",
+            "type": "Script",
+            "dependsOn": [
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "linkedServiceName": {
+              "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+              "type": "LinkedServiceReference"
+            },
+            "typeProperties": {
+              "scripts": [
+                {
+                  "type": "NonQuery",
+                  "text": {
+                    "value": "DECLARE @schemaName NVARCHAR(20) = '@{variables('dbschema')}';\nDECLARE @tablePrefix NVARCHAR(148) = '@{variables('prefix')}';\nDECLARE @container NVARCHAR(70) = '@{pipeline().parameters.container}';\nDECLARE @folder NVARCHAR(70) = '@{pipeline().parameters.folder}';\nDECLARE @runid NVARCHAR(40) = '@{pipeline().RunId}';\n\nIF NOT EXISTS (SELECT name FROM sys.schemas WHERE name =@schemaName)\nEXEC('CREATE SCHEMA ['+@schemaName+']')\n\nDECLARE @CreateProcessingLogDDL NVARCHAR(MAX) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog'',''U'') IS NULL \nCREATE TABLE ' + @schemaName + '.' + '[' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog](\n\t[Container] [nvarchar](100) NOT NULL,\n\t[Folder] [nvarchar](100) NOT NULL,\n\t[PipelineRunId] [nvarchar](50) NOT NULL,\n\t[ProcessingStarted] [datetime2](7) NOT NULL DEFAULT(GETUTCDATE()),\n\t[ProcessingEnded] [datetime2](7) NULL,\n\t[Status] [int] NULL\n PRIMARY KEY CLUSTERED \n(\n\t[Container] ASC,\n\t[Folder] ASC\n)\n) ON [PRIMARY]';\nEXECUTE sp_executesql  @CreateProcessingLogDDL;\n\n\nDECLARE @UpsertProcessingLog NVARCHAR(MAX) =\n'\nIF EXISTS (SELECT Folder FROM ' + @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog WHERE Container = '+ '''' + @container + '''' +' AND Folder = ' + ''''+ @folder + ''')\n\tUPDATE '+ @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog\n\tSET\n\t\tPipelineRunId = ' + '''' + @runid +'''' +',' + \n\t\t'Status = 2, ProcessingStarted = GETUTCDATE() \n\tWHERE Container = '+ '''' + @container + '''' +' AND Folder = ' + ''''+ @folder + '''\nELSE\n\tINSERT INTO '+ @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog (Container, Folder, PipelineRunId, Status)\n\tVALUES ('''+@container+''''+','+ ''''+ @folder+''''+','+''''+@runid+''''+','+'2)' \n;\nEXECUTE sp_executesql @UpsertProcessingLog;",
+                    "type": "Expression"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "CheckPreviousRuns",
+            "description": "Check previous pipeline executions",
+            "type": "Lookup",
+            "dependsOn": [
+              {
+                "activity": "SetupProcessingLog",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "AzureSqlSource",
+                "sqlReaderQuery": {
+                  "value": "@concat('SELECT COUNT(1) AS cnt\n  FROM ',variables('dbschema'),'.','[',variables('prefix'),'DataverseToSQLPipelineProcessingLog]\n  WHERE Status <> 1\n  AND (Container = ', '''', pipeline().parameters.container,'''',' AND Folder <> ','''', pipeline().parameters.folder,'''',' )'\n)",
+                  "type": "Expression"
+                },
+                "queryTimeout": "02:00:00",
+                "isolationLevel": "ReadUncommitted",
+                "partitionOption": "None"
+              },
+              "dataset": {
+                "referenceName": "DataverseToSQLDestination",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tablename": "[[DataverseToSQLPipelineProcessingLog]"
+                }
+              }
+            }
+          },
+          {
+            "name": "If Previous Runs Unsuccessful",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "CheckPreviousRuns",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "expression": {
+                "value": "@greater(activity('CheckPreviousRuns').output.firstRow.cnt,0)\n",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "Execute DataverseToSQLPipeline",
+                  "type": "ExecutePipeline",
+                  "dependsOn": [
+                  ],
+                  "userProperties": [
+                  ],
+                  "typeProperties": {
+                    "pipeline": {
+                      "referenceName": "DataverseToSQL",
+                      "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                      "container": {
+                        "value": "@pipeline().parameters.container",
+                        "type": "Expression"
+                      },
+                      "folder": {
+                        "value": "@pipeline().parameters.folder",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                }
+              ],
+              "ifTrueActivities": [
+                {
+                  "name": "Set execution skipped variable",
+                  "description": "Set execution skipped variable to true",
+                  "type": "SetVariable",
+                  "dependsOn": [
+                  ],
+                  "userProperties": [
+                  ],
+                  "typeProperties": {
+                    "variableName": "executionskipped",
+                    "value": {
+                      "value": "@bool(1)",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "UpdateProcessingLogAsFailed",
+            "description": "Set status as failed",
+            "type": "Script",
+            "dependsOn": [
+              {
+                "activity": "If Previous Runs Unsuccessful",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "linkedServiceName": {
+              "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+              "type": "LinkedServiceReference"
+            },
+            "typeProperties": {
+              "scripts": [
+                {
+                  "type": "NonQuery",
+                  "text": {
+                    "value": "DECLARE @schemaName NVARCHAR(20) = '@{variables('dbschema')}';\nDECLARE @tablePrefix NVARCHAR(148) = '@{variables('prefix')}';\nDECLARE @container NVARCHAR(70) = '@{pipeline().parameters.container}';\nDECLARE @folder NVARCHAR(70) = '@{pipeline().parameters.folder}';\n\n\nDECLARE @UpdateProcessingLog NVARCHAR(MAX) =\n'\nUPDATE '+ @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog\nSET\n\tStatus = 0, ProcessingEnded = GETUTCDATE() \nWHERE Container = '+ '''' + @container + '''' +' AND Folder = ' + ''''+ @folder + '''\n' \n;\nEXECUTE sp_executesql @UpdateProcessingLog;",
+                    "type": "Expression"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "If Execution is Skipped",
+            "description": "If Execution is Skipped",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "If Previous Runs Unsuccessful",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "expression": {
+                "value": "@variables('executionskipped')",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "UpdateProcessingLogAsSuccessful",
+                  "type": "Script",
+                  "dependsOn": [
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [
+                  ],
+                  "linkedServiceName": {
+                    "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+                    "type": "LinkedServiceReference"
+                  },
+                  "typeProperties": {
+                    "scripts": [
+                      {
+                        "type": "NonQuery",
+                        "text": {
+                          "value": "DECLARE @schemaName NVARCHAR(20) = '@{variables('dbschema')}';\nDECLARE @tablePrefix NVARCHAR(148) = '@{variables('prefix')}';\nDECLARE @container NVARCHAR(70) = '@{pipeline().parameters.container}';\nDECLARE @folder NVARCHAR(70) = '@{pipeline().parameters.folder}';\n\n\nDECLARE @UpdateProcessingLog NVARCHAR(MAX) =\n'\nUPDATE '+ @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog\nSET\n\tStatus = 1, ProcessingEnded = GETUTCDATE() \nWHERE Container = '+ '''' + @container + '''' +' AND Folder = ' + ''''+ @folder + '''\n' \n;\nEXECUTE sp_executesql @UpdateProcessingLog;",
+                          "type": "Expression"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "ifTrueActivities": [
+                {
+                  "name": "UpdateProcessingLogAsSkipped",
+                  "description": "Set status as skipped",
+                  "type": "Script",
+                  "dependsOn": [
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [
+                  ],
+                  "linkedServiceName": {
+                    "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+                    "type": "LinkedServiceReference"
+                  },
+                  "typeProperties": {
+                    "scripts": [
+                      {
+                        "type": "NonQuery",
+                        "text": {
+                          "value": "DECLARE @schemaName NVARCHAR(20) = '@{variables('dbschema')}';\nDECLARE @tablePrefix NVARCHAR(148) = '@{variables('prefix')}';\nDECLARE @container NVARCHAR(70) = '@{pipeline().parameters.container}';\nDECLARE @folder NVARCHAR(70) = '@{pipeline().parameters.folder}';\n\n\nDECLARE @UpdateProcessingLog NVARCHAR(MAX) =\n'\nUPDATE '+ @schemaName + '.' + @tablePrefix + 'DataverseToSQLPipelineProcessingLog\nSET\n\tStatus = 3, ProcessingEnded = GETUTCDATE() \nWHERE Container = '+ '''' + @container + '''' +' AND Folder = ' + ''''+ @folder + '''\n' \n;\nEXECUTE sp_executesql @UpdateProcessingLog;",
+                          "type": "Expression"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Execute CopyOptionsetMetadata",
+            "description": "Executes CopyOptionsetMetadata pipeline but doesn't wait for its completion. ",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+            ],
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "CopyOptionsetMetadata",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": false,
+              "parameters": {
+                "container": {
+                  "value": "@pipeline().parameters.container",
+                  "type": "Expression"
+                },
+                "folder": {
+                  "value": "@pipeline().parameters.folder",
+                  "type": "Expression"
+                }
+              }
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {
+          },
+          "cancelAfter": {
+          }
+        },
+        "parameters": {
+          "container": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "executionskipped": {
+            "type": "Boolean",
+            "defaultValue": false
+          },
+          "dbschema": {
+            "type": "String",
+            "defaultValue": "dbo"
+          },
+          "prefix": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "DataverseToLakeToSQL"
+        },
+        "annotations": [
+        ],
+        "lastPublishTime": "2023-01-24T04:46:20Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/DataverseToSQLDestination')]",
+        "[concat(variables('factoryId'), '/pipelines/CopyOptionsetMetadata')]",
+        "[concat(variables('factoryId'), '/pipelines/DataverseToSQL')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/DataverseToSQLDestination')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "tablename": {
+            "type": "string"
+          }
+        },
+        "annotations": [
+        ],
+        "type": "AzureSqlTable",
+        "typeProperties": {
+          "tableName": {
+            "value": "@dataset().tablename",
+            "type": "Expression"
+          }
+        }
+      },
+      "dependsOn": [
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/CopyOptionsetMetadata')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Copies 5 optionset metadata files",
+        "activities": [
+          {
+            "name": "CreateOptionSetMetadataTable",
+            "type": "Script",
+            "dependsOn": [
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "linkedServiceName": {
+              "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+              "type": "LinkedServiceReference"
+            },
+            "typeProperties": {
+              "scripts": [
+                {
+                  "type": "NonQuery",
+                  "text": {
+                    "value": "-- Lengths are based on Synapse external table schema. \n-- Constraints are based on DES table schema\nDECLARE @schemaName NVARCHAR(20) = '@{variables('dbschema')}';\nDECLARE @tablePrefix NVARCHAR(148) = '@{variables('prefix')}';\n\nIF NOT EXISTS (SELECT name FROM sys.schemas WHERE name =@schemaName)\nEXEC('CREATE SCHEMA ['+@schemaName+']')\n\nDECLARE @CreateOptionSetMetadataTableDDL NVARCHAR(MAX) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'OptionSetMetadata'',''U'') IS NULL \nCREATE TABLE '+ @schemaName + '.' + '[' + @tablePrefix + 'OptionSetMetadata](\n\t[EntityName] [nvarchar](128) NOT NULL,\n\t[OptionSetName] [nvarchar](128) NOT NULL,\n\t[Option] [int] NOT NULL,\n\t[IsUserLocalizedLabel] [bit] NOT NULL,\n\t[LocalizedLabelLanguageCode] [int] NOT NULL,\n\t[LocalizedLabel] [nvarchar](700) NULL,\nPRIMARY KEY CLUSTERED \n(\n\t[EntityName] ASC,\n\t[OptionSetName] ASC,\n\t[Option] ASC,\n\t[IsUserLocalizedLabel] ASC,\n\t[LocalizedLabelLanguageCode] ASC\n)\n) ON [PRIMARY]';\nEXECUTE sp_executesql  @CreateOptionSetMetadataTableDDL;\n\nDECLARE @CreateGlobalOptionSetMetadataTableDDL NVARCHAR(MAX) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'GlobalOptionSetMetadata'',''U'') IS NULL \nCREATE TABLE '+ @schemaName + '.' + '[' + @tablePrefix + 'GlobalOptionSetMetadata](\n\t[OptionSetName] [nvarchar](128) NOT NULL,\n\t[Option] [int] NOT NULL,\n\t[IsUserLocalizedLabel] [bit] NOT NULL,\n\t[LocalizedLabelLanguageCode] [int] NOT NULL,\n\t[LocalizedLabel] [nvarchar](700) NULL,\n\t[GlobalOptionSetName] [varchar](128) NOT NULL DEFAULT (''''),\n\t[EntityName] [varchar](128) NOT NULL,\nPRIMARY KEY CLUSTERED \n(\n\t[GlobalOptionSetName] ASC,\n\t[OptionSetName] ASC,\n\t[Option] ASC,\n\t[IsUserLocalizedLabel] ASC,\n\t[LocalizedLabelLanguageCode] ASC,\n\t[EntityName] ASC\n)\n) ON [PRIMARY]';\nEXECUTE sp_executesql  @CreateGlobalOptionSetMetadataTableDDL;\n\nDECLARE @CreateStateSetMetadataTableDDL NVARCHAR(MAX) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'StateMetadata'',''U'') IS NULL \nCREATE TABLE '+ @schemaName + '.' + '[' + @tablePrefix + 'StateMetadata](\n\t[EntityName] [nvarchar](128) NOT NULL,\n\t[State] [int] NOT NULL,\n\t[IsUserLocalizedLabel] [bit] NOT NULL,\n\t[LocalizedLabelLanguageCode] [int] NOT NULL,\n\t[LocalizedLabel] [nvarchar](700) NULL,\nPRIMARY KEY CLUSTERED \n(\n\t[EntityName] ASC,\n\t[State] ASC,\n\t[IsUserLocalizedLabel] ASC,\n\t[LocalizedLabelLanguageCode] ASC\n)\n) ON [PRIMARY]';\nEXECUTE sp_executesql  @CreateStateSetMetadataTableDDL;\n\nDECLARE @CreateStatusMetadataTableDDL NVARCHAR(MAX) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'StatusMetadata'',''U'') IS NULL \nCREATE TABLE '+ @schemaName + '.' + '[' + @tablePrefix + 'StatusMetadata](\n\t[EntityName] [nvarchar](64) NOT NULL,\n\t[State] [int] NOT NULL,\n\t[Status] [int] NOT NULL,\n\t[IsUserLocalizedLabel] [bit] NOT NULL,\n\t[LocalizedLabelLanguageCode] [int] NOT NULL,\n\t[LocalizedLabel] [nvarchar](700) NULL,\nPRIMARY KEY CLUSTERED \n(\n\t[EntityName] ASC,\n\t[State] ASC,\n\t[Status] ASC,\n\t[IsUserLocalizedLabel] ASC,\n\t[LocalizedLabelLanguageCode] ASC\n)\n) ON [PRIMARY]';\nEXECUTE sp_executesql  @CreateStatusMetadataTableDDL;\n\nDECLARE @CreateTargetMetadataTableDDL NVARCHAR(MAX) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'TargetMetadata'',''U'') IS NULL \nCREATE TABLE '+ @schemaName + '.' + '[' + @tablePrefix + 'TargetMetadata](\n\t[EntityName] [nvarchar](64) NOT NULL,\n\t[AttributeName] [nvarchar](64) NOT NULL,\n\t[ReferencedEntity] [nvarchar](64) NOT NULL,\n\t[ReferencedAttribute] [nvarchar](64) NULL,\nPRIMARY KEY CLUSTERED \n(\n\t[EntityName] ASC,\n\t[AttributeName] ASC,\n\t[ReferencedEntity] ASC\n)\n) ON [PRIMARY]';\nEXECUTE sp_executesql  @CreateTargetMetadataTableDDL;",
+                    "type": "Expression"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Copy OptionsetMetadata",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "CreateOptionSetMetadataTable",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "AzureSqlSink",
+                "writeBehavior": "upsert",
+                "upsertSettings": {
+                  "useTempDB": true,
+                  "keys": [
+                    "EntityName",
+                    "OptionSetName",
+                    "Option",
+                    "IsUserLocalizedLabel",
+                    "LocalizedLabelLanguageCode"
+                  ]
+                },
+                "sqlWriterUseTableLock": true,
+                "disableMetricsCollection": false
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 1
+                    },
+                    "sink": {
+                      "name": "EntityName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 2
+                    },
+                    "sink": {
+                      "name": "OptionSetName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 3
+                    },
+                    "sink": {
+                      "name": "Option"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 4
+                    },
+                    "sink": {
+                      "name": "IsUserLocalizedLabel"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 5
+                    },
+                    "sink": {
+                      "name": "LocalizedLabelLanguageCode"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 6
+                    },
+                    "sink": {
+                      "name": "LocalizedLabel"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "OptionsetMetadataSourceDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "@pipeline().parameters.container",
+                  "folder": "@pipeline().parameters.folder",
+                  "metadateentityname": "OptionsetMetadata.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DataverseToSQLDestination",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tablename": {
+                    "value": "@concat(variables('dbschema'),'.','[',variables('prefix'),'OptionSetMetadata]')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Copy GlobalOptionsetMetadata",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "CreateOptionSetMetadataTable",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "AzureSqlSink",
+                "writeBehavior": "upsert",
+                "upsertSettings": {
+                  "useTempDB": true,
+                  "keys": [
+                    "OptionSetName",
+                    "Option",
+                    "IsUserLocalizedLabel",
+                    "LocalizedLabelLanguageCode",
+                    "EntityName"
+                  ]
+                },
+                "sqlWriterUseTableLock": true,
+                "disableMetricsCollection": false
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 1
+                    },
+                    "sink": {
+                      "name": "OptionSetName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 2
+                    },
+                    "sink": {
+                      "name": "Option"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 3
+                    },
+                    "sink": {
+                      "name": "IsUserLocalizedLabel"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 4
+                    },
+                    "sink": {
+                      "name": "LocalizedLabelLanguageCode"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 5
+                    },
+                    "sink": {
+                      "name": "LocalizedLabel"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 6
+                    },
+                    "sink": {
+                      "name": "GlobalOptionSetName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 7
+                    },
+                    "sink": {
+                      "name": "EntityName"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "OptionsetMetadataSourceDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "@pipeline().parameters.container",
+                  "folder": "@pipeline().parameters.folder",
+                  "metadateentityname": "GlobalOptionsetMetadata.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DataverseToSQLDestination",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tablename": {
+                    "value": "@concat(variables('dbschema'),'.','[',variables('prefix'),'GlobalOptionsetMetadata]')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Copy StateMetadata",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "CreateOptionSetMetadataTable",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "AzureSqlSink",
+                "writeBehavior": "upsert",
+                "upsertSettings": {
+                  "useTempDB": true,
+                  "keys": [
+                    "EntityName",
+                    "State",
+                    "IsUserLocalizedLabel",
+                    "LocalizedLabelLanguageCode"
+                  ]
+                },
+                "sqlWriterUseTableLock": true,
+                "disableMetricsCollection": false
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 1
+                    },
+                    "sink": {
+                      "name": "EntityName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 2
+                    },
+                    "sink": {
+                      "name": "State"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 3
+                    },
+                    "sink": {
+                      "name": "IsUserLocalizedLabel"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 4
+                    },
+                    "sink": {
+                      "name": "LocalizedLabelLanguageCode"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 5
+                    },
+                    "sink": {
+                      "name": "LocalizedLabel"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "OptionsetMetadataSourceDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "@pipeline().parameters.container",
+                  "folder": "@pipeline().parameters.folder",
+                  "metadateentityname": "StateMetadata.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DataverseToSQLDestination",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tablename": {
+                    "value": "@concat(variables('dbschema'),'.','[',variables('prefix'),'StateMetadata]')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Copy StatusMetadata",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "CreateOptionSetMetadataTable",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "AzureSqlSink",
+                "writeBehavior": "upsert",
+                "upsertSettings": {
+                  "useTempDB": true,
+                  "keys": [
+                    "EntityName",
+                    "State",
+                    "Status",
+                    "IsUserLocalizedLabel",
+                    "LocalizedLabelLanguageCode"
+                  ]
+                },
+                "sqlWriterUseTableLock": true,
+                "disableMetricsCollection": false
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 1
+                    },
+                    "sink": {
+                      "name": "EntityName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 2
+                    },
+                    "sink": {
+                      "name": "State"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 3
+                    },
+                    "sink": {
+                      "name": "Status"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 4
+                    },
+                    "sink": {
+                      "name": "IsUserLocalizedLabel"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 5
+                    },
+                    "sink": {
+                      "name": "LocalizedLabelLanguageCode"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 6
+                    },
+                    "sink": {
+                      "name": "LocalizedLabel"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "OptionsetMetadataSourceDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "@pipeline().parameters.container",
+                  "folder": "@pipeline().parameters.folder",
+                  "metadateentityname": "StatusMetadata.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DataverseToSQLDestination",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tablename": {
+                    "value": "@concat(variables('dbschema'),'.','[',variables('prefix'),'StatusMetadata]')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Copy TargetMetadata",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "CreateOptionSetMetadataTable",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "AzureSqlSink",
+                "writeBehavior": "upsert",
+                "upsertSettings": {
+                  "useTempDB": true,
+                  "keys": [
+                    "EntityName",
+                    "AttributeName",
+                    "ReferencedEntity"
+                  ]
+                },
+                "sqlWriterUseTableLock": true,
+                "disableMetricsCollection": false
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 1
+                    },
+                    "sink": {
+                      "name": "EntityName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 2
+                    },
+                    "sink": {
+                      "name": "AttributeName"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 3
+                    },
+                    "sink": {
+                      "name": "ReferencedEntity"
+                    }
+                  },
+                  {
+                    "source": {
+                      "type": "String",
+                      "ordinal": 4
+                    },
+                    "sink": {
+                      "name": "ReferencedAttribute"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "OptionsetMetadataSourceDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "@pipeline().parameters.container",
+                  "folder": "@pipeline().parameters.folder",
+                  "metadateentityname": "TargetMetadata.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DataverseToSQLDestination",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tablename": {
+                    "value": "@concat(variables('dbschema'),'.','[',variables('prefix'),'TargetMetadata]')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {
+          },
+          "cancelAfter": {
+          }
+        },
+        "parameters": {
+          "container": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "dbschema": {
+            "type": "String",
+            "defaultValue": "dbo"
+          },
+          "prefix": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "DataverseToLakeToSQL"
+        },
+        "annotations": [
+        ],
+        "lastPublishTime": "2023-01-24T04:46:20Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/OptionsetMetadataSourceDataset')]",
+        "[concat(variables('factoryId'), '/datasets/DataverseToSQLDestination')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/DataverseToSQL')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Once you have Synapse Link for Dataverse set up with incremental updates, use this template to copy data from ADLS Gen 2 to an Azure SQL Database.",
+        "activities": [
+          {
+            "name": "LookupModelJson",
+            "description": "Read model.json file to retrieve metadata",
+            "type": "Lookup",
+            "dependsOn": [
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "JsonSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "JsonReadSettings"
+                }
+              },
+              "dataset": {
+                "referenceName": "modelJson",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": {
+                    "value": "@pipeline().parameters.container",
+                    "type": "Expression"
+                  },
+                  "folder": {
+                    "value": "@pipeline().parameters.folder",
+                    "type": "Expression"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "ForEachEntity",
+            "description": "Loop for each entity in model.json file.",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "LookupModelJson",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('LookupModelJson').output.firstRow.entities",
+                "type": "Expression"
+              },
+              "batchCount": 4,
+              "activities": [
+                {
+                  "name": "CreateTable",
+                  "description": "Create or alter table to destination SQL DB",
+                  "type": "Script",
+                  "dependsOn": [
+                  ],
+                  "policy": {
+                    "timeout": "0.0:10:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [
+                    {
+                      "name": "tablename",
+                      "value": "@{item().name}"
+                    }
+                  ],
+                  "linkedServiceName": {
+                    "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+                    "type": "LinkedServiceReference"
+                  },
+                  "typeProperties": {
+                    "scripts": [
+                      {
+                        "type": "NonQuery",
+                        "text": {
+                          "value": "DECLARE @schemaName NVARCHAR(20) = '@{variables('dbschema')}';\nDECLARE @attributes NVARCHAR(max) =replace(replace('@{item().attributes}', '\\',''), 'cdm:traits', 'traits') ;\nDECLARE @entity NVARCHAR(200) = '@{item().name}';\nDECLARE @tablePrefix NVARCHAR(148) = '@{variables('prefix')}';\nDECLARE @destinationTableName NVARCHAR(128) = @tablePrefix + '@{item().name}';\nDECLARE @completeDestinationTableName NVARCHAR(148) = '@{variables('dbschema')}' + '.' + @destinationTableName;\n\nIF NOT EXISTS (SELECT name FROM sys.schemas WHERE name =@schemaName)\nEXEC('CREATE SCHEMA ['+@schemaName+']')\n\n\nDECLARE @metadata table (Name NVARCHAR(200), datatype NVARCHAR(50), maxLength int, precision int, scale int, datatypeSQL NVARCHAR(100));\n\nINSERT INTO @metadata\nSELECT   \n x.Name,  x.dataType,  x.maxLength,  x.precision,  x.scale,  \n CASE    \n WHEN x.dataType = 'nvarchar' and x.maxLength < 0 THEN 'nvarchar(max)'  \n WHEN x.datatype = 'nvarchar' and x.maxLength > 0 THEN 'nvarchar(' + convert(NVARCHAR(10), x.maxLength) + ')'\n WHEN x.datatype = 'decimal' then 'decimal(' + convert(NVARCHAR(10), x.precision) + ',' + convert(NVARCHAR(10), x.scale)+ ')'  \n ELSE x.datatype end as datatypeSQL  \n FROM ( \n SELECT Name,   \n CASE datatype     \n WHEN 'guid' then 'UNIQUEIDENTIFIER'    \n WHEN 'string' then 'nvarchar'    \n WHEN 'int64' then 'bigInt'    \n WHEN 'boolean' then 'bit'   \n WHEN 'double' then 'real'    \n ELSE datatype end as dataType,    \n CASE    when datatype = 'string' and  maxLength > 4000 then -1    \n WHEN datatype = 'string'  then maxLength end as maxLength,   \n CASE  when datatype = 'decimal' then precision end as precision,   \n CASE  when datatype = 'decimal' then scale end as scale   \n FROM OPENJSON(@attributes)  WITH (  name nvarchar(200) '$.name',  datatype NVARCHAR(50) '$.dataType' , maxLength int '$.maxLength' ,precision int '$.traits[0].arguments[0].value' ,scale int '$.traits[0].arguments[1].value')  )x ; \n \n \n\nDECLARE @CreateTableDDL NVARCHAR(max) = (SELECT \n'IF OBJECT_ID('''+ @completeDestinationTableName + ''',''U'') IS NULL \nCREATE TABLE ' + @completeDestinationTableName + '(' + STRING_AGG(CONVERT(NVARCHAR(max), + '[' + name + '] ' +  datatypeSQL) , ',') + ' \n, CONSTRAINT ' + @destinationTableName + '_ID PRIMARY KEY CLUSTERED (Id)' + ')' \nFROM @metadata);\n\nEXECUTE sp_executesql  @CreateTableDDL;\n\n  -- add Columns\nDECLARE @AlterTableAddColumnDDL NVARCHAR(max) = (SELECT \n'ALTER TABLE ' + @completeDestinationTableName + ' ADD ' + STRING_AGG(CONVERT(NVARCHAR(max), + '[' + name + '] ' +  datatypeSQL), ',')\nFROM @metadata m\nleft join  INFORMATION_SCHEMA.COLUMNS c on \nc.TABLE_NAME = @destinationTableName and TABLE_SCHEMA = @schemaName\nand c.COLUMN_NAME = m.Name\nWHERE c.COLUMN_NAME is null);\n\n\nEXECUTE sp_executesql @AlterTableAddColumnDDL;\n--select @AlterTableAddColumnDDL;\n\nDECLARE @AlterTableAlterColumnDDL NVARCHAR(max) = (SELECT \n  STRING_AGG(CONVERT(NVARCHAR(max), + 'ALTER TABLE ' + @completeDestinationTableName + ' ALTER COLUMN ' + '[' + name + '] ' +  datatypeSQL), ';')\nFROM @metadata m\nleft join  INFORMATION_SCHEMA.COLUMNS c on \nc.TABLE_NAME = @destinationTableName and TABLE_SCHEMA = @schemaName\nand c.COLUMN_NAME = name\nWHERE c.COLUMN_NAME is not null and (c.Data_type != datatype or c.CHARACTER_MAXIMUM_LENGTH != maxLength or NUMERIC_PRECISION != precision or NUMERIC_SCALE != scale));\n\nEXECUTE sp_executesql @AlterTableAlterColumnDDL;\n--select @AlterTableAlterColumnDDL;\n\nDECLARE @CreateLogTableDDL NVARCHAR(max) =\n'IF OBJECT_ID(''' + @schemaName + '.' + @tablePrefix + 'DeleteLog'',''U'') IS NULL \nCREATE TABLE '+ @schemaName + '.' + '[' + @tablePrefix + 'DeleteLog](\n\t[Id] [bigint] IDENTITY(1,1) NOT NULL,\n\t[EntityName] [nvarchar](64) NOT NULL,\n\t[RecordId] [nvarchar](64) NOT NULL,\n\t[SinkDeleteTime] [datetime] NOT NULL,\n\t[VersionNumber] [bigint] NOT NULL,\nPRIMARY KEY CLUSTERED \n(\n\t[Id] ASC\n)\n) ON [PRIMARY]';\n\nEXECUTE sp_executesql  @CreateLogTableDDL;",
+                          "type": "Expression"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "IfPartitionsExists",
+                  "description": "If data partition exists, then copy the data",
+                  "type": "IfCondition",
+                  "dependsOn": [
+                    {
+                      "activity": "CreateTable",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "userProperties": [
+                  ],
+                  "typeProperties": {
+                    "expression": {
+                      "value": "@greater(length(item().partitions),0)\n",
+                      "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                      {
+                        "name": "DataverseToSQL",
+                        "description": "Copy the CDM data to SQL table",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                        ],
+                        "policy": {
+                          "timeout": "1.00:00:00",
+                          "retry": 0,
+                          "retryIntervalInSeconds": 30,
+                          "secureOutput": false,
+                          "secureInput": false
+                        },
+                        "userProperties": [
+                          {
+                            "name": "tablename",
+                            "value": "@{item().name}"
+                          }
+                        ],
+                        "typeProperties": {
+                          "dataflow": {
+                            "referenceName": "DataverseCDMToSQL",
+                            "type": "DataFlowReference",
+                            "parameters": {
+                              "container": {
+                                "value": "'@{pipeline().parameters.container}'",
+                                "type": "Expression"
+                              },
+                              "folder": {
+                                "value": "'@{pipeline().parameters.folder}'",
+                                "type": "Expression"
+                              },
+                              "entity": {
+                                "value": "'@{item().name}'",
+                                "type": "Expression"
+                              },
+                              "dbschema": {
+                                "value": "'@{variables('dbschema')}'",
+                                "type": "Expression"
+                              },
+                              "prefix": {
+                                "value": "'@{variables('prefix')}'",
+                                "type": "Expression"
+                              }
+                            },
+                            "datasetParameters": {
+                              "CDMEntity": {
+                              },
+                              "getMaxVersion": {
+                              },
+                              "AzureSQLDB": {
+                              },
+                              "AzureSQLDBDeleteLog": {
+                              }
+                            }
+                          },
+                          "staging": {
+                          },
+                          "compute": {
+                            "coreCount": 8,
+                            "computeType": "MemoryOptimized"
+                          },
+                          "traceLevel": "Fine"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {
+          },
+          "cancelAfter": {
+          }
+        },
+        "parameters": {
+          "container": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "dbschema": {
+            "type": "String",
+            "defaultValue": "dbo"
+          },
+          "prefix": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "DataverseToLakeToSQL"
+        },
+        "annotations": [
+        ],
+        "lastPublishTime": "2023-01-24T04:46:20Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/modelJson')]",
+        "[concat(variables('factoryId'), '/dataflows/DataverseCDMToSQL')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/OptionsetMetadataSourceDataset')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureDataLakeStorage_devorg2_unq3cd674d243f4ec11811d0022480cd')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "container": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          },
+          "metadateentityname": {
+            "type": "string"
+          }
+        },
+        "annotations": [
+        ],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileName": {
+              "value": "@dataset().metadateentityname",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@concat(dataset().folder,'/OptionsetMetadata')",
+              "type": "Expression"
+            },
+            "fileSystem": {
+              "value": "@dataset().container",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": [
+        ]
+      },
+      "dependsOn": [
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/modelJson')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureDataLakeStorage_devorg2_unq3cd674d243f4ec11811d0022480cd')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "container": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "annotations": [
+        ],
+        "type": "Json",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileName": "model.json",
+            "folderPath": {
+              "value": "@dataset().folder",
+              "type": "Expression"
+            },
+            "fileSystem": {
+              "value": "@dataset().container",
+              "type": "Expression"
+            }
+          }
+        },
+        "schema": {
+        }
+      },
+      "dependsOn": [
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/DataverseCDMToSQL')]",
+      "type": "Microsoft.DataFactory/factories/dataflows",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Data flow which reads CDM entity, transforms the data and move the data to destination SQL DB",
+        "type": "MappingDataFlow",
+        "typeProperties": {
+          "sources": [
+            {
+              "linkedService": {
+                "referenceName": "[parameters('AzureDataLakeStorage_devorg2_unq3cd674d243f4ec11811d0022480cd')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "CDMEntity"
+            },
+            {
+              "linkedService": {
+                "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "getMaxVersion"
+            }
+          ],
+          "sinks": [
+            {
+              "linkedService": {
+                "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "AzureSQLDB"
+            },
+            {
+              "linkedService": {
+                "referenceName": "[parameters('AzureSqlDatabaseSALabDataverseSQL')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "AzureSQLDBDeleteLog"
+            }
+          ],
+          "transformations": [
+            {
+              "name": "IdentifyColumns"
+            },
+            {
+              "name": "AlterRow"
+            },
+            {
+              "name": "Rank"
+            },
+            {
+              "name": "Dedup"
+            },
+            {
+              "name": "FilterFolders"
+            },
+            {
+              "name": "FilterDeletedRows"
+            },
+            {
+              "name": "AddEntityName"
+            },
+            {
+              "name": "SelectDeleteLogColumns"
+            },
+            {
+              "name": "FilterMaxVersion"
+            }
+          ],
+          "scriptLines": [
+            "parameters{",
+            "     container as string,",
+            "     folder as string,",
+            "     entity as string,",
+            "     dbschema as string,",
+            "     prefix as string",
+            "}",
+            "source(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     inferDriftedColumnTypes: true,",
+            "     ignoreNoFilesFound: true,",
+            "     entity: ($entity),",
+            "     format: 'cdm',",
+            "     manifestType: 'model',",
+            "     folderPath: ($folder),",
+            "     fileSystem: ($container),",
+            "     dateFormats: ['MM/dd/yyyy','yyyy-MM-dd'],",
+            "     timestampFormats: ['MM/dd/yyyy hh:mm:ss a','yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\\'Z\\'','yyyy-MM-dd\\'T\\'HH:mm:ss\\'Z\\'','MM/dd/yyyy HH:mm:ss','yyyy-MM-dd\\'T\\'HH:mm:ss']) ~> CDMEntity",
+            "source(output(",
+            "          maxversion as long",
+            "     ),",
+            "     allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     format: 'query',",
+            "     store: 'sqlserver',",
+            "     query: (\"SELECT COALESCE(MAX(versionnumber),0) AS maxversion FROM \" + $dbschema + \".\" + $prefix + $entity ),",
+            "     isolationLevel: 'READ_UNCOMMITTED') ~> getMaxVersion",
+            "CDMEntity derive(Id = toString(byName(\"Id\")),",
+            "          versionnumber = toLong(byName(\"versionnumber\")),",
+            "          IsDelete = toBoolean(byName(\"IsDelete\")),",
+            "          SinkModifiedOn = toTimestamp(byName(\"SinkModifiedOn\"))) ~> IdentifyColumns",
+            "FilterMaxVersion alterRow(deleteIf(IsDelete==true()),",
+            "     upsertIf(isNull(IsDelete)||IsDelete==false())) ~> AlterRow",
+            "IdentifyColumns window(over(Id),",
+            "     desc(Id, false),",
+            "     desc(versionnumber, false),",
+            "     desc(SinkModifiedOn, false),",
+            "     {_RowVersion} = denseRank()) ~> Rank",
+            "Rank filter(toLong(byName(\"_RowVersion\"))==1) ~> Dedup",
+            "Dedup, getMaxVersion join(versionnumber > maxversion,",
+            "     joinType:'left',",
+            "     matchType:'exact',",
+            "     ignoreSpaces: false,",
+            "     broadcast: 'right')~> FilterFolders",
+            "FilterMaxVersion filter(IsDelete==true()) ~> FilterDeletedRows",
+            "FilterDeletedRows derive(EntityName = $entity) ~> AddEntityName",
+            "AddEntityName select(mapColumn(",
+            "          EntityName,",
+            "          RecordId = Id,",
+            "          SinkDeleteTime = SinkModifiedOn,",
+            "          VersionNumber = versionnumber",
+            "     ),",
+            "     skipDuplicateMapInputs: false,",
+            "     skipDuplicateMapOutputs: true) ~> SelectDeleteLogColumns",
+            "FilterFolders filter(versionnumber>toLong(maxversion)) ~> FilterMaxVersion",
+            "AlterRow sink(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     format: 'table',",
+            "     store: 'sqlserver',",
+            "     schemaName: ($dbschema),",
+            "     tableName: ($prefix + $entity),",
+            "     insertable: true,",
+            "     updateable: false,",
+            "     deletable: true,",
+            "     upsertable: true,",
+            "     keys:['id'],",
+            "     skipDuplicateMapInputs: true,",
+            "     skipDuplicateMapOutputs: true,",
+            "     errorHandlingOption: 'stopOnFirstError') ~> AzureSQLDB",
+            "SelectDeleteLogColumns sink(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     format: 'table',",
+            "     store: 'sqlserver',",
+            "     schemaName: ($dbschema),",
+            "     tableName: ($prefix+'DeleteLog'),",
+            "     insertable: true,",
+            "     updateable: false,",
+            "     deletable: false,",
+            "     upsertable: false,",
+            "     skipDuplicateMapInputs: true,",
+            "     skipDuplicateMapOutputs: true,",
+            "     errorHandlingOption: 'stopOnFirstError') ~> AzureSQLDBDeleteLog"
+          ]
+        }
+      },
+      "dependsOn": [
+      ]
+    }
+  ]
+}

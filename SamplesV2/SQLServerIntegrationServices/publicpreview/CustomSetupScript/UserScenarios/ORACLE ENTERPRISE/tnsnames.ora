@@ -1,0 +1,12 @@
+# tnsnames.ora Network Configuration File
+
+ReplaceSampleTNSName =
+  (DESCRIPTION =
+    (ADDRESS_LIST =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = replace_hostname)(PORT = 1521))
+    )
+    (CONNECT_DATA =
+      (SERVICE_NAME = replace_servicename)
+    )
+  )
+

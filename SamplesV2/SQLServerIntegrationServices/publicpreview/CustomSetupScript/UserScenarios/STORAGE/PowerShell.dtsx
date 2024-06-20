@@ -1,0 +1,131 @@
+﻿<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="12/4/2017 4:35:03 PM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="CN-SAWINARK-P4"
+  DTS:CreatorName="EUROPE\sawinark"
+  DTS:DTSID="{B7E42E48-6E40-4FBE-BBF9-D68FE4D99867}"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="14.0.0800.98"
+  DTS:LocaleID="1033"
+  DTS:ObjectName="PowerShell"
+  DTS:PackageType="5"
+  DTS:VersionBuild="8"
+  DTS:VersionGUID="{1C481E94-C893-4D2D-93AB-D3EE69FA9555}">
+  <DTS:Property
+    DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:ConnectionManagers>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[mystorage]"
+      DTS:CreationName="AzureStorage"
+      DTS:DTSID="{28C13B6A-3A57-4659-886B-3B0A94C45960}"
+      DTS:ObjectName="mystorage">
+      <DTS:ObjectData>
+        <AzureStorageConnectionManager
+          ConnectionString="DefaultEndpointsProtocol=https;AccountName=mystorage;EndpointSuffix=core.windows.net">
+          <AccountKey
+            Sensitive="1"
+            Encrypted="1">AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAvIDoulfFtkybf4ckNNB/bgAAAAAIAAAARABUAFMAAAADZgAAwAAAABAAAADcD74XbfOsCaSAcYzgrPmPAAAAAASAAACgAAAAEAAAACaPWwsXmCgY/Y1Wv2s4eqEYAAAARPpMi8JnWuRhaDY3W2++gs+dOFrCjeBAFAAAANyoQt2GoHCL/30gniFuDkDm9oR5</AccountKey>
+        </AzureStorageConnectionManager>
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+  </DTS:ConnectionManagers>
+  <DTS:Variables />
+  <DTS:Executables>
+    <DTS:Executable
+      DTS:refId="Package\Azure Blob Download Task"
+      DTS:CreationName="CopyFromBlobTask"
+      DTS:Description="Azure Blob Download Task"
+      DTS:DTSID="{D60B4476-0EB0-40D6-B10E-887E6850CD65}"
+      DTS:ExecutableType="CopyFromBlobTask"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="Azure Blob Download Task"
+      DTS:TaskContact="Azure Blob Download Task; (C) Microsoft Corporation; All Rights Reserved"
+      DTS:ThreadHint="0">
+      <DTS:Variables />
+      <DTS:ObjectData>
+        <CopyFromBlobTask
+          ConnectionId="{28C13B6A-3A57-4659-886B-3B0A94C45960}"
+          BlobContainer="mycontainer"
+          LocalDirectory="."
+          FileNameFilter="storage.ps1"
+          TimeRangeFrom="1/1/1900 12:00:00 AM +08:00"
+          TimeRangeTo="12/31/2200 12:00:00 AM +08:00" />
+      </DTS:ObjectData>
+    </DTS:Executable>
+    <DTS:Executable
+      DTS:refId="Package\Execute Process Task"
+      DTS:CreationName="Microsoft.ExecuteProcess"
+      DTS:Description="Execute Process Task"
+      DTS:DTSID="{672360CC-DD6C-49F6-A990-99121CE9A4F0}"
+      DTS:ExecutableType="Microsoft.ExecuteProcess"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="Execute Process Task"
+      DTS:TaskContact="Execute Process Task;Microsoft Corporation; SQL Server 2017 RC1; © 2017 Microsoft Corporation; All Rights Reserved;http://www.microsoft.com/sql/support/default.asp;1"
+      DTS:ThreadHint="0">
+      <DTS:Variables />
+      <DTS:ObjectData>
+        <ExecuteProcessData
+          Executable="Powershell.exe"
+          Arguments="-F .\storage.ps1" />
+      </DTS:ObjectData>
+    </DTS:Executable>
+  </DTS:Executables>
+  <DTS:PrecedenceConstraints>
+    <DTS:PrecedenceConstraint
+      DTS:refId="Package.PrecedenceConstraints[Constraint]"
+      DTS:CreationName=""
+      DTS:DTSID="{7D7EC474-0DE3-45C1-9494-91A2B05685F2}"
+      DTS:From="Package\Azure Blob Download Task"
+      DTS:LogicalAnd="True"
+      DTS:ObjectName="Constraint"
+      DTS:To="Package\Execute Process Task" />
+  </DTS:PrecedenceConstraints>
+  <DTS:DesignTimeProperties><![CDATA[<?xml version="1.0"?>
+<!--This CDATA section contains the layout information of the package. The section includes information such as (x,y) coordinates, width, and height.-->
+<!--If you manually edit this section and make a mistake, you can delete it. -->
+<!--The package will still be able to load normally but the previous layout information will be lost and the designer will automatically re-arrange the elements on the design surface.-->
+<Objects
+  Version="8">
+  <!--Each node below will contain properties that do not affect runtime behavior.-->
+  <Package
+    design-time-name="Package">
+    <LayoutInfo>
+      <GraphLayout
+        Capacity="4" xmlns="clr-namespace:Microsoft.SqlServer.IntegrationServices.Designer.Model.Serialization;assembly=Microsoft.SqlServer.IntegrationServices.Graph" xmlns:mssgle="clr-namespace:Microsoft.SqlServer.Graph.LayoutEngine;assembly=Microsoft.SqlServer.Graph" xmlns:assembly="http://schemas.microsoft.com/winfx/2006/xaml">
+        <NodeLayout
+          Size="204.5,42"
+          Id="Package\Azure Blob Download Task"
+          TopLeft="95.75,80" />
+        <NodeLayout
+          Size="180,42"
+          Id="Package\Execute Process Task"
+          TopLeft="107.5,181.5" />
+        <EdgeLayout
+          Id="Package.PrecedenceConstraints[Constraint]"
+          TopLeft="197.75,122">
+          <EdgeLayout.Curve>
+            <mssgle:Curve
+              StartConnector="{assembly:Null}"
+              EndConnector="0,59.5"
+              Start="0,0"
+              End="0,52">
+              <mssgle:Curve.Segments>
+                <mssgle:SegmentCollection
+                  Capacity="5">
+                  <mssgle:LineSegment
+                    End="0,52" />
+                </mssgle:SegmentCollection>
+              </mssgle:Curve.Segments>
+            </mssgle:Curve>
+          </EdgeLayout.Curve>
+          <EdgeLayout.Labels>
+            <EdgeLabelCollection />
+          </EdgeLayout.Labels>
+        </EdgeLayout>
+      </GraphLayout>
+    </LayoutInfo>
+  </Package>
+</Objects>]]></DTS:DesignTimeProperties>
+</DTS:Executable>
