@@ -348,7 +348,7 @@ function Compare-BlobEventsTrigger {
         -payloadAdditionalProps $triggerPayload.AdditionalProperties
 
     if (($null -ne $propertyChanges) -or ($null -ne $annotationChanges) -or $pipelineRefChanged -or $additionalPropsChanged) {
-        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
+        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 
