@@ -21,7 +21,7 @@ Here are the high level steps for configuring your experiment, web services and 
 1. Configure your scoring and retraining experiment in Azure ML studio to receive region as a parameter value. 
 2. This sample assumes the ML experiment is using SQL reader module to read its data and calls a stored procedure to fetch the data. The experiment takes the region value as one of the global parameters passed for the default web service input and passes it onto the stored procedure as a parameter.
 3. Create scoring and retraining web services.
-4. Create N scoring endpoints pro-grammatically. The code for doing this can be found in [this github sample](https://github.com/raymondlaghaeian/AML_EndpointMgmt/blob/master/Program.cs). Each endpoint will host the model for a specific region.    
+4. Create N scoring endpoints pro-grammatically. Each endpoint will host the model for a specific region.    
 5. Create N pipelines for scoring & N pipelines for retraining. The pipeline will calls the appropriate endpoint for the given region. The sample here and steps below provide more information on how to configure this.
 
 ## Configuring the sample ##
