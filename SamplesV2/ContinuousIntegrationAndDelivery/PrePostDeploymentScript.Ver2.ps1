@@ -425,7 +425,13 @@ function Compare-TriggerPipelineReference {
                                 Write-Host "##[warning] SecureString parameter is always treated as a change"
                                 break
                             } else {
-                                $paramValueChanges = Compare-Object -ReferenceObject ($deployedValue.ToString() | ConvertFrom-Json) -DifferenceObject ($payloadValue.ToString() | ConvertFrom-Json)
+                                $deployedValueObj = ConvertFrom-Json $deployedValue.ToString()
+                                $payloadValueObj = ConvertFrom-Json $payloadValue.ToString()
+                                # only compare the objects when one of them is non-null
+                                if ($null -ne $deployedValueObj -or $null -ne $payloadValueObj) {
+                                {
+                                    $paramValueChanges = Compare-Object -ReferenceObject $deployedValueObj -DifferenceObject $payloadValueObj
+                                }
                             }
                         } elseif ($deployedValue.GetType().Name -eq "Boolean") {
                             $paramValueChanges = Compare-Object -ReferenceObject ($deployedValue.ToString().ToLower() | ConvertFrom-Json) -DifferenceObject ($payloadValue.ToString().ToLower() | ConvertFrom-Json)
