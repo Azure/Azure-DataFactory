@@ -79,8 +79,15 @@ function Push-PipelinesToList {
         return;
     }
     $visited[$pipeline.Name] = $true;
-    $pipeline.Activities | ForEach-Object { Get-PipelineDependency -activity $_ -pipelineNameResourceDict $pipelineNameResourceDict }  | ForEach-Object {
-        Push-PipelinesToList -pipeline $pipelineNameResourceDict[$_] -pipelineNameResourceDict $pipelineNameResourceDict -visited $visited -sortedList $sortedList
+    foreach ($activity in $pipeline.Activities) { 
+        $activityName = $activity.Name
+        Get-PipelineDependency -activity $activity -pipelineNameResourceDict $pipelineNameResourceDict 
+    } foreach ($dependency in $dependecies) {
+        if ($null -eq $dependency) {
+            Write-Warning "Warning: Pipeline dependency is null for pipeline $($pipeline.Name) and activity $activityName. The activity $activityName is missing an invoked pipeline reference."
+        } else {
+            Push-PipelinesToList -pipeline $pipelineNameResourceDict[$dependency] -pipelineNameResourceDict $pipelineNameResourceDict -visited $visited -sortedList $sortedList
+        }
     }
     $sortedList.Push($pipeline)
 }
