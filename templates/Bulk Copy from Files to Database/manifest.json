@@ -100,6 +100,8 @@
     ],
     "categories":[  
      "Copy"
-    ]
-   
+    ],
+    "compatibleWithPBI": true,
+    "descriptionForPBI": "Use this template to copy data in bulk from Azure Data Lake Storage Gen2 to Azure SQL Database.\n\nIf you want to copy data from a small number of tables with small size of data, please use the “Copy assistant” to create your pipeline."
+    
 }

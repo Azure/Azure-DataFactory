@@ -1,0 +1,594 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Transform unstructured health text to FHIR R4 format and write to ADLS Gen2')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Transforms unstructured health data into FHIR R4 format using Text Analytics for Health in Cognitive Services and persists transformed FHIR R4 bundle into Azure Data Lake Storage Gen2 or Blob Storage account.",
+                "activities": [
+                    {
+                        "name": "Read input data",
+                        "description": "Reads input data from specified ADLS Gen2 or Blob Storage account, containing unstructured health text to be analyzed and transformed into FHIR R4.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Read from ADLS Gen2 or Blob Storage",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "storageAccount": {
+                                    "value": "@pipeline().parameters.inputStorageAccount",
+                                    "type": "Expression"
+                                },
+                                "storageFolder": {
+                                    "value": "@pipeline().parameters.inputStorageFolder",
+                                    "type": "Expression"
+                                },
+                                "storageFile": {
+                                    "value": "@pipeline().parameters.inputStorageFile",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Text Analysis for Healthcare",
+                        "description": "Performs health text analysis using Text Analytics for Health in Cognitive Services and yields transformed FHIR R4 bundles.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Read input data",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Analyze Unstructured Health Data",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "cognitiveServiceUrl": {
+                                    "value": "@pipeline().parameters.cognitiveServiceUrl",
+                                    "type": "Expression"
+                                },
+                                "inputData": {
+                                    "value": "@array(split(activity('Read input data').output.pipelineReturnValue.blobData, '---'))",
+                                    "type": "Expression"
+                                },
+                                "ocpApimSubscriptionKey": {
+                                    "value": "@pipeline().parameters.ocpApimSubscriptionKey",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Write raw text analysis result to ADLS Gen2",
+                        "description": "Writes the raw text analysis results to the specified ADLS Gen2 or Blob Storage account.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Text Analysis for Healthcare",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Write to ADLS Gen2 or Blob Storage",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "storageAccount": {
+                                    "value": "@pipeline().parameters.outputStorageAccount",
+                                    "type": "Expression"
+                                },
+                                "storageFolder": {
+                                    "value": "@pipeline().parameters.outputStorageFolder",
+                                    "type": "Expression"
+                                },
+                                "storageFile": {
+                                    "value": "@{pipeline().parameters.inputStorageFile}_rawTA4HOutput_@{utcnow()}.json",
+                                    "type": "Expression"
+                                },
+                                "fileContent": {
+                                    "value": "@activity('Text Analysis for Healthcare').output.pipelineReturnValue.rawTA4HOutput",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Write transformed FHIR bundle result to ADLS Gen2",
+                        "description": "Writes the transformed FHIR bundle result to the specified ADLS Gen2 or Blob Storage account.",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [
+                            {
+                                "activity": "Write raw text analysis result to ADLS Gen2",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "Write to ADLS Gen2 or Blob Storage",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "storageAccount": {
+                                    "value": "@pipeline().parameters.outputStorageAccount",
+                                    "type": "Expression"
+                                },
+                                "storageFolder": {
+                                    "value": "@pipeline().parameters.outputStorageFolder",
+                                    "type": "Expression"
+                                },
+                                "storageFile": {
+                                    "value": "@{pipeline().parameters.inputStorageFile}_fhirBundlesOutput_@{utcnow()}.json",
+                                    "type": "Expression"
+                                },
+                                "fileContent": {
+                                    "value": "@activity('Text Analysis for Healthcare').output.pipelineReturnValue.fhirBundlesOutput",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "inputStorageAccount": {
+                        "type": "string"
+                    },
+                    "inputStorageFolder": {
+                        "type": "string"
+                    },
+                    "inputStorageFile": {
+                        "type": "string"
+                    },
+                    "outputStorageAccount": {
+                        "type": "string"
+                    },
+                    "outputStorageFolder": {
+                        "type": "string"
+                    },
+                    "cognitiveServiceUrl": {
+                        "type": "string"
+                    },
+                    "ocpApimSubscriptionKey": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Pipelines"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-23T19:27:26Z"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/pipelines/Read from ADLS Gen2 or Blob Storage')]",
+                "[concat(variables('factoryId'), '/pipelines/Analyze Unstructured Health Data')]",
+                "[concat(variables('factoryId'), '/pipelines/Write to ADLS Gen2 or Blob Storage')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Read from ADLS Gen2 or Blob Storage')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Reads blob file contents from specified Azure Data Lake Storage Gen2 account or Azure Blob Storage account.",
+                "activities": [
+                    {
+                        "name": "Get Blob",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat(pipeline().parameters.storageAccount,'/',pipeline().parameters.storageFolder,'/',pipeline().parameters.storageFile)",
+                                "type": "Expression"
+                            },
+                            "method": "GET",
+                            "headers": {
+                                "x-ms-blob-type": "BlockBlob",
+                                "x-ms-version": "2017-11-09"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "https://storage.azure.com/"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set blob content output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Blob",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "blobData",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('Get Blob').output.Response"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "storageAccount": {
+                        "type": "string"
+                    },
+                    "storageFolder": {
+                        "type": "string"
+                    },
+                    "storageFile": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Extract"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-22T20:40:53Z"
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Analyze Unstructured Health Data')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Performs health text analysis using Text Analytics for Health in Cognitive Services and yields transformed FHIR R4 bundles.",
+                "activities": [
+                    {
+                        "name": "Analyze Unstructured Health Text",
+                        "type": "WebActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Construct text analysis input",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat(pipeline().parameters.cognitiveServiceUrl,'/language/analyze-text/jobs?api-version=2022-05-15-preview')",
+                                "type": "Expression"
+                            },
+                            "method": "POST",
+                            "headers": {
+                                "Content-Type": "application/json",
+                                "Ocp-Apim-Subscription-Key": {
+                                    "value": "@pipeline().parameters.ocpApimSubscriptionKey",
+                                    "type": "Expression"
+                                }
+                            },
+                            "body": {
+                                "value": "{\"analysisInput\":{\"documents\":@{variables('inputDocuments')}},\"tasks\":[{\"taskId\":\"analyze 1\",\"kind\":\"Healthcare\",\"parameters\":{\"fhirVersion\":\"4.0.1\"}}]}",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Until Job Completion",
+                        "type": "Until",
+                        "dependsOn": [
+                            {
+                                "activity": "Analyze Unstructured Health Text",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@equals(activity('Get Text Analysis Job Result').output.tasks.completed, activity('Get Text Analysis Job Result').output.tasks.total)",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Get Text Analysis Job Result",
+                                    "type": "WebActivity",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "url": {
+                                            "value": "@activity('Analyze Unstructured Health Text').output.ADFWebActivityResponseHeaders['operation-location']",
+                                            "type": "Expression"
+                                        },
+                                        "method": "GET",
+                                        "headers": {
+                                            "Content-Type": "application/json",
+                                            "Ocp-Apim-Subscription-Key": {
+                                                "value": "@pipeline().parameters.ocpApimSubscriptionKey",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    }
+                                }
+                            ],
+                            "timeout": "0.12:00:00"
+                        }
+                    },
+                    {
+                        "name": "Set text analysis FHIR result output",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Extract FHIR bundles generated",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "fhirBundlesOutput",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@variables('fhirBundlesOutput')"
+                                    }
+                                },
+                                {
+                                    "key": "rawTA4HOutput",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('Get Text Analysis Job Result').output"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    },
+                    {
+                        "name": "Extract FHIR bundles generated",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "Until Job Completion",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [
+                            {
+                                "name": "r",
+                                "value": "rr"
+                            }
+                        ],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('Get Text Analysis Job Result').output.tasks.items[0].results.documents",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Append variable1",
+                                    "type": "AppendVariable",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "fhirBundlesOutput",
+                                        "value": {
+                                            "value": "@item().fhirBundle",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Construct text analysis input",
+                        "type": "ForEach",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@pipeline().parameters.inputData",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Append document",
+                                    "type": "AppendVariable",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "inputDocuments",
+                                        "value": {
+                                            "value": "@json(concat('{\"text\": \"', item(), '\", \"language\": \"en\", \"id\": \"', string(rand(1, 1000)), '\"}'))",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "cognitiveServiceUrl": {
+                        "type": "string"
+                    },
+                    "inputData": {
+                        "type": "array"
+                    },
+                    "ocpApimSubscriptionKey": {
+                        "type": "string"
+                    }
+                },
+                "variables": {
+                    "fhirBundlesOutput": {
+                        "type": "Array"
+                    },
+                    "inputDocuments": {
+                        "type": "Array"
+                    },
+                    "analysisInput": {
+                        "type": "String"
+                    }
+                },
+                "folder": {
+                    "name": "Transform/Text Analysis for Healthcare"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-23T19:00:36Z"
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Write to ADLS Gen2 or Blob Storage')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Writes to files in the specified Azure Data Lake Storage Gen2 account or Azure Blob Storage account.",
+                "activities": [
+                    {
+                        "name": "Save file",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@concat(pipeline().parameters.storageAccount,'/',pipeline().parameters.storageFolder,'/',pipeline().parameters.storageFile)",
+                                "type": "Expression"
+                            },
+                            "method": "PUT",
+                            "headers": {
+                                "x-ms-blob-type": "BlockBlob",
+                                "x-ms-version": "2017-11-09"
+                            },
+                            "body": {
+                                "value": "@pipeline().parameters.fileContent",
+                                "type": "Expression"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "https://storage.azure.com/"
+                            }
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "storageAccount": {
+                        "type": "string"
+                    },
+                    "storageFolder": {
+                        "type": "string"
+                    },
+                    "storageFile": {
+                        "type": "string"
+                    },
+                    "fileContent": {
+                        "type": "string"
+                    }
+                },
+                "folder": {
+                    "name": "Load"
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-03-22T20:40:53Z"
+            },
+            "dependsOn": []
+        }
+    ]
+}
