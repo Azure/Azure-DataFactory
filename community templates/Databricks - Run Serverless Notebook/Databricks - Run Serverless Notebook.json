@@ -12,7 +12,7 @@
     },
     "resources": [
         {
-            "name": "[concat(parameters('factoryName'), '/Databricks - Run Serverless Notebook v2')]",
+            "name": "[concat(parameters('factoryName'), '/Databricks - Run Serverless Notebook')]",
             "type": "Microsoft.DataFactory/factories/pipelines",
             "apiVersion": "2018-06-01",
             "properties": {
@@ -315,11 +315,11 @@
                     },
                     "DatabricksWorkspaceID": {
                         "type": "string",
-                        "defaultValue": "adb-3951324636316155.15"
+                        "defaultValue": "adb-193752524297111.11"
                     },
                     "ADFWaitSeconds": {
                         "type": "int",
-                        "defaultValue": 10
+                        "defaultValue": 30
                     },
                     "DatabricksNotebookParameters": {
                         "type": "string",
