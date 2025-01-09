@@ -32,5 +32,6 @@
     "categories": [
         "Copy",
         "Transform"
-    ]
+    ],
+    "compatibleWithPBI": true
 }
