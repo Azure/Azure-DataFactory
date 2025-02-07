@@ -241,6 +241,68 @@
                             ],
                             "setSystemVariable": true
                         }
+                    },
+                    {
+                        "name": "Get Job Output",
+                        "type": "WebActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Check Job Status",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "method": "GET",
+                            "headers": {},
+                            "url": {
+                                "value": "@concat('https://',pipeline().parameters.DatabricksWorkspaceID,'.azuredatabricks.net/api/2.1/jobs/runs/get-output?run_id=',activity('Check Job Run API').output.tasks[0].run_id)",
+                                "type": "Expression"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set Notebook Output Result",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Job Output",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "notebookOutputResult",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@if(\n    contains(activity('Get Job Output').output.notebook_output, 'result'),\n    activity('Get Job Output').output.notebook_output.result,\n    null\n)"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
                     }
                 ],
                 "policy": {
@@ -249,7 +311,7 @@
                 "parameters": {
                     "DatabricksNotebookPath": {
                         "type": "string",
-                        "defaultValue": "/Workspace/Shared/guanjie_shared/test"
+                        "defaultValue": "/Workspace/Shared/test"
                     },
                     "DatabricksWorkspaceID": {
                         "type": "string",
@@ -282,7 +344,7 @@
                 "annotations": [
                     "Databricks"
                 ],
-                "lastPublishTime": "2024-06-13T04:49:32Z"
+                "lastPublishTime": "2024-10-21T23:16:25Z"
             },
             "dependsOn": []
         }
