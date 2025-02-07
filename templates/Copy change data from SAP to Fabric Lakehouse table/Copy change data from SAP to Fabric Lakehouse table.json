@@ -1,0 +1,141 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceName": {
+            "type": "string",
+            "metadata": "Workspace name",
+            "defaultValue": "sap-accelerator-ws"
+        },
+        "AzureDataLakeStorage1": {
+            "type": "string"
+        },
+        "SAPCDC_S4S": {
+            "type": "string"
+        },
+        "FabricLakehouseForSAP": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('workspaceName'), '/p_SAPtoFabric')]",
+            "type": "Microsoft.Synapse/workspaces/pipelines",
+            "apiVersion": "2019-06-01-preview",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "SAPtoFabric",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "df_SAPtoFabric",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "source1": {},
+                                    "sink1": {}
+                                }
+                            },
+                            "staging": {
+                                "linkedService": {
+                                    "referenceName": "[parameters('AzureDataLakeStorage1')]",
+                                    "type": "LinkedServiceReference"
+                                },
+                                "folderPath": "mdfstaging/S4HANA"
+                            },
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine",
+                            "continuationSettings": {
+                                "customizedCheckpointKey": "3796d66f-3187-423a-a8ce-e23f76a538f9"
+                            }
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('workspaceId'), '/dataflows/df_SAPtoFabric')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('workspaceName'), '/df_SAPtoFabric')]",
+            "type": "Microsoft.Synapse/workspaces/dataflows",
+            "apiVersion": "2019-06-01-preview",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('SAPCDC_S4S')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "source1"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('FabricLakehouseForSAP')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "schemaLinkedService": {
+                                "referenceName": "[parameters('FabricLakehouseForSAP')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "sink1"
+                        }
+                    ],
+                    "transformations": [],
+                    "scriptLines": [
+                        "source(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     store: 'SapOdp',",
+                        "     format: 'sapObject',",
+                        "     staged: true,",
+                        "     context: 'ABAP_CDS',",
+                        "     objectName: 'CSDSLSDOCITMDX1$F',",
+                        "     readMode: 'fullAndIncrementalLoad',",
+                        "     keys: ([\"SALESDOCUMENT\",\"SALESDOCUMENTITEM\"]),",
+                        "     fixDecimalPrecision: true) ~> source1",
+                        "source1 sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'delta',",
+                        "     tableName: 'SalesOrdersS4S',",
+                        "     mergeSchema: false,",
+                        "     autoCompact: false,",
+                        "     optimizedWrite: false,",
+                        "     vacuum: 0,",
+                        "     deletable: true,",
+                        "     insertable: false,",
+                        "     updateable: false,",
+                        "     upsertable: true,",
+                        "     keys:([\"SALESDOCUMENT\",\"SALESDOCUMENTITEM\"]),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sink1"
+                    ]
+                }
+            },
+            "dependsOn": []
+        }
+    ]
+}
