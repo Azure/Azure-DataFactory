@@ -1,0 +1,115 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"LHTest": {
+			"type": "string"
+		}
+	},
+	"variables": {},
+	"resources": [
+		{
+			"name": "Copy data from sample data to Lakehouse file",
+			"type": "pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data from sample data to Lakehouse file",
+                        "description": "Use this template to copy data from sample data (NYC Taxi - Green) to specified file folders in Lakehouse.",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": false,
+									"wildcardFolderPath": "green/puYear=*/puMonth=*",
+									"wildcardFileName": "*.parquet",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								},
+								"datasetSettings": {
+									"annotations": [],
+									"linkedService": {
+										"name": "nyc_taxi_green",
+										"properties": {
+											"type": "AzureBlobStorage",
+											"typeProperties": {
+												"containerUri": "https://azureopendatastorage.blob.core.windows.net/nyctlc",
+												"authenticationType": "Anonymous"
+											}
+										}
+									},
+									"type": "Parquet",
+									"typeProperties": {
+										"location": {
+											"type": "AzureBlobStorageLocation",
+											"container": "nyctlc"
+										},
+										"compressionCodec": "snappy"
+									},
+									"schema": []
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "LakehouseWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings",
+									"enableVertiParquet": false
+								},
+								"datasetSettings": {
+									"annotations": [],
+									"linkedService": {
+										"name": "LHTest",
+										"properties": {
+											"annotations": [],
+											"type": "Lakehouse",
+											"typeProperties": {
+												"workspaceId": "e89942c1-7e84-40d8-a9a9-5b3330f5704c",
+												"artifactId": "[parameters('LHTest')]",
+												"rootFolder": "Files"
+											}
+										}
+									},
+									"type": "Parquet",
+									"typeProperties": {
+										"location": {
+											"type": "LakehouseLocation"
+										},
+										"compressionCodec": "snappy"
+									},
+									"schema": []
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						}
+					}
+				],
+				"annotations": []
+			},
+			"dependsOn": []
+		}
+	]
+}
