@@ -42,7 +42,7 @@
                                         "properties": {
                                             "type": "AzureBlobStorage",
                                             "typeProperties": {
-                                                "containerUri": "https://azuresynapsestorage.blob.core.windows.net/sampledata",
+                                                "containerUri": "https://fabrictutorialdata.blob.core.windows.net/sampledata",
                                                 "authenticationType": "Anonymous"
                                             }
                                         }
