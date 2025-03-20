@@ -509,5 +509,7 @@
     ],
     "categories":[  
        "Copy"
-    ]
+    ],
+    "compatibleWithPBI": true,
+    "descriptionForPBI":"Use this template to move files from one folder to another folder. \n\nThe pipeline enumerates the files from a folder in the data source, and then copies each of the files from this source folder to another folder in the selected data destination. After each file has been successfully copied to the data destination store, the file in the data source folder wil be deleted."
  }
