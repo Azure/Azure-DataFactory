@@ -108,5 +108,7 @@
     ],
     "categories":[  
         "Copy"
-    ]
+    ],
+    "compatibleWithPBI": true,
+    "descriptionForPBI": "Use this template to delete files that have been modified more than 30 days ago from storage stores.\n\nAfter specifying a folder path, the pipeline will delete only files that were last modified more than 30 days ago from this particular folder path."
 }

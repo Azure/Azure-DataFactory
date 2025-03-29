@@ -1,0 +1,5 @@
+Next Pathway's SHIFT Cloud accelerates the translation, testing and migration of complex workloads, such as, SQL, Stored Procedures, ETL pipelines/workflows, and various other code types. SHIFT Cloud can also move workloads from other cloud platforms and cloud data warehouses to Azure with ease and efficiency.  An important feature of Next Pathway’s technology is the ability to translate legacy ETL pipelines to run natively in Azure Data Factory (ADF). ADF is a cloud-based data integration service that allows users to create data-driven workflows in the cloud for orchestrating and automating data movement and data transformation.  SHIFT Cloud can be accessed as a Software as a Service (SaaS) model or deployed directly into a customer's environment, providing ultimate flexibility to how customers want to manage their cloud migrations.
+
+Our Coverage Matrix supports the translation from the following legacy systems:
+
+<img src='assets/partners/media/NextPathway01.png' alt='' width=500 style='padding-top:20px;padding-right:16px' />
