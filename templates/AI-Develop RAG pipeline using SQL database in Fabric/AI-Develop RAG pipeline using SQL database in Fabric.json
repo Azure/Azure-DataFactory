@@ -9,7 +9,7 @@
     "variables": {},
     "resources": [
         {
-            "name": "ai_rag_pipeline_using_sql_database_in_fabric",
+            "name": "AI-Develop RAG pipeline using SQL database in Fabric",
             "description": "This Retrieval Augmented Generation (RAG) data pipeline will get your data ready for building Generative AI and Agentic AI applications. Triggered by Azure Blob Storage events, the pipeline copies the file to the Lakehouse, extracts the content from the file, chunks the content, redacts any PII information, generates embeddings, and stores the chunks and embeddings in SQL Database in Fabric. Documentation: https://github.com/Azure-Samples/fabric-sqldb-ai-ragpipeline",
             "type": "pipelines",
             "apiVersion": "2018-06-01",
