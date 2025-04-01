@@ -360,5 +360,7 @@
     ],
     "categories":[  
         "Copy"
-    ]
+    ],
+    "compatibleWithPBI": true,
+    "descriptionForPBI": "Use this template to leverage multiple copy activities to copy containers or folders between file based stores, where each copy activity is copies a single container or folder.\n\nIf you want to copy files from a single container, please use the “Copy assistant” create your pipeline quickly."
 }

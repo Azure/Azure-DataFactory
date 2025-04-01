@@ -19,26 +19,40 @@ function Install-Gateway([string] $gwPath)
     # uninstall any existing gateway
     UnInstall-Gateway
 
-    Write-Host "Start Gateway installation"
+    Write-Host "Start Microsoft Integration Runtime installation"
     
-    Start-Process "msiexec.exe" "/i $path /quiet /passive" -Wait
-    Start-Sleep -Seconds 30	
+    $process = Start-Process "msiexec.exe" "/i $gwPath /quiet /passive" -Wait -PassThru
+    if ($process.ExitCode -ne 0)
+    {
+        throw "Failed to install Microsoft Integration Runtime. msiexec exit code: $($process.ExitCode)"
+    }
+    Start-Sleep -Seconds 30
 
-    Write-Host "Succeed to install gateway"
+    Write-Host "Succeed to install Microsoft Integration Runtime"
 }
 
 function Register-Gateway([string] $key, [string] $port, [string] $cert)
 {
-    Write-Host "Start to register gateway with key: $key"
     $cmd = Get-CmdFilePath
+
     if (![string]::IsNullOrEmpty($port))
     {
-        Start-Process $cmd "-era $port $cert" -Wait
-        Write-Host "Succeed to enable remote access"
+        Write-Host "Start to enable remote access."
+        $process = Start-Process $cmd "-era $port $cert" -Wait -PassThru -NoNewWindow
+        if ($process.ExitCode -ne 0)
+        {
+            throw "Failed to enable remote access. Exit code: $($process.ExitCode)"
+        }
+        Write-Host "Succeed to enable remote access."
     }
-    Start-Process $cmd "-k $key" -Wait
-    Write-Host "Succeed to register gateway"
 
+    Write-Host "Start to register Microsoft Integration Runtime with key: $key."
+    $process = Start-Process $cmd "-k $key" -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0)
+    {
+        throw "Failed to register Microsoft Integration Runtime. Exit code: $($process.ExitCode)"
+    }
+    Write-Host "Succeed to register Microsoft Integration Runtime."
 }
 
 function Check-WhetherGatewayInstalled([string]$name)
@@ -74,7 +88,7 @@ function UnInstall-Gateway()
 
     if ($installed -eq $false)
     {
-        Write-Host "Microsoft Integration Runtime Preview is not installed."
+        Write-Host "Microsoft Integration Runtime is not installed."
         return
     }
 
@@ -89,24 +103,24 @@ function Get-CmdFilePath()
         throw "Get-InstalledFilePath: Cannot find installed File Path"
     }
 
-    return $filePath
+    return (Split-Path -Parent $filePath) + "\dmgcmd.exe"
 }
 
 function Validate-Input([string]$path, [string]$key)
 {
     if ([string]::IsNullOrEmpty($path))
     {
-        throw "Gateway path is not specified"
+        throw "Microsoft Integration Runtime path is not specified"
     }
 
     if (!(Test-Path -Path $path))
     {
-        throw "Invalid gateway path: $path"
+        throw "Invalid Microsoft Integration Runtime path: $path"
     }
 
     if ([string]::IsNullOrEmpty($key))
     {
-        throw "Gateway Auth key is empty"
+        throw "Microsoft Integration Runtime Auth key is empty"
     }
 }
 
