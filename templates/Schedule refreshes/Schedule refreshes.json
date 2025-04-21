@@ -29,12 +29,7 @@
                         },
                         "externalReferences": {}
                     }
-                ],
-                "parameters": {
-                    "semanticModelName": {
-                        "type": "string"
-                    }
-                }
+                ]
             },
             "dependsOn": []
         }
