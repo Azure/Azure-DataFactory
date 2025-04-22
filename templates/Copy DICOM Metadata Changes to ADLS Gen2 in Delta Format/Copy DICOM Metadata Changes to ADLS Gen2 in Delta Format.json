@@ -1,0 +1,477 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Azure Data Factory."
+            }
+        },
+        "dicomWeb": {
+            "type": "string",
+            "metadata": {
+                "description": "An Azure DICOM Service REST linked service."
+            }
+        },
+        "dicomLakeStorage": {
+            "type": "string",
+            "metadata": {
+                "description": "An ADLS Gen2 linked service."
+            }
+        }
+    },
+    "variables": { "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]" },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Copy DICOM Metadata Changes to ADLS Gen2 in Delta Format')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Update Delta Tables",
+                        "description": "Read the change feed in batches and synchronize any changes with Delta Tables.",
+                        "type": "Until",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@not(variables('Continue'))",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Process Batch",
+                                    "description": "Update the Delta Tables using a page of data from the Change Feed.",
+                                    "type": "ExecuteDataFlow",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": true,
+                                        "secureInput": true
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "dataflow": {
+                                            "referenceName": "Update DICOM Delta Tables",
+                                            "type": "DataFlowReference",
+                                            "parameters": {
+                                                "Offset": {
+                                                    "value": "@int(variables('CurrentOffset'))",
+                                                    "type": "Expression"
+                                                },
+                                                "Limit": {
+                                                    "value": "@pipeline().parameters.BatchSize",
+                                                    "type": "Expression"
+                                                },
+                                                "ApiVersion": {
+                                                    "value": "@pipeline().parameters.ApiVersion",
+                                                    "type": "Expression"
+                                                },
+                                                "StartTime": {
+                                                    "value": "'@{pipeline().parameters.StartTime}'",
+                                                    "type": "Expression"
+                                                },
+                                                "EndTime": {
+                                                    "value": "'@{pipeline().parameters.EndTime}'",
+                                                    "type": "Expression"
+                                                },
+                                                "ContainerName": {
+                                                    "value": "'@{pipeline().parameters.ContainerName}'",
+                                                    "type": "Expression"
+                                                },
+                                                "InstanceTablePath": {
+                                                    "value": "'@{pipeline().parameters.InstanceTablePath}'",
+                                                    "type": "Expression"
+                                                },
+                                                "SeriesTablePath": {
+                                                    "value": "'@{pipeline().parameters.SeriesTablePath}'",
+                                                    "type": "Expression"
+                                                },
+                                                "StudyTablePath": {
+                                                    "value": "'@{pipeline().parameters.StudyTablePath}'",
+                                                    "type": "Expression"
+                                                },
+                                                "RetentionHours": {
+                                                    "value": "@pipeline().parameters.RetentionHours",
+                                                    "type": "Expression"
+                                                }
+                                            },
+                                            "datasetParameters": {
+                                                "changeFeed": {},
+                                                "existingInstances": {},
+                                                "existingSeries": {},
+                                                "instanceTable": {},
+                                                "seriesTable": {},
+                                                "studyTable": {},
+                                                "seriesCache": {},
+                                                "studyCache": {}
+                                            }
+                                        },
+                                        "staging": {},
+                                        "compute": {
+                                            "coreCount": 8,
+                                            "computeType": "General"
+                                        },
+                                        "traceLevel": "Fine"
+                                    }
+                                },
+                                {
+                                    "name": "Determine Continuation",
+                                    "description": "Check the previous activity for metrics related to the instance table sink to determine whether processing should continue.",
+                                    "type": "IfCondition",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Process Batch",
+                                            "dependencyConditions": [ "Succeeded" ]
+                                        }
+                                    ],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "expression": {
+                                            "value": "@contains(activity('Process Batch').output.runStatus.metrics, 'instanceTable')",
+                                            "type": "Expression"
+                                        },
+                                        "ifFalseActivities": [
+                                            {
+                                                "name": "Complete Processing",
+                                                "description": "Signal that processing should stop because there are no more changes.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "Continue",
+                                                    "value": {
+                                                        "value": "@bool('false')",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        ],
+                                        "ifTrueActivities": [
+                                            {
+                                                "name": "Check Rows",
+                                                "description": "Update the continuation variable based on the number of rows processed in the last batch.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "Continue",
+                                                    "value": {
+                                                        "value": "@greater(activity('Process Batch').output.runStatus.metrics.instanceTable.rowsWritten, 0)",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "name": "Add Limit to Offset",
+                                                "description": "Add the limit to the current offset.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [
+                                                    {
+                                                        "activity": "Check Rows",
+                                                        "dependencyConditions": [ "Succeeded" ]
+                                                    }
+                                                ],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "Temp",
+                                                    "value": {
+                                                        "value": "@string(add(int(variables('CurrentOffset')), pipeline().parameters.BatchSize))",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "name": "Update Offset",
+                                                "description": "Update the current offset based on the newly computed value.",
+                                                "type": "SetVariable",
+                                                "dependsOn": [
+                                                    {
+                                                        "activity": "Add Limit to Offset",
+                                                        "dependencyConditions": [ "Succeeded" ]
+                                                    }
+                                                ],
+                                                "policy": {
+                                                    "timeout": "0.12:00:00",
+                                                    "retry": 0,
+                                                    "retryIntervalInSeconds": 30,
+                                                    "secureOutput": false,
+                                                    "secureInput": false
+                                                },
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "variableName": "CurrentOffset",
+                                                    "value": {
+                                                        "value": "@variables('Temp')",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "Cancel Processing",
+                                    "description": "Signal that processing should stop because there was a problem processing a batch.",
+                                    "type": "SetVariable",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Process Batch",
+                                            "dependencyConditions": [ "Failed" ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "Continue",
+                                        "value": {
+                                            "value": "@bool('false')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "timeout": "0.12:00:00"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "BatchSize": {
+                        "type": "int",
+                        "defaultValue": 200
+                    },
+                    "ApiVersion": {
+                        "type": "int",
+                        "defaultValue": 2
+                    },
+                    "StartTime": {
+                        "type": "string",
+                        "defaultValue": "0001-01-01T00:00:00Z"
+                    },
+                    "EndTime": {
+                        "type": "string",
+                        "defaultValue": "9999-12-31T23:59:59Z"
+                    },
+                    "ContainerName": {
+                        "type": "string",
+                        "defaultValue": "dicom"
+                    },
+                    "InstanceTablePath": {
+                        "type": "string",
+                        "defaultValue": "instance"
+                    },
+                    "SeriesTablePath": {
+                        "type": "string",
+                        "defaultValue": "series"
+                    },
+                    "StudyTablePath": {
+                        "type": "string",
+                        "defaultValue": "study"
+                    },
+                    "RetentionHours": {
+                        "type": "int",
+                        "defaultValue": 720
+                    }
+                },
+                "variables": {
+                    "CurrentOffset": {
+                        "type": "String",
+                        "defaultValue": "0"
+                    },
+                    "Temp": {
+                        "type": "String",
+                        "defaultValue": "0"
+                    },
+                    "Continue": {
+                        "type": "Boolean",
+                        "defaultValue": false
+                    }
+                },
+                "annotations": [],
+                "lastPublishTime": "2023-06-23T19:54:06Z"
+            },
+            "dependsOn": [ "[concat(variables('factoryId'), '/dataflows/Update DICOM Delta Tables')]" ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Update DICOM Delta Tables')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('dicomWeb')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "changeFeed",
+                            "description": "Read changes from the DICOMweb server."
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "existingInstances",
+                            "description": "Read the newly updated SOP Instance Delta Table."
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "existingSeries",
+                            "description": "Read the newly updated Series Delta Table."
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "instanceTable",
+                            "description": "Write the changes to the SOP Instance Delta Table.",
+                            "rejectedDataLinkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "seriesTable",
+                            "description": "Write the changes to the Series Delta Table.",
+                            "rejectedDataLinkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "studyTable",
+                            "description": "Write the changes to the Study Delta Table.",
+                            "rejectedDataLinkedService": {
+                                "referenceName": "[parameters('dicomLakeStorage')]",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "name": "seriesCache",
+                            "description": "Write modified series identifiers to cache."
+                        },
+                        {
+                            "name": "studyCache",
+                            "description": "Write modified study identifiers to cache."
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "extracted",
+                            "description": "Extract DICOM attributes."
+                        },
+                        {
+                            "name": "flattened",
+                            "description": "Flatten the complex object."
+                        },
+                        {
+                            "name": "instanceSinkUpdates",
+                            "description": "Update the sink based on the action."
+                        },
+                        {
+                            "name": "aggregatedChanges",
+                            "description": "Aggregate changes for the same SOP instance within the window."
+                        },
+                        {
+                            "name": "allSeries",
+                            "description": "Aggregate SOP instance within the same series."
+                        },
+                        {
+                            "name": "allStudies",
+                            "description": "Aggregate series within the same study."
+                        },
+                        {
+                            "name": "seriesSinkUpdates",
+                            "description": "Update the sink based on the instance count."
+                        },
+                        {
+                            "name": "studySinkUpdate",
+                            "description": "Update the sink based on the instance count."
+                        },
+                        {
+                            "name": "seriesChanges",
+                            "description": "Determine the identifiers for modified series."
+                        },
+                        {
+                            "name": "studyChanges",
+                            "description": "Determine the identifiers for modified studies."
+                        },
+                        {
+                            "name": "modifiedSeries",
+                            "description": "Filter out the series which have not been updated."
+                        },
+                        {
+                            "name": "annotatedSeries",
+                            "description": "Determines whether the series has been modified."
+                        },
+                        {
+                            "name": "annotatedStudies",
+                            "description": "Determines whether the series has been modified."
+                        },
+                        {
+                            "name": "modifiedStudies",
+                            "description": "Filter out the studies which have not been updated."
+                        },
+                        {
+                            "name": "upToDate",
+                            "description": "Filter out the instances that have since been deleted or updated outside of the window."
+                        }
+                    ],
+                    "scriptLines": [ "parameters{", "     Offset as integer (0),", "     Limit as integer (200),", "     ApiVersion as integer (2),", "     StartTime as string ('0001-01-01T00:00:00Z'),", "     EndTime as string ('9999-12-31T23:59:59Z'),", "     ContainerName as string ('dicom'),", "     InstanceTablePath as string ('instance'),", "     SeriesTablePath as string ('series'),", "     StudyTablePath as string ('study'),", "     RetentionHours as integer (720)", "}", "source(output(", "          body as (action as string, metadata as [string,(vr as string, Value as string[])], partitionName as string, sequence as short, seriesInstanceUid as string, sopInstanceUid as string, state as string, studyInstanceUid as string, timestamp as string, filePath as string),", "          headers as [string,string]", "     ),", "     allowSchemaDrift: true,", "     validateSchema: false,", "     format: 'rest',", "     timeout: 30,", "     requestInterval: 0,", "     entity: (concat('/v', toString($ApiVersion), '/changefeed')),", "     queryParameters: ['includeMetadata' -> 'true', 'offset' -> ($Offset), 'limit' -> ($Limit), 'startTime' -> ($StartTime), 'endTime' -> ($EndTime)],", "     httpMethod: 'GET',", "     responseFormat: ['type' -> 'json', 'documentForm' -> 'arrayOfDocuments']) ~> changeFeed", "source(output(", "          partitionName as string,", "          studyinstanceuid as string,", "          seriesinstanceuid as string,", "          sopinstanceuid as string,", "          lastModifiedTimestamp as timestamp,", "          studydate as string,", "          studydescription as string,", "          issuerofpatientid as string,", "          patientid as string,", "          patientname as string,", "          modality as string,", "          sopclassuid as string,", "          filepath as string", "     ),", "     allowSchemaDrift: true,", "     validateSchema: false,", "     ignoreNoFilesFound: true,", "     format: 'delta',", "     fileSystem: ($ContainerName),", "     folderPath: ($InstanceTablePath)) ~> existingInstances", "source(output(", "          partitionName as string,", "          studyInstanceUid as string,", "          seriesInstanceUid as string,", "          lastModifiedTimestamp as timestamp,", "          studyDate as date,", "          studyDescription as string,", "          issuerOfPatientId as string,", "          patientId as string,", "          patientName as string,", "          modality as string,", "          instanceCount as long", "     ),", "     allowSchemaDrift: true,", "     validateSchema: false,", "     ignoreNoFilesFound: true,", "     format: 'delta',", "     fileSystem: ($ContainerName),", "     folderPath: ($SeriesTablePath)) ~> existingSeries", "flattened derive(timestamp = toTimestamp(substring(timestamp, 1, 23), 'yyyy-MM-dd\\'T\\'HH:mm:ss.SSS', 'UTC'),", "          studydate = toString(byPath('metadata[\"00080020\"].Value[1]')),", "          studydate_formatted = toDate(byPath('metadata[\"00080020\"].Value[1]'), 'yyyyMMdd', 'UTC'),", "          studydescription = toString(byPath('metadata[\"00081030\"].Value[1]')),", "          issuerofpatientid = toString(byPath('metadata[\"00100021\"].Value[1]')),", "          patientid = toString(byPath('metadata[\"00100020\"].Value[1]')),", "          patientname = regexExtract(toString(byPath('metadata[\"00100010\"].Value[1]')), '\"Alphabetic\"\\\\s*:\\\\s*\"([^\"]*)\"'),", "          modality = toString(byPath('metadata[\"00080060\"].Value[1]')),", "          sopclassuid = toString(byPath('metadata[\"00080016\"].Value[1]')),", "          filepath = toString(filepath),", "          metadata_string = toString(metadata),", "          created_date = currentTimestamp(),", "          patientbirthdate = toString(byPath('metadata[\"00100030\"].Value[1]')),", "          accessionnumber = toString(byPath('metadata[\"00080050\"].Value[1]')),", "          referringphysicianname = regexExtract(toString(byPath('metadata[\"00080090\"].Value[1]')), '\"Alphabetic\"\\\\s*:\\\\s*\"([^\"]*)\"'),", "          modalitiesinstudy = toString(byPath('metadata[\"00080061\"].Value[1]')),", "          performedprocedurestepstartdate = toString(byPath('metadata[\"00400244\"].Value[1]')),", "          manufacturermodelname = toString(byPath('metadata[\"00081090\"].Value[1]')),", "          studytime = toString(byPath('metadata[\"00080030\"].Value[1]')),", "          timezoneoffsetfromutc = toString(byPath('metadata[\"00080201\"].Value[1]')),", "          numberofstudyrelatedseries = toString(byPath('metadata[\"00201206\"].Value[1]')),", "          numberofstudyrelatedinstances = toString(byPath('metadata[\"00201208\"].Value[1]')),", "          seriesnumber = toString(byPath('metadata[\"00200011\"].Value[1]')),", "          seriesdescription = toString(byPath('metadata[\"0008103E\"].Value[1]')),", "          numberofseriesrelatedinstances = toString(byPath('metadata[\"00201209\"].Value[1]')),", "          bodypartexamined = toString(byPath('metadata[\"00180015\"].Value[1]')),", "          laterality = toString(byPath('metadata[\"00200060\"].Value[1]')),", "          seriesdate = toString(byPath('metadata[\"00080021\"].Value[1]')),", "          seriestime = toString(byPath('metadata[\"00080031\"].Value[1]')),", "          instancenumber = toString(byPath('metadata[\"00200013\"].Value[1]')),", "          documenttitle = toString(byPath('metadata[\"00420010\"].Value[1]'))) ~> extracted", "changeFeed select(mapColumn(", "          action = body.action,", "          timestamp = body.timestamp,", "          partitionName = body.partitionName,", "          studyinstanceuid = body.studyInstanceUid,", "          seriesinstanceuid = body.seriesInstanceUid,", "          sopinstanceuid = body.sopInstanceUid,", "          metadata = body.metadata,", "          filepath = body.filePath", "     ),", "     skipDuplicateMapInputs: false,", "     skipDuplicateMapOutputs: false) ~> flattened", "upToDate alterRow(upsertIf(or(equals(action,'Create'),equals(action,'Update'))),", "     deleteIf(equals(action,'Delete'))) ~> instanceSinkUpdates", "extracted aggregate(groupBy(partitionName,", "          studyinstanceuid,", "          seriesinstanceuid,", "          sopinstanceuid),", "     action = last(action),", "          lastModifiedTimestamp = last(timestamp),", "          studydate = last(studydate),", "          studydate_formatted = last(studydate_formatted),", "          studydescription = last(studydescription),", "          issuerofpatientid = last(issuerofpatientid),", "          patientid = last(patientid),", "          patientname = last(patientname),", "          modality = last(modality),", "          sopclassuid = last(sopclassuid),", "          filepath = last(filepath),", "          metadata = last(metadata),", "          metadata_string = last(metadata_string),", "          created_date = last(created_date),", "          patientbirthdate = last(patientbirthdate),", "          accessionnumber = last(accessionnumber),", "          referringphysicianname = last(referringphysicianname),", "          modalitiesinstudy = last(modalitiesinstudy),", "          performedprocedurestepstartdate = last(performedprocedurestepstartdate),", "          manufacturermodelname = last(manufacturermodelname),", "          studytime = last(studytime),", "          timezoneoffsetfromutc = last(timezoneoffsetfromutc),", "          numberofstudyrelatedseries = last(numberofstudyrelatedseries),", "          numberofstudyrelatedinstances = last(numberofstudyrelatedinstances),", "          seriesnumber = last(seriesnumber),", "          seriesdescription = last(seriesdescription),", "          numberofseriesrelatedinstances = last(numberofseriesrelatedinstances),", "          bodypartexamined = last(bodypartexamined),", "          laterality = last(laterality),", "          seriesdate = last(seriesdate),", "          seriestime = last(seriestime),", "          instancenumber = last(instancenumber),", "          documenttitle = last(documenttitle)) ~> aggregatedChanges", "existingInstances aggregate(groupBy(partitionName,", "          studyInstanceUid = studyinstanceuid,", "          seriesInstanceUid = seriesinstanceuid),", "     lastModifiedTimestamp = last(lastModifiedTimestamp),", "          studyDate = last(toDate(studydate, 'yyyyMMdd', 'UTC')),", "          studyDescription = last(studydescription),", "          issuerOfPatientId = last(issuerofpatientid),", "          patientId = last(patientid),", "          patientName = last(patientname),", "          modality = last(modality),", "          instanceCount = count()) ~> allSeries", "existingSeries aggregate(groupBy(partitionName,", "          studyInstanceUid),", "     lastModifiedTimestamp = last(lastModifiedTimestamp),", "          studyDate = last(studyDate),", "          studyDescription = last(studyDescription),", "          issuerOfPatientId = last(issuerOfPatientId),", "          patientId = last(patientId),", "          patientName = last(patientName),", "          instanceCount = sum(instanceCount),", "          seriesCount = count()) ~> allStudies", "modifiedSeries alterRow(upsertIf(instanceCount>0),", "     deleteIf(instanceCount<=0)) ~> seriesSinkUpdates", "modifiedStudies alterRow(upsertIf(instanceCount>0),", "     deleteIf(instanceCount<=0)) ~> studySinkUpdate", "upToDate aggregate(groupBy(partitionName,", "          studyInstanceUid = studyinstanceuid,", "          seriesInstanceUid = seriesinstanceuid),", "     instanceDifference = sum(iif(equals(action, 'Create'), 1, iif(equals(action, 'Delete'), -1, 0)))) ~> seriesChanges", "seriesChanges aggregate(groupBy(partitionName,", "          studyInstanceUid),", "     instanceDifference = sum(instanceDifference)) ~> studyChanges", "annotatedSeries filter(hasChange) ~> modifiedSeries", "allSeries derive(hasChange = not(isNull(seriesCache#lookup(partitionName, studyInstanceUid, seriesInstanceUid)))) ~> annotatedSeries", "allStudies derive(hasChange = not(isNull(studyCache#lookup(partitionName, studyInstanceUid)))) ~> annotatedStudies", "annotatedStudies filter(hasChange) ~> modifiedStudies", "aggregatedChanges filter(or(not(isNull(filepath)), equals(action, 'Delete'))) ~> upToDate", "instanceSinkUpdates sink(allowSchemaDrift: true,", "     validateSchema: false,", "     format: 'delta',", "     fileSystem: ($ContainerName),", "     folderPath: ($InstanceTablePath),", "     mergeSchema: true,", "     autoCompact: true,", "     optimizedWrite: false,", "     vacuum: ($RetentionHours),", "     deletable: true,", "     insertable: false,", "     updateable: false,", "     upsertable: true,", "     keys:['partitionName','studyinstanceuid','seriesinstanceuid','sopinstanceuid'],", "     umask: 0022,", "     preCommands: [],", "     postCommands: [],", "     saveOrder: 1,", "     mapColumn(", "          partitionName,", "          studyinstanceuid,", "          seriesinstanceuid,", "          sopinstanceuid,", "          lastModifiedTimestamp,", "          studydate,", "          studydate_formatted,", "          studydescription,", "          issuerofpatientid,", "          patientid,", "          patientname,", "          modality,", "          sopclassuid,", "          filepath,", "          metadata,", "          metadata_string,", "          created_date,", "          patientbirthdate,", "          accessionnumber,", "          referringphysicianname,", "          modalitiesinstudy,", "          performedprocedurestepstartdate,", "          manufacturermodelname,", "          studytime,", "          timezoneoffsetfromutc,", "          numberofstudyrelatedseries,", "          numberofstudyrelatedinstances,", "          seriesnumber,", "          seriesdescription,", "          numberofseriesrelatedinstances,", "          bodypartexamined,", "          laterality,", "          seriesdate,", "          seriestime,", "          instancenumber,", "          documenttitle", "     ),", "     partitionBy('key',", "          0,", "          partitionName", "     )) ~> instanceTable", "seriesSinkUpdates sink(allowSchemaDrift: true,", "     validateSchema: false,", "     format: 'delta',", "     fileSystem: ($ContainerName),", "     folderPath: ($SeriesTablePath),", "     mergeSchema: true,", "     autoCompact: true,", "     optimizedWrite: false,", "     vacuum: ($RetentionHours),", "     deletable: true,", "     insertable: false,", "     updateable: false,", "     upsertable: true,", "     keys:['partitionName','studyInstanceUid','seriesInstanceUid'],", "     umask: 0022,", "     preCommands: [],", "     postCommands: [],", "     saveOrder: 2,", "     mapColumn(", "          partitionName,", "          studyInstanceUid,", "          seriesInstanceUid,", "          lastModifiedTimestamp,", "          studyDate,", "          studyDescription,", "          issuerOfPatientId,", "          patientId,", "          patientName,", "          modality,", "          instanceCount", "     ),", "     partitionBy('key',", "          0,", "          partitionName", "     )) ~> seriesTable", "studySinkUpdate sink(allowSchemaDrift: true,", "     validateSchema: false,", "     format: 'delta',", "     fileSystem: ($ContainerName),", "     folderPath: ($StudyTablePath),", "     mergeSchema: true,", "     autoCompact: true,", "     optimizedWrite: false,", "     vacuum: ($RetentionHours),", "     deletable: true,", "     insertable: false,", "     updateable: false,", "     upsertable: true,", "     keys:['partitionName','studyInstanceUid'],", "     umask: 0022,", "     preCommands: [],", "     postCommands: [],", "     saveOrder: 3,", "     mapColumn(", "          partitionName,", "          studyInstanceUid,", "          lastModifiedTimestamp,", "          studyDate,", "          studyDescription,", "          issuerOfPatientId,", "          patientId,", "          patientName,", "          seriesCount,", "          instanceCount", "     ),", "     partitionBy('key',", "          0,", "          partitionName", "     )) ~> studyTable", "seriesChanges sink(validateSchema: false,", "     keys:['partitionName','studyInstanceUid','seriesInstanceUid'],", "     store: 'cache',", "     format: 'inline',", "     output: false,", "     saveOrder: 1) ~> seriesCache", "studyChanges sink(validateSchema: false,", "     keys:['partitionName','studyInstanceUid'],", "     store: 'cache',", "     format: 'inline',", "     output: false,", "     saveOrder: 1) ~> studyCache" ]
+                }
+            },
+            "dependsOn": []
+        }
+    ]
+}
