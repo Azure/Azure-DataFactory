@@ -1,3 +1,4 @@
+### Microsoft provided script https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ContinuousIntegrationAndDelivery/PrePostDeploymentScript.Ver2.ps1
 <#
 .SYNOPSIS
     Stop/ start triggers during release process (CICD)
@@ -191,7 +192,8 @@ function Compare-TriggerPayload {
         $triggerTemplateJson = ConvertTo-Json -InputObject $triggerInTemplate.properties -Depth $MaxJsonDepth -EscapeHandling Default
         $updatedTemplateJson = Update-TriggerTemplate -templateJson $triggerTemplateJson -templateParameters $templateParameters
         $serializerOptions = New-Object System.Text.Json.JsonSerializerOptions -Property @{ PropertyNameCaseInsensitive = $True }
-        $payloadPSObject = $updatedTemplateJson | ConvertFrom-Json -Depth $MaxJsonDepth
+        $updatedTemplateJsonReplaced = $updatedTemplateJson.Replace('\', '\\')
+        $payloadPSObject = $updatedTemplateJsonReplaced | ConvertFrom-Json -Depth $MaxJsonDepth
         if ($triggerDeployed.Properties.RuntimeState -ne $payloadPSObject.runtimeState) {
             Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - runtimeState changed"
             return $True;
