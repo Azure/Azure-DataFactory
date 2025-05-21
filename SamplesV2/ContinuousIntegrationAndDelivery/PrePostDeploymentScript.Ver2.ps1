@@ -1,4 +1,3 @@
-### Microsoft provided script https://github.com/Azure/Azure-DataFactory/blob/main/SamplesV2/ContinuousIntegrationAndDelivery/PrePostDeploymentScript.Ver2.ps1
 <#
 .SYNOPSIS
     Stop/ start triggers during release process (CICD)
