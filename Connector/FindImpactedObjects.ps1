@@ -182,7 +182,7 @@ foreach ($df in $dataFactories) {
             if ($LegacyV1VersionLSTypes -contains $type) {
                 if ($version -ne "2.0") { # Skip version 2.0, it must be non-legacy
                     switch ($type) { # MySql and MariaDB are not following the version design, hence, need some custom logic here
-                        ("MariaDB", "MySql") {
+                        {($_ -eq "MariaDB") -or ($_ -eq "MySql")} { 
                             $connectionString = $typeProps.connectionString
                             if (-not [string]::IsNullOrEmpty($connectionString)) {
                                 Print-Result -dfName $dataFactoryName -lsName $name -lsType $type -outputFileName $filename
