@@ -14,7 +14,11 @@ function Get-PlainAccessToken {
     $WarningPreference = 'SilentlyContinue' 
     $token = (Get-AzAccessToken).Token
     $WarningPreference = $prev
-    return $token
+
+    $plainToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
+        [Runtime.InteropServices.Marshal]::SecureStringToBSTR($token)
+    ) 
+    return $plainToken
 }
 
 function Get-AllLinkedServices {
