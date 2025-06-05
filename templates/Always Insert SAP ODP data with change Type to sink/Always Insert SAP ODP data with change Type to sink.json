@@ -1,0 +1,345 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": "Data Factory name"
+    },
+    "DataSource_LinkService": {
+      "type": "string"
+    },
+    "SapOdp3": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('factoryName'), '/Always Insert SAP ODP data with change Type to sink')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Insert each row of sap odp data to sink with additional change data type. Note: Change data type from SAP initial/incremental mode can either be 'Upsert' or 'Delete'. For sap full load or when data preview, change type will always be 'Insert'",
+        "activities": [
+          {
+            "name": "SAP2ParquetLookup",
+            "type": "Lookup",
+            "dependsOn": [
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "JsonSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "JsonReadSettings"
+                }
+              },
+              "dataset": {
+                "referenceName": "SapToParquetLookupJson",
+                "type": "DatasetReference",
+                "parameters": {
+                }
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "ForEach1",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "SAP2ParquetLookup",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [
+            ],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('SAP2ParquetLookup').output.value",
+                "type": "Expression"
+              },
+              "isSequential": false,
+              "activities": [
+                {
+                  "name": "SAPParquetDataflow",
+                  "description": "Replicate data from sap table(sap_context, sap_object, sap_key_columns) and write to gen2 storage(sink_container, sink_folder) in parquet format",
+                  "type": "ExecuteDataFlow",
+                  "dependsOn": [
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [
+                  ],
+                  "typeProperties": {
+                    "dataflow": {
+                      "referenceName": "SAP2ParquetTemplateDataflow",
+                      "type": "DataFlowReference",
+                      "parameters": {
+                        "sapContext": {
+                          "value": "'@{item().sapContext}'",
+                          "type": "Expression"
+                        },
+                        "sapObjectName": {
+                          "value": "'@{item().sapObjectName}'",
+                          "type": "Expression"
+                        },
+                        "sapKeyColumns": {
+                          "value": "@item().sapKeyColumns",
+                          "type": "Expression"
+                        },
+                        "parquetContainer": {
+                          "value": "'@{item().parquetContainer}'",
+                          "type": "Expression"
+                        },
+                        "parquetFolder": {
+                          "value": "'@{item().parquetFolder}'",
+                          "type": "Expression"
+                        },
+                        "sapRunMode": {
+                          "value": "'@{item().sapRunMode}'",
+                          "type": "Expression"
+                        },
+                        "sapPartitions": {
+                          "value": "'@{item().sapPartitions}'",
+                          "type": "Expression"
+                        }
+                      },
+                      "datasetParameters": {
+                        "SAPSource": {
+                        },
+                        "ParquetSink": {
+                        }
+                      }
+                    },
+                    "staging": {
+                      "linkedService": {
+                        "referenceName": "[parameters('DataSource_LinkService')]",
+                        "type": "LinkedServiceReference"
+                      },
+                      "folderPath": {
+                        "value": "@item().stagingStorageFolder",
+                        "type": "Expression"
+                      }
+                    },
+                    "compute": {
+                      "coreCount": 8,
+                      "computeType": "General"
+                    },
+                    "traceLevel": "Fine",
+                    "continuationSettings": {
+                      "customizedCheckpointKey": {
+                        "value": "@item().checkPointKey",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {
+          },
+          "cancelAfter": {
+          }
+        },
+        "annotations": [
+        ],
+        "lastPublishTime": "2023-05-23T08:40:32Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/SapToParquetLookupJson')]",
+        "[concat(variables('factoryId'), '/dataflows/SAP2ParquetTemplateDataflow')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/SapToParquetLookupJson')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('DataSource_LinkService')]",
+          "type": "LinkedServiceReference"
+        },
+        "annotations": [
+        ],
+        "type": "Json",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileName": "SapToParquetParameters.json",
+            "fileSystem": "demo"
+          }
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "checkPointKey": {
+              "type": "string"
+            },
+            "sapContext": {
+              "type": "string"
+            },
+            "sapObjectName": {
+              "type": "string"
+            },
+            "sapRunMode": {
+              "type": "string"
+            },
+            "sapKeyColumns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sapPartitions": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "fieldName": {
+                      "type": "string"
+                    },
+                    "sign": {
+                      "type": "string"
+                    },
+                    "option": {
+                      "type": "string"
+                    },
+                    "low": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "deltaContainer": {
+              "type": "string"
+            },
+            "deltaFolder": {
+              "type": "string"
+            },
+            "deltaKeyColumns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deltaPartition": {
+              "type": "string"
+            },
+            "stagingStorageFolder": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/SAP2ParquetTemplateDataflow')]",
+      "type": "Microsoft.DataFactory/factories/dataflows",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+          "sources": [
+            {
+              "linkedService": {
+                "referenceName": "[parameters('SapOdp3')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "SAPSource"
+            }
+          ],
+          "sinks": [
+            {
+              "linkedService": {
+                "referenceName": "[parameters('DataSource_LinkService')]",
+                "type": "LinkedServiceReference"
+              },
+              "name": "ParquetSink"
+            }
+          ],
+          "transformations": [
+            {
+              "name": "InsertEachRow",
+              "description": "Update each row to insert, no mater update, delete or  insert."
+            },
+            {
+              "name": "derivedColumn1",
+              "description": "Creating/updating the columns 'ChangeType, IsUpsert, IsDelete, IsInsert'. Note: Change data type from SAP incremental mode can either be 'Upsert' or 'Delete'. For sap full load or when data preview, change type will always be 'Insert'"
+            }
+          ],
+          "scriptLines": [
+            "parameters{",
+            "     sapContext as string (\"default-context\"),",
+            "     sapObjectName as string (\"default-object\"),",
+            "     sapKeyColumns as string[] ([\"default-key1\",\"default-key2\"]),",
+            "     parquetContainer as string (\"default-parquet-container\"),",
+            "     parquetFolder as string (\"default-parquet-folder\"),",
+            "     sapRunMode as string (\"fullAndIncrementalLoad\"),",
+            "     sapPartitions as string (\"[[\\{\\\"fieldName\\\": \\\"default-ID\\\",\\\"sign\\\": \\\"I\\\", \\\"option\\\": \\\"BT\\\",\\\"low\\\": \\\"1\\\",\\\"high\\\": \\\"4\\\"}]]\")",
+            "}",
+            "source(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     store: 'SapOdp',",
+            "     format: 'sapObject',",
+            "     staged: true,",
+            "     context: ($sapContext),",
+            "     objectName: ($sapObjectName),",
+            "     readMode: ($sapRunMode),",
+            "     keys: ($sapKeyColumns),",
+            "     partitionPredicates: ($sapPartitions),",
+            "     partitionBy('external', 1)) ~> SAPSource",
+            "derivedColumn1 alterRow(insertIf(true())) ~> InsertEachRow",
+            "SAPSource derive(ChangeType = case(isUpsert(), 'U', isDelete(), 'D', 'I'),",
+            "          IsUpsert = isUpsert(),",
+            "          IsDelete = isDelete(),",
+            "          IsInsert = isInsert()) ~> derivedColumn1",
+            "InsertEachRow sink(allowSchemaDrift: true,",
+            "     validateSchema: false,",
+            "     format: 'parquet',",
+            "     fileSystem: ($parquetContainer),",
+            "     folderPath: ($parquetFolder),",
+            "     umask: 0022,",
+            "     preCommands: [],",
+            "     postCommands: [],",
+            "     skipDuplicateMapInputs: true,",
+            "     skipDuplicateMapOutputs: true) ~> ParquetSink"
+          ]
+        }
+      },
+      "dependsOn": [
+      ]
+    }
+  ]
+}

@@ -1,0 +1,550 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "": {
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "name": "AI-Develop RAG pipeline using SQL database in Fabric",
+            "description": "This Retrieval Augmented Generation (RAG) data pipeline will get your data ready for building Generative AI and Agentic AI applications. Triggered by Azure Blob Storage events, the pipeline copies the file to the Lakehouse, extracts the content from the file, chunks the content, redacts any PII information, generates embeddings, and stores the chunks and embeddings in SQL Database in Fabric. Documentation: https://github.com/Azure-Samples/fabric-sqldb-ai-ragpipeline",
+            "type": "pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "azureblob_to_lakehouse",
+                        "description": "Creates a folder with the same name of the container if not already exist and copies the file from Azure blob storage into the folder",
+                        "type": "TridentNotebook",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "notebookId": "",
+                            "workspaceId": "",
+                            "parameters": {
+                                "fileName": {
+                                    "value": {
+                                        "value": "@variables('fileName')",
+                                        "type": "Expression"
+                                    },
+                                    "type": "string"
+                                },
+                                "container": {
+                                    "value": {
+                                        "value": "@variables('container')",
+                                        "type": "Expression"
+                                    },
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "value": {
+                                        "value": "@variables('source')",
+                                        "type": "Expression"
+                                    },
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "Extract Text",
+                        "description": "Extracts the text content from the file copied to the Lakehouse using the Document Intelligence AI Service.",
+                        "type": "AzureFunctionActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "azureblob_to_lakehouse",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "functionName": "",
+                            "parameters": {
+                                "filePath": {
+                                    "value": "@activity('azureblob_to_lakehouse').output.result.exitValue",
+                                    "type": "string"
+                                },
+                                "cognitiveServicesEndpoint": {
+                                    "value": "@variables('cognitiveServiceEndpoint')",
+                                    "type": "Expression"
+                                },
+                                "apiKey": {
+                                    "value": "@variables('apiKey')",
+                                    "type": "Expression"
+                                }
+                            },
+                            "functionSetId": "",
+                            "workspaceId": ""
+                        },
+                        "externalReferences": {
+                            "connection": "[parameters('')]"
+                        }
+                    },
+                    {
+                        "name": "Text Extraction Results",
+                        "description": "Validates the results of \"extract text\" activity",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "Extract Text",
+                                "dependencyConditions": [
+                                    "Completed"
+                                ]
+                            }
+                        ],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@empty(activity('Extract Text').error)",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "Text Extraction Failure Email Alert",
+                                    "description": "Sends an email to the configured recipient when text extraction fails",
+                                    "type": "Office365Outlook",
+                                    "dependsOn": [],
+                                    "typeProperties": {
+                                        "inputs": {
+                                            "method": "post",
+                                            "path": "/v2/Mail",
+                                            "body": {
+                                                "To": "@variables('recepientEmailAddress')",
+                                                "Subject": "Text Extraction Error",
+                                                "Body": "<pre style=\"font-family: monospace; background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap;\">\n@{replace(string(activity('Extract Text').error.message), '\\','')}\n</pre>",
+                                                "From": "@variables('senderEmailAddress')",
+                                                "Sensitivity": "",
+                                                "Importance": "High"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Text Extraction Process Failure",
+                                    "description": "Terminate pipeline execution",
+                                    "type": "Fail",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Text Extraction Failure Email Alert",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "typeProperties": {
+                                        "message": {
+                                            "value": "@{replace(string(activity('Extract Text').error), '\\','')}",
+                                            "type": "Expression"
+                                        },
+                                        "errorCode": {
+                                            "value": "@{activity('Extract Text').statuscode}",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "ifTrueActivities": []
+                        }
+                    },
+                    {
+                        "name": "Generate Chunks",
+                        "description": "Chunks the extracted text using tiktoken fixed-size chunking strategy",
+                        "type": "AzureFunctionActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Text Extraction Results",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "functionName": "chunk_text",
+                            "parameters": {
+                                "text": {
+                                    "value": "@activity('Extract Text').output.output",
+                                    "type": "Expression"
+                                },
+                                "maxToken": "500",
+                                "encoding": "cl100k_base"
+                            },
+                            "functionSetId": "",
+                            "workspaceId": ""
+                        },
+                        "externalReferences": {
+                            "connection": "[parameters('')]"
+                        }
+                    },
+                    {
+                        "name": "Redact PII Data",
+                        "description": "From the chunks generated, redact any personally identifiable information (PII) content using Azure AI Language Service.",
+                        "type": "AzureFunctionActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Generate Chunks",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "functionName": "redact_text",
+                            "parameters": {
+                                "text": {
+                                    "value": "@activity('Generate Chunks').output.output",
+                                    "type": "Expression"
+                                },
+                                "cognitiveServicesEndpoint": {
+                                    "value": "@variables('cognitiveServiceEndpoint')",
+                                    "type": "Expression"
+                                },
+                                "apiKey": {
+                                    "value": "@variables('apiKey')",
+                                    "type": "Expression"
+                                }
+                            },
+                            "functionSetId": "",
+                            "workspaceId": ""
+                        },
+                        "externalReferences": {
+                            "connection": "[parameters('')]"
+                        }
+                    },
+                    {
+                        "name": "PII Reaction Results",
+                        "description": "Validates the results of \"Redact PII data\" activity",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "Redact PII Data",
+                                "dependencyConditions": [
+                                    "Completed"
+                                ]
+                            }
+                        ],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@empty(activity('Redact PII Data').error)",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "Redaction Failure Email Alert",
+                                    "description": "Sends an email to the configured recipient when PII Redaction fails",
+                                    "type": "Office365Outlook",
+                                    "dependsOn": [],
+                                    "typeProperties": {
+                                        "inputs": {
+                                            "method": "post",
+                                            "path": "/v2/Mail",
+                                            "body": {
+                                                "To": "@variables('recepientEmailAddress')",
+                                                "Subject": "Text Redaction Error",
+                                                "Body": "<pre style=\"font-family: monospace; background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap;\">\n@{replace(string(activity('Redact PII Data').error.message), '\\','')}\n</pre>",
+                                                "From": "@variables('senderEmailAddress')",
+                                                "Sensitivity": "",
+                                                "Importance": "High"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Text Redaction Process Failure",
+                                    "description": "Terminate pipeline execution",
+                                    "type": "Fail",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Redaction Failure Email Alert",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "typeProperties": {
+                                        "message": {
+                                            "value": "@{replace(string(activity('Redact PII Data').error), '\\','')}",
+                                            "type": "Expression"
+                                        },
+                                        "errorCode": {
+                                            "value": "@{activity('Redact PII Data').statuscode}",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "ifTrueActivities": []
+                        }
+                    },
+                    {
+                        "name": "Generate Embeddings",
+                        "description": "Generates the embeddings for the chunk, redacted text using Azure Open AI Service and text-embedding-3-small embedding model.",
+                        "type": "AzureFunctionActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "PII Reaction Results",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "functionName": "generate_embeddings",
+                            "parameters": {
+                                "text": {
+                                    "value": "@activity('Redact PII Data').output.output",
+                                    "type": "Expression"
+                                },
+                                "openAIServiceEndpoint": {
+                                    "value": "@variables('openAIEndpoint')",
+                                    "type": "Expression"
+                                },
+                                "embeddingModel": {
+                                    "value": "@variables('embeddingModel')",
+                                    "type": "Expression"
+                                },
+                                "openAIKey": {
+                                    "value": "@variables('openAIKey')",
+                                    "type": "Expression"
+                                },
+                                "fileName": {
+                                    "value": "@variables('fileName')",
+                                    "type": "Expression"
+                                }
+                            },
+                            "functionSetId": "",
+                            "workspaceId": ""
+                        },
+                        "externalReferences": {
+                            "connection": "[parameters('')]"
+                        }
+                    },
+                    {
+                        "name": "Generate Embeddings Results",
+                        "description": "Validates the results of \"Generate Embeddings\" activity",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "Generate Embeddings",
+                                "dependencyConditions": [
+                                    "Completed"
+                                ]
+                            }
+                        ],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@empty(activity('Generate Embeddings').error)",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "Generate Embeddings Failure Email Alert",
+                                    "description": "Sends an email to the configured recipient when Embedding Generation fails",
+                                    "type": "Office365Outlook",
+                                    "dependsOn": [],
+                                    "typeProperties": {
+                                        "inputs": {
+                                            "method": "post",
+                                            "path": "/v2/Mail",
+                                            "body": {
+                                                "To": "@variables('recepientEmailAddress')",
+                                                "Subject": "Generate Embeddings Error",
+                                                "Body": "<pre style=\"font-family: monospace; background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap;\">\n@{replace(string(activity('Generate Embeddings').error.message), '\\','')}\n</pre>",
+                                                "From": "@variables('senderEmailAddress')",
+                                                "Sensitivity": "",
+                                                "Importance": "High"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Generate Embeddings Processing Failure",
+                                    "description": "Terminate pipeline execution",
+                                    "type": "Fail",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Generate Embeddings Failure Email Alert",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "typeProperties": {
+                                        "message": {
+                                            "value": "@{replace(string(activity('Generate Embeddings').error), '\\','')}",
+                                            "type": "Expression"
+                                        },
+                                        "errorCode": {
+                                            "value": "@{activity('Generate Embeddings').statuscode}",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "ifTrueActivities": []
+                        }
+                    },
+                    {
+                        "name": "Create Database Objects",
+                        "description": "Creates documents table in SQL Database if it does not exist",
+                        "type": "AzureFunctionActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Generate Embeddings Results",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "functionName": "create_table",
+                            "parameters": {},
+                            "functionSetId": "",
+                            "workspaceId": ""
+                        },
+                        "externalReferences": {
+                            "connection": "[parameters('')]"
+                        }
+                    },
+                    {
+                        "name": "Save Data",
+                        "description": "Saves chunks and embeddings in documents table ",
+                        "type": "AzureFunctionActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Create Database Objects",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "functionName": "insert_data",
+                            "parameters": {
+                                "data": {
+                                    "value": "@activity('Generate Embeddings').output.output",
+                                    "type": "Expression"
+                                }
+                            },
+                            "functionSetId": "",
+                            "workspaceId": ""
+                        },
+                        "externalReferences": {
+                            "connection": "[parameters('')]"
+                        }
+                    }
+                ],
+                "parameters": {
+                    "Documentation_Link": {
+                        "type": "string",
+                        "defaultValue": "https://github.com/Azure-Samples/fabric-sqldb-ai-ragpipeline"
+                    }
+                },
+                "variables": {
+                    "fileName": {
+                        "type": "String",
+                        "defaultValue": "@pipeline()?.TriggerEvent?.FileName"
+                    },
+                    "container": {
+                        "type": "String",
+                        "defaultValue": "@pipeline()?.TriggerEvent?.FolderPath"
+                    },
+                    "source": {
+                        "type": "String",
+                        "defaultValue": "@pipeline()?.TriggerEvent?.Source"
+                    },
+                    "apiKey": {
+                        "type": "String",
+                        "defaultValue": ""
+                    },
+                    "cognitiveServiceEndpoint": {
+                        "type": "String",
+                        "defaultValue": ""
+                    },
+                    "openAIEndpoint": {
+                        "type": "String",
+                        "defaultValue": ""
+                    },
+                    "openAIKey": {
+                        "type": "String",
+                        "defaultValue": ""
+                    },
+                    "embeddingModel": {
+                        "type": "String",
+                        "defaultValue": "text-embedding-3-small"
+                    },
+                    "recepientEmailAddress": {
+                        "type": "String",
+                        "defaultValue": ""
+                    },
+                    "senderEmailAddress": {
+                        "type": "String",
+                        "defaultValue": ""
+                    }
+                },
+                "lastModifiedByObjectId": "",
+                "lastPublishTime": "",
+                "logicAppsConnectionPayload": {
+                    "id": "",
+                    "properties": {
+                        "api": {
+                            "name": "office365",
+                            "id": ""
+                        }
+                    }
+                }
+            },
+            "dependsOn": []
+        }
+    ]
+}

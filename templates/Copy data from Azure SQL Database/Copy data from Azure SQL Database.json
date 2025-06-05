@@ -1,0 +1,100 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "testSQL": {
+            "type": "string"
+        },
+        "testLakehouse": {
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "name": "Copy from SQL to LH",
+            "type": "pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copy from SQL to LH",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "partitionOption": "None",
+                                "datasetSettings": {
+                                    "annotations": [],
+                                    "type": "AzureSqlTable",
+                                    "schema": [],
+                                    "typeProperties": {
+                                        "schema": {
+                                            "value": "@pipeline().parameters.schemaName",
+                                            "type": "Expression"
+                                        },
+                                        "table": {
+                                            "value": "@pipeline().parameters.tableName",
+                                            "type": "Expression"
+                                        }
+                                    },
+                                    "externalReferences": {
+                                        "connection": "[parameters('testSQL')]"
+                                    }
+                                }
+                            },
+                            "sink": {
+                                "type": "LakehouseTableSink",
+                                "tableActionOption": "Append",
+                                "datasetSettings": {
+                                    "annotations": [],
+                                    "linkedService": {
+                                        "name": "testLakehouse",
+                                        "properties": {
+                                            "type": "Lakehouse",
+                                            "typeProperties": {
+                                                "workspaceId": "33eca854-3c9b-498f-8cf4-9144c6661828",
+                                                "artifactId": "[parameters('testLakehouse')]",
+                                                "rootFolder": "Tables"
+                                            }
+                                        }
+                                    },
+                                    "type": "LakehouseTable",
+                                    "typeProperties": {
+                                        "table": {
+                                            "value": "@pipeline().parameters.LHTableName",
+                                            "type": "Expression"
+                                        }
+                                    },
+                                    "schema": []
+                                }
+                            },
+                            "enableStaging": false
+                        }
+                    }
+                ],
+                "parameters": {
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "LHTableName": {
+                        "type": "string"
+                    }
+                },
+                "annotations": []
+            },
+            "dependsOn": []
+        }
+    ]
+}
