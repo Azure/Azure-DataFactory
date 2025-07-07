@@ -131,8 +131,6 @@ $LegacyV1LSTypes = @(
     "AzureMariaDB",
     "GoogleBigQuery",
     "PostgreSql", 
-
-    # To be end of support
     "ServiceNow", 
     "Snowflake", 
     "Salesforce", 
@@ -147,11 +145,16 @@ $LegacyV1VersionLSTypes = @(
     "Vertica", 
     "Oracle",
     "Greenplum",
-    "AzurePostgreSql",
-    # V2 Preview
+    "AzurePostgreSql", 
+    "Teradata", 
+    "AmazonRdsForOracle", 
+    "Hive", 
+    "Impala",
     "Spark",
     "Presto",
-    "Cassandra"
+    "Cassandra",
+    # V2 Preview
+    "QuickBooks"
 )
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
