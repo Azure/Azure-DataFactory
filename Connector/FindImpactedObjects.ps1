@@ -131,8 +131,6 @@ $LegacyV1LSTypes = @(
     "AzureMariaDB",
     "GoogleBigQuery",
     "PostgreSql", 
-
-    # To be end of support
     "ServiceNow", 
     "Snowflake", 
     "Salesforce", 
@@ -147,11 +145,16 @@ $LegacyV1VersionLSTypes = @(
     "Vertica", 
     "Oracle",
     "Greenplum",
-    "AzurePostgreSql",
-    # V2 Preview
+    "AzurePostgreSql", 
+    "Teradata", 
+    "AmazonRdsForOracle", 
+    "Hive", 
+    "Impala",
     "Spark",
     "Presto",
-    "Cassandra"
+    "Cassandra",
+    # V2 Preview
+    "QuickBooks"
 )
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -205,44 +208,3 @@ foreach ($df in $dataFactories) {
         Write-Host "Failed to fetch linked services for $dataFactoryName" -ForegroundColor Red
     }
 }
-
-# Sometimes, Get-AzDataFactoryV2LinkedService will fail to deserialize the payload due to invalid payload, or out-of-date version, let's use Rest API instead
-# foreach ($df in $dataFactories) {
-#     $dataFactoryName = $df.DataFactoryName
-#     $resourceGroup = $df.ResourceGroupName
-#     Write-Host "Data Factory $dataFactoryName (Resource Group $resourceGroup)" -ForegroundColor Green
-
-#     # Get all Linked Services for this Data Factory
-#     $linkedServices = Get-AzDataFactoryV2LinkedService -ResourceGroupName $resourceGroup -DataFactoryName $dataFactoryName
-
-#     if ($linkedServices.Count -gt 0) {
-#         foreach ($ls in $linkedServices) {
-#             $type = $ls.Properties.GetType().Name -replace 'LinkedService$', ''
-#             # Find all the legacy types
-#             if ($LegacyLSTypes -contains $type) {
-#                 Write-Host "$dataFactoryName, $($ls.Name), $type"
-#             }
-
-#             # Find v1 versions. 
-#             if ($LSWithV1Types -contains $type) {
-#                 $version = $ls.Properties.version
-#                 if ($version -ne "2.0") { # skip version 2.0
-#                     switch ($type) { # We need some custom logic per types
-#                         "MySql" {
-#                             $connectionString = $ls.Properties.ConnectionString
-#                             if (-not [string]::IsNullOrEmpty($connectionString)) {
-#                                 Write-Host "$dataFactoryName, $($ls.Name), $type"
-#                             }
-#                             break
-#                         }
-#                         default {
-#                             Write-Host "$dataFactoryName, $($ls.Name), $type"
-#                             break
-#                         }
-#                     }
-#                 }
-#             }
-            
-#         }
-#     }
-# }
