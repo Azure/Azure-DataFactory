@@ -1,0 +1,1 @@
+REG ADD HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters /v SearchList /t REG_SZ /d test.com /f
