@@ -16,7 +16,6 @@
 			"type": "pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "This Pipeline will extract the data from  Microsoft Graph Data connect to Lakehouse for getting oversharing insights in your organization. This pipeline needs some dependencies and steps documented here. https://go.microsoft.com/fwlink/?linkid=2300611",
 				"activities": [
 					{
 						"name": "Merge Sites and Permissions To Final Table",
@@ -43,7 +42,7 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"notebookId": "044e9c94-b555-42eb-af0d-b9b316b0c501",
+							"notebookId": "de1fae8a-2f39-4c73-9a71-f8e8097f9387",
 							"workspaceId": {
 								"value": "@pipeline().DataFactory",
 								"type": "Expression"
@@ -137,7 +136,7 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"notebookId": "31fc030f-0e0c-46bc-ae89-281bd5c9272a",
+							"notebookId": "e964108f-ea31-426a-9459-0c549409fed8",
 							"workspaceId": {
 								"value": "@pipeline().DataFactory",
 								"type": "Expression"
@@ -253,7 +252,7 @@
 						"type": "Script",
 						"dependsOn": [
 							{
-								"activity": "Merge Sites and Permissions To Final Table",
+								"activity": "Wait 1 Min",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -261,8 +260,8 @@
 						],
 						"policy": {
 							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
+							"retry": 2,
+							"retryIntervalInSeconds": 300,
 							"secureOutput": false,
 							"secureInput": false
 						},
@@ -291,7 +290,7 @@
 						"type": "Script",
 						"dependsOn": [
 							{
-								"activity": "Merge Sites and Permissions To Final Table",
+								"activity": "Wait 1 Min",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -299,8 +298,8 @@
 						],
 						"policy": {
 							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
+							"retry": 2,
+							"retryIntervalInSeconds": 300,
 							"secureOutput": false,
 							"secureInput": false
 						},
@@ -1722,6 +1721,22 @@
 							"variableName": "PipelineFinalStatus",
 							"value": "Pipeline Completed Successfully"
 						}
+					},
+					{
+						"name": "Wait 1 Min",
+						"description": "Some times SQL Endpoint does not understand the newly created delta lake tables. Need to wait some time for newly created tables to get reflected in SQL catalog.",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "Merge Sites and Permissions To Final Table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"typeProperties": {
+							"waitTimeInSeconds": 60
+						}
 					}
 				],
 				"parameters": {
@@ -1788,9 +1803,8 @@
 						"type": "String"
 					}
 				},
-				"lastModifiedByObjectId": "1a2fbd2b-16c9-4b04-96de-be6e856e5333",
-				"lastPublishTime": "2025-01-03T20:19:45Z",
-				"extraTridentInfo": "{\"folderObjectId\":\"0cc8ced7-35a7-4dcb-94af-3b4f54c381b0\",\"capacityObjectId\":\"633251C5-A944-4D3E-B523-E61846F67005\",\"artifactType\":\"Pipeline\",\"provisionState\":\"Active\",\"lastUpdatedDate\":\"2025-01-03T20:19:43.984Z\",\"createdDate\":\"2024-11-11T21:15:17.805Z\",\"ownerUser\":{\"id\":619869,\"name\":\"Admin Archimedes\",\"objectId\":\"1a2fbd2b-16c9-4b04-96de-be6e856e5333\",\"userPrincipalName\":\"admin@odspimax.onmicrosoft.com\",\"aadAppId\":null,\"type\":null},\"ownerUserId\":619869,\"createdByUser\":{\"id\":619869,\"name\":\"Admin Archimedes\",\"objectId\":\"1a2fbd2b-16c9-4b04-96de-be6e856e5333\",\"userPrincipalName\":\"admin@odspimax.onmicrosoft.com\",\"aadAppId\":null,\"type\":null},\"createdByUserId\":619869,\"modifiedByUser\":{\"id\":619869,\"name\":\"Admin Archimedes\",\"objectId\":\"1a2fbd2b-16c9-4b04-96de-be6e856e5333\",\"userPrincipalName\":\"admin@odspimax.onmicrosoft.com\",\"aadAppId\":null,\"type\":null},\"modifiedByUserId\":619869,\"artifactRelations\":[{\"dependentArtifactObjectId\":\"044e9c94-b555-42eb-af0d-b9b316b0c501\",\"settings\":0},{\"dependentArtifactObjectId\":\"31fc030f-0e0c-46bc-ae89-281bd5c9272a\",\"settings\":0}],\"permissions\":71,\"artifactPermissions\":7,\"systemArtifactType\":\"None\",\"etag\":\"\\\"602479d8aa384b309be9371e34286d2a\\\"\"}"
+				"lastModifiedByObjectId": "909f00ae-4251-400b-9be6-4af2e0aa2c1c",
+				"lastPublishTime": "2025-07-10T23:43:54Z"
 			},
 			"dependsOn": []
 		}
