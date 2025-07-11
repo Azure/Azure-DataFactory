@@ -12,13 +12,13 @@
 	"variables": {},
 	"resources": [
 		{
-			"name": "Unlock SharePoint Oversharing Insights",
+			"name": "Unlock SharePoint Capacity Insights",
 			"type": "pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "Merge Sites and Permissions To Final Table",
+						"name": "Merge Sites and Files To Final Table",
 						"type": "TridentNotebook",
 						"dependsOn": [
 							{
@@ -28,7 +28,7 @@
 								]
 							},
 							{
-								"activity": "Extract Permissions From MGDC",
+								"activity": "Extract Files From MGDC",
 								"dependencyConditions": [
 									"Completed"
 								]
@@ -42,7 +42,7 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"notebookId": "de1fae8a-2f39-4c73-9a71-f8e8097f9387",
+							"notebookId": "9e1e4bfb-8b70-4a68-9212-97fa7a183a8e",
 							"workspaceId": {
 								"value": "@pipeline().DataFactory",
 								"type": "Expression"
@@ -62,16 +62,16 @@
 									},
 									"type": "string"
 								},
-								"permissionsStagingTableName": {
+								"filesStagingTableName": {
 									"value": {
-										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).PermissionsStagingTableName",
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesStagingTableName",
 										"type": "Expression"
 									},
 									"type": "string"
 								},
-								"permissionsFinalTableName": {
+								"filesFinalTableName": {
 									"value": {
-										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).PermissionsFinalTableName",
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesFinalTableName",
 										"type": "Expression"
 									},
 									"type": "string"
@@ -136,7 +136,7 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"notebookId": "e964108f-ea31-426a-9459-0c549409fed8",
+							"notebookId": "3b37b5cd-619c-43d0-a68c-2027a8ccd32b",
 							"workspaceId": {
 								"value": "@pipeline().DataFactory",
 								"type": "Expression"
@@ -156,16 +156,16 @@
 									},
 									"type": "string"
 								},
-								"permissionsStagingTableName": {
+								"filessStagingTableName": {
 									"value": {
-										"value": "@concat(pipeline().parameters.PermissionsTableName,pipeline().parameters.StagingSuffix)",
+										"value": "@concat(pipeline().parameters.FilesTableName,pipeline().parameters.StagingSuffix)",
 										"type": "Expression"
 									},
 									"type": "string"
 								},
-								"permissionsFinalTableName": {
+								"filesFinalTableName": {
 									"value": {
-										"value": "@pipeline().parameters.PermissionsTableName",
+										"value": "@pipeline().parameters.FilesTableName",
 										"type": "Expression"
 									},
 									"type": "string"
@@ -225,7 +225,7 @@
 						}
 					},
 					{
-						"name": "Set Permissions Snapshot Date",
+						"name": "Set Files Snapshot Date",
 						"type": "SetVariable",
 						"dependsOn": [
 							{
@@ -240,9 +240,9 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"variableName": "StartTimeForPermissions",
+							"variableName": "StartTimeForFiles",
 							"value": {
-								"value": "@coalesce(pipeline().parameters.StartTime, json(activity('Read Last Snapshot Dates').output.result.exitValue).PermissionsSnapshotDate)",
+								"value": "@coalesce(pipeline().parameters.StartTime, json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesSnapshotDate)",
 								"type": "Expression"
 							}
 						}
@@ -268,7 +268,7 @@
 						"typeProperties": {
 							"scripts": [
 								{
-									"type": "Query",
+									"type": "NonQuery",
 									"text": {
 										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesView",
 										"type": "Expression"
@@ -286,7 +286,7 @@
 						}
 					},
 					{
-						"name": "Permissions View - Lakehouse SQLEndpoint",
+						"name": "Files View - Lakehouse SQLEndpoint",
 						"type": "Script",
 						"dependsOn": [
 							{
@@ -306,9 +306,9 @@
 						"typeProperties": {
 							"scripts": [
 								{
-									"type": "Query",
+									"type": "NonQuery",
 									"text": {
-										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).PermissionsView",
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesView",
 										"type": "Expression"
 									}
 								}
@@ -324,7 +324,7 @@
 						}
 					},
 					{
-						"name": "Does Permissions Data Exists",
+						"name": "Does Files Data Exists",
 						"type": "SetVariable",
 						"dependsOn": [
 							{
@@ -339,9 +339,9 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"variableName": "PermissionsDataExists",
+							"variableName": "FilesDataExists",
 							"value": {
-								"value": "@bool(json(activity('Read Last Snapshot Dates').output.result.exitValue).PermissionsDataExists)",
+								"value": "@bool(json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesDataExists)",
 								"type": "Expression"
 							}
 						}
@@ -375,12 +375,6 @@
 						"type": "IfCondition",
 						"dependsOn": [
 							{
-								"activity": "Does Sites Data Exists",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
 								"activity": "Set Sites Snapshot Date",
 								"dependencyConditions": [
 									"Succeeded"
@@ -388,6 +382,12 @@
 							},
 							{
 								"activity": "Set End Snapshot Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Does Sites Data Exists",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1150,18 +1150,12 @@
 						}
 					},
 					{
-						"name": "Extract Permissions From MGDC",
+						"name": "Extract Files From MGDC",
 						"description": "",
 						"type": "IfCondition",
 						"dependsOn": [
 							{
-								"activity": "Set Permissions Snapshot Date",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Does Permissions Data Exists",
+								"activity": "Set Files Snapshot Date",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1171,16 +1165,22 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "Does Files Data Exists",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"typeProperties": {
 							"expression": {
-								"value": "@and(and(variables('PermissionsDataExists'),\n     not(pipeline().parameters.ForceFullWhenDataExists)\t \n\t ), greaterOrEquals( startOfDay(variables('StartTimeForPermissions')) , startOfDay(variables('EndTime')) ))",
+								"value": "@and(and(variables('FilesDataExists'),\n     not(pipeline().parameters.ForceFullWhenDataExists)\t \n\t ), greaterOrEquals( startOfDay(variables('StartTimeForFiles')) , startOfDay(variables('EndTime')) ))",
 								"type": "Expression"
 							},
 							"ifFalseActivities": [
 								{
-									"name": "Extract Permissions To Staging",
+									"name": "Extract Files To Staging",
 									"type": "Copy",
 									"dependsOn": [],
 									"policy": {
@@ -1195,7 +1195,7 @@
 											"type": "Office365Source",
 											"dateFilterColumn": "SnapshotDate",
 											"startTime": {
-												"value": "@variables('StartTimeForPermissions')",
+												"value": "@variables('StartTimeForFiles')",
 												"type": "Expression"
 											},
 											"endTime": {
@@ -1207,10 +1207,10 @@
 												"type": "Office365Table",
 												"schema": [],
 												"typeProperties": {
-													"tableName": "BasicDataSet_v0.SharePointPermissions_v1"
+													"tableName": "BasicDataSet_v0.SharePointFiles_v1"
 												},
 												"DataFilter": {
-													"value": "@pipeline().parameters.PermissionsFilter",
+													"value": "@pipeline().parameters.FilesFilter",
 													"type": "Expression"
 												},
 												"externalReferences": {
@@ -1241,7 +1241,7 @@
 												"typeProperties": {
 													"schema": "dbo",
 													"table": {
-														"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).PermissionsStagingTableName",
+														"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesStagingTableName",
 														"type": "Expression"
 													}
 												}
@@ -1275,12 +1275,78 @@
 												},
 												{
 													"source": {
-														"name": "WebId",
+														"name": "Author_Email",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "WebId",
+														"name": "Author_Email",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Author_Name",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Author_Name",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "DirName",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "DirName",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Extension",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Extension",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "FileName",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "FileName",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IsLabelEncrypted",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsLabelEncrypted",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "ItemId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ItemId",
 														"physicalType": "string"
 													}
 												},
@@ -1297,56 +1363,78 @@
 												},
 												{
 													"source": {
-														"name": "ItemType",
+														"name": "ListServerTemplate",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "ItemType",
+														"name": "ListServerTemplate",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "ItemURL",
+														"name": "MajorVersion",
+														"type": "Int32",
+														"physicalType": "int32"
+													},
+													"sink": {
+														"name": "MajorVersion",
+														"physicalType": "integer"
+													}
+												},
+												{
+													"source": {
+														"name": "MinorVersion",
+														"type": "Int32",
+														"physicalType": "int32"
+													},
+													"sink": {
+														"name": "MinorVersion",
+														"physicalType": "integer"
+													}
+												},
+												{
+													"source": {
+														"name": "ModifiedBy_Email",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "ItemURL",
+														"name": "ModifiedBy_Email",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "FileExtension",
+														"name": "ModifiedBy_Name",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "FileExtension",
+														"name": "ModifiedBy_Name",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "RoleDefinition",
+														"name": "Operation",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "RoleDefinition",
+														"name": "Operation",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "LinkId",
+														"name": "QuickXorHash",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "LinkId",
+														"name": "QuickXorHash",
 														"physicalType": "string"
 													}
 												},
@@ -1363,101 +1451,101 @@
 												},
 												{
 													"source": {
-														"name": "LinkScope",
+														"name": "SensitivityLabelInfo_DisplayName",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "LinkScope",
+														"name": "SensitivityLabelInfo_DisplayName",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "SharedWith_Type",
+														"name": "SensitivityLabelInfo_Id",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "SharedWith_Type",
+														"name": "SensitivityLabelInfo_Id",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "SharedWith_Name",
+														"name": "SiteUrl",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "SharedWith_Name",
+														"name": "SiteUrl",
 														"physicalType": "string"
 													}
 												},
 												{
 													"source": {
-														"name": "SharedWith_Email",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "SharedWith_Email",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "SharedWith_TypeV2",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "SharedWith_TypeV2",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "SharedWith_UPN",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "SharedWith_UPN",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "SharedWith_AADObjectId",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "SharedWith_AADObjectId",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "SharedWith_UserCount",
+														"name": "SizeInBytes",
 														"type": "Int64",
 														"physicalType": "int64"
 													},
 													"sink": {
-														"name": "SharedWith_UserCount",
+														"name": "SizeInBytes",
 														"physicalType": "long"
 													}
 												},
 												{
 													"source": {
-														"name": "Operation",
+														"name": "SizeInBytesWithVersions",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "SizeInBytesWithVersions",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "TimeCreated",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "TimeCreated",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "TimeLastModified",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "TimeLastModified",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "WebId",
 														"type": "String",
 														"physicalType": "string"
 													},
 													"sink": {
-														"name": "Operation",
+														"name": "WebId",
 														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "WebTemplateId",
+														"type": "Int32",
+														"physicalType": "int32"
+													},
+													"sink": {
+														"name": "WebTemplateId",
+														"physicalType": "integer"
 													}
 												},
 												{
@@ -1469,160 +1557,6 @@
 													"sink": {
 														"name": "SnapshotDate",
 														"physicalType": "timestamp"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareCreatedBy_Type",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareCreatedBy_Type",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareCreatedBy_Name",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareCreatedBy_Name",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareCreatedBy_Email",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareCreatedBy_Email",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareCreatedBy_UPN",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareCreatedBy_UPN",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareCreatedTime",
-														"type": "DateTime",
-														"physicalType": "datetime"
-													},
-													"sink": {
-														"name": "ShareCreatedTime",
-														"physicalType": "timestamp"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareLastModifiedBy_Type",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareLastModifiedBy_Type",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareLastModifiedBy_Name",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareLastModifiedBy_Name",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareLastModifiedBy_Email",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareLastModifiedBy_Email",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareLastModifiedBy_UPN",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "ShareLastModifiedBy_UPN",
-														"physicalType": "string"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareLastModifiedTime",
-														"type": "DateTime",
-														"physicalType": "datetime"
-													},
-													"sink": {
-														"name": "ShareLastModifiedTime",
-														"physicalType": "timestamp"
-													}
-												},
-												{
-													"source": {
-														"name": "ShareExpirationTime",
-														"type": "DateTime",
-														"physicalType": "datetime"
-													},
-													"sink": {
-														"name": "ShareExpirationTime",
-														"physicalType": "timestamp"
-													}
-												},
-												{
-													"source": {
-														"name": "TotalUserCount",
-														"type": "Int64",
-														"physicalType": "int64"
-													},
-													"sink": {
-														"name": "TotalUserCount",
-														"physicalType": "long"
-													}
-												},
-												{
-													"source": {
-														"name": "ListItemId",
-														"type": "Int64",
-														"physicalType": "int64"
-													},
-													"sink": {
-														"name": "ListItemId",
-														"physicalType": "long"
-													}
-												},
-												{
-													"source": {
-														"name": "UniqueId",
-														"type": "String",
-														"physicalType": "string"
-													},
-													"sink": {
-														"name": "UniqueId",
-														"physicalType": "string"
 													}
 												}
 											],
@@ -1642,12 +1576,12 @@
 							],
 							"ifTrueActivities": [
 								{
-									"name": "Do Not Extract Permissions",
-									"description": "Do Not Extract Permissions -  Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
+									"name": "Do Not Extract Files",
+									"description": "Do Not Extract Files -  Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
 									"type": "Fail",
 									"dependsOn": [],
 									"typeProperties": {
-										"message": "Error: -999 -  Do Not Extract Permissions - Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
+										"message": "Error: -999 -  Do Not Extract Files - Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
 										"errorCode": "-999"
 									}
 								}
@@ -1655,11 +1589,11 @@
 						}
 					},
 					{
-						"name": "Permission Validations Failed",
+						"name": "Files Validations Failed",
 						"type": "SetVariable",
 						"dependsOn": [
 							{
-								"activity": "Extract Permissions From MGDC",
+								"activity": "Extract Files From MGDC",
 								"dependencyConditions": [
 									"Failed"
 								]
@@ -1670,7 +1604,7 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"variableName": "PermissionsExtractValidationsFailed",
+							"variableName": "FilesExtractValidationsFailed",
 							"value": "true"
 						}
 					},
@@ -1691,7 +1625,7 @@
 							"secureInput": false
 						},
 						"typeProperties": {
-							"variableName": "PermissionsExtractValidationsFailed",
+							"variableName": "FilesExtractValidationsFailed",
 							"value": "true"
 						}
 					},
@@ -1707,7 +1641,13 @@
 								]
 							},
 							{
-								"activity": "Permissions View - Lakehouse SQLEndpoint",
+								"activity": "Files View - Lakehouse SQLEndpoint",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Files Aggs View - Lakehouse SQLEndpoint",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1728,7 +1668,7 @@
 						"type": "Wait",
 						"dependsOn": [
 							{
-								"activity": "Merge Sites and Permissions To Final Table",
+								"activity": "Merge Sites and Files To Final Table",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1737,12 +1677,50 @@
 						"typeProperties": {
 							"waitTimeInSeconds": 60
 						}
+					},
+					{
+						"name": "Files Aggs View - Lakehouse SQLEndpoint",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "Wait 1 Min",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 300,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FileAggsView",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00",
+							"database": {
+								"value": "@pipeline().parameters.LakehouseName",
+								"type": "Expression"
+							}
+						},
+						"externalReferences": {
+							"connection": "[parameters('LS_Lakehouse-SQLEndPoint')]"
+						}
 					}
 				],
 				"parameters": {
-					"PermissionsTableName": {
+					"FilesTableName": {
 						"type": "string",
-						"defaultValue": "Permissions"
+						"defaultValue": "Files"
 					},
 					"SitesTableName": {
 						"type": "string",
@@ -1765,7 +1743,7 @@
 					"SitesFilter": {
 						"type": "string"
 					},
-					"PermissionsFilter": {
+					"FilesFilter": {
 						"type": "string"
 					},
 					"ForceFullWhenDataExists": {
@@ -1780,14 +1758,14 @@
 					"EndTime": {
 						"type": "String"
 					},
-					"StartTimeForPermissions": {
+					"StartTimeForFiles": {
 						"type": "String"
 					},
 					"SitesDataExists": {
 						"type": "Boolean",
 						"defaultValue": false
 					},
-					"PermissionsDataExists": {
+					"FilesDataExists": {
 						"type": "Boolean",
 						"defaultValue": false
 					},
@@ -1795,7 +1773,7 @@
 						"type": "String",
 						"defaultValue": "false"
 					},
-					"PermissionsExtractValidationsFailed": {
+					"FilesExtractValidationsFailed": {
 						"type": "String",
 						"defaultValue": "false"
 					},
@@ -1804,7 +1782,7 @@
 					}
 				},
 				"lastModifiedByObjectId": "909f00ae-4251-400b-9be6-4af2e0aa2c1c",
-				"lastPublishTime": "2025-07-10T23:43:54Z"
+				"lastPublishTime": "2025-07-10T01:55:59Z"
 			},
 			"dependsOn": []
 		}
