@@ -33,5 +33,5 @@
         "Copy",
         "Transform"
     ],
-    "compatibleWithPBI": false
+    "compatibleWithPBI": true
 }

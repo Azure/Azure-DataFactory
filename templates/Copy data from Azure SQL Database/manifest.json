@@ -23,5 +23,7 @@
     "categories": [],
     "compatibleWithPBI": true,
     "descriptionForPBI": "Use this template to copy data from your Azure SQL database to a specified table in your Lakehouse.\n\nIf you want to copy data from a number of tables, please use the “Copy assistant” to create your pipeline.",
-    "scope":["PBI"] 
+    "scope":["PBI"],
+    "shownInLandingPage": true,
+    "landingPageImage": "icon-database"
 }

@@ -1,0 +1,37 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "variables": {},
+    "resources": [
+        {
+            "name": "Schedule refreshes",
+            "type": "pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Semantic model refresh1",
+                        "type": "PBISemanticModelRefresh",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "method": "post",
+                            "waitOnCompletion": true,
+                            "commitMode": "Transactional",
+                            "operationType": "SemanticModelRefresh"
+                        },
+                        "externalReferences": {}
+                    }
+                ]
+            },
+            "dependsOn": []
+        }
+    ]
+}

@@ -2,7 +2,7 @@
 .SYNOPSIS
     Stop/ start triggers during release process (CICD)
 .DESCRIPTION
-    The script can be used to stop triggers before deployment and restrat them afterward. It stops the trigger only if the trigger is in started state and there is a change in trigger
+    The script can be used to stop triggers before deployment and restart them afterward. It stops the trigger only if the trigger is in started state and there is a change in the trigger
 .PARAMETER ArmTemplate
     Arm template file path
         example: C:\Adf\ArmTemlateOutput\ARMTemplateForFactory.json
@@ -348,7 +348,7 @@ function Compare-BlobEventsTrigger {
         -payloadAdditionalProps $triggerPayload.AdditionalProperties
 
     if (($null -ne $propertyChanges) -or ($null -ne $annotationChanges) -or $pipelineRefChanged -or $additionalPropsChanged) {
-        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
+        Write-Host "Change detected in '$($triggerDeployed.Name)' trigger payload - propertyChanges=$($propertyChanges.Length), annotationChanges=$($annotationChanges.Length), pipelineRefChanged=$pipelineRefChanged, additionalPropsChanged=$additionalPropsChanged"
         return $True
     }
 

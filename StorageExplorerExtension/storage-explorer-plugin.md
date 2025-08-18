@@ -1,4 +1,4 @@
-# Storage Explorer extension 
+# Storage Explorer extension (Deprecated)
 
 ## Overview
 
@@ -27,7 +27,7 @@ alt="IMAGE ALT TEXT HERE" width="480" height="360" border="10" /></a>
 
 ## Download and install
 
-- To download and install Azure Data Factory extension, navigate to [Azure Data Factory extension](https://go.microsoft.com/fwlink/?linkid=2147106). 
+- To download and install Azure Data Factory extension, navigate to [Azure Data Factory extension]. (As part of the deprecation, we removed the download link.)
 
 - Run the downloaded extension (.seix) to install. The process will automatically open up the storage explorer (if not already open) with the ADF extension enabled. 
 

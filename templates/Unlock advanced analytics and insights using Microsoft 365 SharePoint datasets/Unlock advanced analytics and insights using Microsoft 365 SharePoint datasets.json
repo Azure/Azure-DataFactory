@@ -5,7 +5,7 @@
 		"workspaceName": {
 			"type": "string",
 			"metadata": "Workspace name",
-			"defaultValue": "mgdcwspdelaw6l4m7u62"
+			"defaultValue": "namarchimedessynapse"
 		},
 		"LS_Office365": {
 			"type": "string"
@@ -705,6 +705,10 @@
 								]
 							}
 						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "IsSuccess",
@@ -713,17 +717,16 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"StartTime": {
 						"type": "string",
-						"defaultValue": "2022-08-31T00:00:00Z"
+						"defaultValue": "2023-12-11T00:00:00Z"
 					},
 					"EndTime": {
 						"type": "string",
-						"defaultValue": "2022-08-31T00:00:00Z"
+						"defaultValue": "2023-12-11T00:00:00Z"
 					},
 					"StorageAccountName": {
 						"type": "string",
@@ -762,7 +765,7 @@
 					"Microsoft",
 					"Office"
 				],
-				"lastPublishTime": "2022-09-21T16:05:55Z"
+				"lastPublishTime": "2024-02-03T00:30:43Z"
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/DS_GroupMembers_Source')]",
@@ -971,11 +974,12 @@
 					"executorMemory": "28g",
 					"executorCores": 4,
 					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
 					"conf": {
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "1b3f2aa4-2fa9-4d49-bb16-f92b8fab1126"
+						"spark.autotune.trackingId": "7e99fb01-9487-4a7d-a637-5836fb2ac71d"
 					}
 				},
 				"metadata": {
@@ -1115,8 +1119,8 @@
 							]
 						},
 						"source": [
-							"val windowStartTime  = \"2022-08-31T00:00:00Z\"\r\n",
-							"val windowEndTime = \"2022-08-31T00:00:00Z\"\r\n",
+							"val windowStartTime  = \"2023-12-11T00:00:00Z\"\r\n",
+							"val windowEndTime = \"2023-12-11T00:00:00Z\"\r\n",
 							"val runId  = \"00000000-0000-0000-0000-000000000000\"\r\n",
 							"val storageAccountName = \"<<PipelineParameters:FillStorageAccountName>>\" // replace with your blob name\r\n",
 							"val storageContainerName = \"<<PipelineParameters:FillStorageAccountContainerName>>\" //replace with your container name"
@@ -1324,8 +1328,8 @@
 							".withColumn(\"GroupId\",regexp_replace(col(\"pObjectId\"),concat(lit(\"@\"),col(\"ptenant\")),lit(\"\")))\r\n",
 							".select(\"ptenant\",\"GroupId\",\"puser\",\"DisplayName\",\"EMail\",\"ODataType\")\r\n",
 							"\r\n",
-							"\r\n",
-							"groupMembersCustom\r\n",
+							"//Added a join with groupDetailsCustom to derive GroupName\r\n",
+							"groupDetailsCustom.select(\"GroupId\",\"GroupDisplayName\").join(groupMembersCustom,Seq(\"GroupId\"),\"left\")\r\n",
 							".withColumn(\"MemberId\",col(\"puser\"))\r\n",
 							".createOrReplaceTempView(\"GroupMembersCustom\")\r\n",
 							""
@@ -1351,45 +1355,75 @@
 						"metadata": {
 							"jupyter": {
 								"source_hidden": false,
-								"outputs_hidden": true
+								"outputs_hidden": false
 							},
 							"nteract": {
 								"transient": {
 									"deleting": false
 								}
 							},
+							"microsoft": {
+								"language": "python"
+							},
 							"collapsed": false
 						},
 						"source": [
-							"val CTEMembers = s\"\"\"\r\n",
-							"                    |WITH CTEGroupMembersT0 AS (\r\n",
-							"                    |  SELECT GroupId,MemberId,ODataType,DisplayName,EMail,ptenant, 0 AS Level\r\n",
-							"                    |    FROM GroupMembersCustom\r\n",
-							"                    |  )\r\n",
-							"                    |  ,CTEGroupMembersT1 AS (\r\n",
-							"                    |  SELECT G.GroupId,u.MemberId,U.ODataType,U.DisplayName,U.EMail,U.ptenant, Level + 1  AS Level\r\n",
-							"                    |    FROM CTEGroupMembersT0 G\r\n",
-							"                    |    JOIN GroupMembersCustom U\r\n",
-							"                    |      ON G.MemberId = U.GroupId\r\n",
-							"                    |     AND G.ptenant = U.ptenant\r\n",
-							"                    |    )\r\n",
-							"                    |  ,CTEGroupMembersT2 AS (\r\n",
-							"                    |  SELECT * FROM CTEGroupMembersT0 WHERE ODataType = '#microsoft.graph.user'\r\n",
-							"                    |  UNION\r\n",
-							"                    |  SELECT * FROM CTEGroupMembersT1 WHERE ODataType = '#microsoft.graph.user'\r\n",
-							"                    | )\r\n",
-							"                    | SELECT DISTINCT\r\n",
-							"                             GroupId\r\n",
-							"                    |       ,MemberId\r\n",
-							"                    |       ,DisplayName AS MemberDisplayName\r\n",
-							"                    |       ,EMail AS MemberEMail\r\n",
-							"                    |       ,ptenant AS Memberptenant\r\n",
-							"                    |       ,Level AS MemberLevel\r\n",
-							"                    |       ,\"User\" AS MemberType      \r\n",
-							"                    |   FROM CTEGroupMembersT2\r\n",
-							"                    |\"\"\".stripMargin\r\n",
+							"\r\n",
+							"\r\n",
+							"%%pyspark\r\n",
+							"\r\n",
+							"## Updated line number 25 to fix the level derivation issue\r\n",
+							"## Updated line number 18,26,41 to include GroupDisplayName and GroupPath\r\n",
+							"from pyspark.sql.utils import ParseException, AnalysisException, IllegalArgumentException, QueryExecutionException\r\n",
+							"from pyspark.sql import SparkSession, DataFrame\r\n",
+							"from pyspark.sql.functions import lit, when, struct, col, expr\r\n",
+							"from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType\r\n",
+							"\r\n",
+							"\r\n",
+							"def recursively_expand_members(dfMembers):\r\n",
+							"    dfMembersWithLevel = dfMembers.withColumn('level', lit(0))\r\n",
+							"    \r\n",
+							"    sql = \"\"\"\r\n",
+							"        select this.MemberId\r\n",
+							"             , this.GroupId as GroupId\r\n",
+							"             , this.level as level\r\n",
+							"             , true as tobe_expanded\r\n",
+							"             , this.ODataType, this.DisplayName, this.EMail, this.ptenant, this.GroupDisplayName, this.GroupPath\r\n",
+							"          from data this\r\n",
+							"         where this.ODataType = '#microsoft.graph.user' \r\n",
+							"           and GroupId != MemberId\r\n",
+							"         union \r\n",
+							"        select next.MemberId MemberId\r\n",
+							"             , this.GroupId as GroupId\r\n",
+							"             , this.level + 1 + next.level as level\r\n",
+							"             , next.ODataType = '#microsoft.graph.group' as tobe_expanded\r\n",
+							"             , next.ODataType, next.DisplayName, next.EMail, next.ptenant, this.GroupDisplayName, CONCAT(this.GroupPath,\"->\",next.GroupPath) AS GroupPath\r\n",
+							"          from data this\r\n",
+							"          join data next\r\n",
+							"            on this.MemberId = next.GroupId\r\n",
+							"           and this.ptenant = next.ptenant\r\n",
+							"         where this.ODataType = '#microsoft.graph.group'\r\n",
+							"           \r\n",
+							"    \"\"\"\r\n",
+							"    find_next = True\r\n",
+							"    current_level = 0\r\n",
+							"    total_levels_to_use = 6\r\n",
+							"    while find_next and current_level < total_levels_to_use:\r\n",
+							"        print(f\"Current level: {current_level}\")\r\n",
+							"        dfMembersWithLevel.filter(\"GroupId != MemberId \").createOrReplaceTempView(\"data\")\r\n",
+							"        dfMembersWithLevel = spark.sql(sql)\r\n",
+							"        find_next = dfMembersWithLevel.selectExpr(\"ANY(tobe_expanded = True and ODataType = '#microsoft.graph.group')\").collect()[0][0]\r\n",
+							"        current_level +=1 \r\n",
 							"        \r\n",
-							"val groupMembersCustomExpanded =  spark.sql(CTEMembers)   \r\n",
+							"    return dfMembersWithLevel.drop('tobe_expanded')\r\n",
+							"\r\n",
+							"dfGroupMembersCustom = spark.sql('select GroupId,MemberId,ODataType,DisplayName,EMail,ptenant,GroupDisplayName, GroupDisplayName AS GroupPath  from GroupMembersCustom')\r\n",
+							"result = recursively_expand_members(dfGroupMembersCustom)\r\n",
+							"groupMembersCustomExpanded = result.filter(\"GroupId != MemberId \").withColumnRenamed(\r\n",
+							"    'DisplayName','MemberDisplayName').withColumnRenamed('EMail','MemberEMail').withColumnRenamed('ptenant','Memberptenant').withColumnRenamed('Level','MemberLevel').withColumn('MemberType',lit('User'))\r\n",
+							"\r\n",
+							"groupMembersCustomExpanded.createOrReplaceTempView(\"groupMembersCustomExpanded\")\r\n",
+							"\r\n",
 							""
 						],
 						"outputs": [],
@@ -1434,6 +1468,7 @@
 							"                                          )\r\n",
 							"                )\r\n",
 							"\r\n",
+							"val groupMembersCustomExpanded = spark.sql(\"select DISTINCT GroupId,MemberId,MemberDisplayName,MemberEMail,Memberptenant,MemberLevel,MemberType from groupMembersCustomExpanded \")\r\n",
 							"val dfFinalGroupsWithOnlyMembersNormalized= groupDetailsCustom.join(groupMembersCustomExpanded,Seq(\"GroupId\"),\"left\")\r\n",
 							"    .withColumn(\"Members\", struct(  col(\"MemberId\").alias(\"puser\")\r\n",
 							"                                            ,col(\"MemberDisplayName\").alias(\"DisplayName\")\r\n",
@@ -1442,17 +1477,11 @@
 							"                                            ,col(\"MemberLevel\").alias(\"Level\")\r\n",
 							"                                            ,col(\"MemberType\").alias(\"Type\")\r\n",
 							"                                          )\r\n",
-							"              )\r\n",
+							"              ).sort(\"GroupId\",\"MemberLevel\",\"MemberDisplayName\")\r\n",
 							"\r\n",
 							"val dfFinalGroups = groupDetailsCustom\r\n",
 							"                                .join(dfFinalGroupsWithOnlyOwnersNormalized.groupBy(\"GroupId\").agg(collect_set(col(\"Owners\")).alias(\"Owners\")),Seq(\"GroupId\"),\"left\")\r\n",
 							"                                .join(dfFinalGroupsWithOnlyMembersNormalized.groupBy(\"GroupId\").agg(collect_set(col(\"Members\")).alias(\"Members\")),Seq(\"GroupId\"),\"left\")\r\n",
-							"\r\n",
-							"/*\r\n",
-							"display(dfFinalGroups.filter(col(\"GroupId\") === \"00000000-0000-0000-0000-000000000000\"))\r\n",
-							"display(dfFinalGroupsWithOnlyOwnersNormalized.filter(col(\"GroupId\") === \"00000000-0000-0000-0000-000000000000\"))\r\n",
-							"display(dfFinalGroupsWithOnlyMembersNormalized.filter(col(\"GroupId\") === \"00000000-0000-0000-0000-000000000000\"))\r\n",
-							"*/\r\n",
 							"\r\n",
 							""
 						],
@@ -1510,39 +1539,6 @@
 							"    .save(latestGroupsMembersOnlyPath)\r\n",
 							"\r\n",
 							""
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"###### Display the sample data in table"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"display(dfFinalGroups)"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -1647,10 +1643,35 @@
 						"name": "SnapshotDate",
 						"type": "DateTime",
 						"description": "The date and time when the snapshot of the entry is taken"
+					},
+					{
+						"name": "ShareCreatedBy",
+						"type": "String",
+						"description": "Gives information about the user/group that created the share. Format: <STRUCT<`Type`:STRING, `Name`:STRING, `Email`:STRING>"
+					},
+					{
+						"name": "ShareCreatedTime",
+						"type": "DateTime",
+						"description": "The date and time when the share link was created"
+					},
+					{
+						"name": "ShareLastModifiedBy",
+						"type": "String",
+						"description": "Gives information about the user/group that last modified the share. Format: <STRUCT<`Type`:STRING, `Name`:STRING, `Email`:STRING>"
+					},
+					{
+						"name": "ShareLastModifiedTime",
+						"type": "DateTime",
+						"description": "The date and time when the share was last modified"
+					},
+					{
+						"name": "ShareExpirationTime",
+						"type": "DateTime",
+						"description": "The date and time when the share link could expires"
 					}
 				],
 				"typeProperties": {
-					"tableName": "DocumentSharingDataset_v0_Preview",
+					"tableName": "BasicDataSet_v0.SharePointPermissions_v1",
 					"dateFilterColumn": "SnapshotDate",
 					"startTime": {
 						"value": "@dataset().StartTime",
@@ -1894,7 +1915,7 @@
 					}
 				],
 				"typeProperties": {
-					"tableName": "SharePointSitesDataset_v0_Preview",
+					"tableName": "BasicDataSet_v0.SharePointSites_v1",
 					"dateFilterColumn": "SnapshotDate",
 					"startTime": {
 						"value": "@dataset().StartTime",
@@ -1984,7 +2005,7 @@
 					{
 						"name": "GroupId",
 						"type": "Int64",
-						"description": "id of the group, unique within SPSite"
+						"description": "Id of the group, unique within SPSite"
 					},
 					{
 						"name": "GroupLinkId",
@@ -2028,7 +2049,7 @@
 					}
 				],
 				"typeProperties": {
-					"tableName": "SharePointGroupsDataset_v0_Preview",
+					"tableName": "BasicDataSet_v0.SharePointGroups_v1",
 					"dateFilterColumn": "SnapshotDate",
 					"startTime": {
 						"value": "@dataset().StartTime",
@@ -2096,11 +2117,12 @@
 					"executorMemory": "28g",
 					"executorCores": 4,
 					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
 					"conf": {
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "23cd3da2-248a-4fb3-9c04-d90d757746ce"
+						"spark.autotune.trackingId": "0eeceeea-5617-42e7-a9f1-d698e523b5ef"
 					}
 				},
 				"metadata": {
@@ -2297,13 +2319,18 @@
 							"val adls_path = f\"abfss://$storageContainerName@$storageAccountName.dfs.core.windows.net\"\r\n",
 							"\r\n",
 							"val spgroupsPath = adls_path + s\"/spgroups/$yearMonthDayFormat/$runId/\"\r\n",
+							"val sitesPath = adls_path + s\"/sites/$yearMonthDayFormat/$runId/\"\r\n",
+							"val sharingPath = adls_path + s\"/sharing/$yearMonthDayFormat/$runId/\"\r\n",
 							"\r\n",
 							"val latestSPGroupsPath = adls_path + s\"/latest/spgroupsexpanded/\"\r\n",
 							"val latestSPGroupsOwnersOnlyPath = adls_path + s\"/latest/spgroupsexpandedonlyowners/\"\r\n",
 							"val latestSPGroupsMembersOnlyPath = adls_path + s\"/latest/spgroupsexpandedonlymembers/\"\r\n",
 							"\r\n",
 							"val latestGroupsMembersOnlyPath = adls_path + s\"/latest/aadgroupsexpandedonlymembers/\"\r\n",
+							"val latestGroupsOwnersOnlyPath = adls_path + s\"/latest/aadgroupsexpandedonlyowners/\"\r\n",
 							"\r\n",
+							"val latestSitesPath = adls_path + s\"/latest/sites/\"\r\n",
+							"val latestSharingPath = adls_path + s\"/latest/sharing/\"\r\n",
 							"\r\n",
 							"spark.conf.set(\"mapreduce.fileoutputcommitter.marksuccessfuljobs\", \"false\")\r\n",
 							"// if MSI Access not granted for syanpse workspace to blob then you might need to use below commands to read creds and to set spark conf\r\n",
@@ -2348,9 +2375,50 @@
 							"      .read\r\n",
 							"      .format(\"json\")\r\n",
 							"      .option(\"recursiveFileLookup\", \"false\")\r\n",
-							"      .load(latestGroupsMembersOnlyPath)\r\n",
-							"\r\n",
-							"//display(expandedAADGroupMembersDF.filter(\"GroupId == '00000000-0000-0000-0000-000000000000'\"))"
+							"      .load(latestGroupsMembersOnlyPath)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Reading Expanded AAD Owners as Members"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"val expandedAADGroupOwnersDF =\r\n",
+							"    spark\r\n",
+							"      .read\r\n",
+							"      .format(\"json\")\r\n",
+							"      .option(\"recursiveFileLookup\", \"false\")\r\n",
+							"      .load(latestGroupsOwnersOnlyPath)\r\n",
+							"      .withColumn(\"MemberId\",col(\"GroupOwnerId\"))\r\n",
+							"      .withColumn(\"MemberDisplayName\",col(\"GroupOwnerDisplayName\"))\r\n",
+							"      .withColumn(\"MemberEMail\",col(\"GroupOwnerEMail\"))\r\n",
+							"      .withColumn(\"Memberptenant\",col(\"GroupOwnerptenant\"))\r\n",
+							"      .withColumn(\"MemberLevel\",lit(0))\r\n",
+							"      .withColumn(\"MemberType\",lit(\"User\"))"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -2407,8 +2475,6 @@
 							"                                    StructField(\"SnapshotDate\", StringType,true)\r\n",
 							"                                    )\r\n",
 							"                            )\r\n",
-							"val dummySPGroupsDF = spark.createDataFrame(spark.sparkContext.emptyRDD[Row],schemaSPGroups)\r\n",
-							"println(dummySPGroupsDF.printSchema)\r\n",
 							"\r\n",
 							"val inputJsonSPGroupsDF =\r\n",
 							"    spark\r\n",
@@ -2428,8 +2494,6 @@
 							"    .withColumn(\"GroupType\",lit(\"SharePointGroup\"))\r\n",
 							"    .select(\"ptenant\",\"SiteId\",\"GroupId\",\"GroupDisplayName\",\"Description\",\"EMail\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\",\"Owner\",\"Members\")        \r\n",
 							"            \r\n",
-							"//display(spgroupsCustom.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))            \r\n",
-							"\r\n",
 							"  "
 						],
 						"outputs": [],
@@ -2449,6 +2513,19 @@
 						]
 					},
 					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Step 1: Get Non SG Users as members as-is"
+						]
+					},
+					{
 						"cell_type": "code",
 						"metadata": {
 							"jupyter": {
@@ -2463,6 +2540,8 @@
 							"collapsed": false
 						},
 						"source": [
+							"// Updated code for expanding SPGroup members\r\n",
+							"\r\n",
 							"val spgroupsWithMembersNormalized = spgroupsCustom\r\n",
 							"                                        .withColumn(\"Members\",explode_outer(col(\"Members\")))\r\n",
 							"                                        .withColumn(\"MemberType\",col(\"Members.Type\"))                                                      \r\n",
@@ -2491,16 +2570,88 @@
 							"                                                ,\"Email\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\"\r\n",
 							"                                                ,\"MemberId\",\"MemberDisplayName\",\"MemberEMail\",\"Memberptenant\",\"MemberLevel\",\"MemberType\"\r\n",
 							"                                                ,\"Members\"                                               \r\n",
-							"                                                )\r\n",
+							"                                                )"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Step 2: Get SGs and Members but exclude memebers in owner groups with same name"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"val spGroupsSGS_ExceptOwnerGroups = spgroupsWithMembersNormalized.filter(\" (MemberType == 'SecurityGroup' and MemberId is not null and GroupId != 3) or (MemberType == 'SecurityGroup' and MemberId is not null and GroupId == 3 and GroupDisplayName != MemberDisplayName  )   \")\r\n",
+							"val spGroupsSGSWithAADMembers_ExceptOwnerGroups = spGroupsSGS_ExceptOwnerGroups.as(\"a\")\r\n",
+							"                                    .join(expandedAADGroupMembersDF.as(\"b\"),spGroupsSGS_ExceptOwnerGroups(\"MemberId\")===expandedAADGroupMembersDF(\"GroupId\"),\"left\")\r\n",
+							"                                     .select( col(\"a.ptenant\"),col(\"a.SiteId\"),col(\"a.GroupId\"),col(\"a.GroupDisplayName\"),col(\"a.Description\")\r\n",
+							"                                             ,col(\"a.Email\"),col(\"a.Visibility\"),col(\"a.SecurityEnabled\"),col(\"a.MailEnabled\"),col(\"a.GroupType\"),col(\"GroupLinkId\")\r\n",
+							"                                             ,col(\"b.MemberId\"),col(\"b.MemberDisplayName\"),col(\"b.MemberEMail\"),col(\"b.Memberptenant\") ,col(\"b.MemberLevel\"),col(\"b.MemberType\")\r\n",
+							"                                             ,struct(    col(\"b.MemberId\").alias(\"puser\")\r\n",
+							"                                                        ,col(\"b.MemberDisplayName\").alias(\"DisplayName\")\r\n",
+							"                                                        ,col(\"b.MemberEMail\").alias(\"EMail\")                                            \r\n",
+							"                                                        ,col(\"b.Memberptenant\").alias(\"ptenant\")\r\n",
+							"                                                        ,(col(\"b.MemberLevel\").cast(LongType) + lit(1)).alias(\"Level\")\r\n",
+							"                                                        ,col(\"b.MemberType\").alias(\"Type\")                                                                    \r\n",
+							"                                                    ).as(\"Members\")\r\n",
+							"                                            )"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Step 3: Get owners of share point groups in case group id 3 represents site owners group"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"val spGroupsSGS_OwnerGroups = spgroupsWithMembersNormalized.filter(\" (MemberType == 'SecurityGroup' and MemberId is not null and GroupId == 3 and GroupDisplayName == MemberDisplayName  )   \")\r\n",
 							"\r\n",
 							"\r\n",
-							"\r\n",
-							"//AAD GroupId - 00000000-0000-0000-0000-000000000000\r\n",
-							"val spGroupsSGS = spgroupsWithMembersNormalized.filter(\"MemberType == 'SecurityGroup' and MemberId is not null \")\r\n",
-							"//display(spGroupsSGS.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))\r\n",
-							"\r\n",
-							"val spGroupsSGSWithAADMembers = spGroupsSGS.as(\"a\")\r\n",
-							"                                    .join(expandedAADGroupMembersDF.as(\"b\"),spGroupsSGS(\"MemberId\")===expandedAADGroupMembersDF(\"GroupId\"),\"left\")\r\n",
+							"val spGroupsSGSWithAADMembers_OwnerGroups = spGroupsSGS_OwnerGroups.as(\"a\")\r\n",
+							"                                    .join(expandedAADGroupOwnersDF.as(\"b\"),spGroupsSGS_OwnerGroups(\"MemberId\")===expandedAADGroupOwnersDF(\"GroupId\"),\"left\")\r\n",
 							"                                     .select( col(\"a.ptenant\"),col(\"a.SiteId\"),col(\"a.GroupId\"),col(\"a.GroupDisplayName\"),col(\"a.Description\")\r\n",
 							"                                             ,col(\"a.Email\"),col(\"a.Visibility\"),col(\"a.SecurityEnabled\"),col(\"a.MailEnabled\"),col(\"a.GroupType\"),col(\"GroupLinkId\")\r\n",
 							"                                             ,col(\"b.MemberId\"),col(\"b.MemberDisplayName\"),col(\"b.MemberEMail\"),col(\"b.Memberptenant\") ,col(\"b.MemberLevel\"),col(\"b.MemberType\")\r\n",
@@ -2512,20 +2663,41 @@
 							"                                                        ,col(\"b.MemberType\").alias(\"Type\")                                                                    \r\n",
 							"                                                    ).as(\"Members\")\r\n",
 							"                                            )\r\n",
-							"\r\n",
-							"\r\n",
-							"\r\n",
-							"//display(spGroupsSGSWithAADMembers)\r\n",
-							"\r\n",
-							"\r\n",
-							"val spGroupsMembersExpanded= spGroupsNonSGSFinalWithMembers.unionByName(spGroupsSGSWithAADMembers).dropDuplicates()\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Step 4: Combining all the expanded members /owner or sharepoint groups"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"val spGroupsMembersExpanded= spGroupsNonSGSFinalWithMembers.unionByName(spGroupsSGSWithAADMembers_ExceptOwnerGroups).unionByName(spGroupsSGSWithAADMembers_OwnerGroups).dropDuplicates()\r\n",
 							"\r\n",
 							"val spGroupsMembersExpandedAgg= spGroupsMembersExpanded.groupBy(\"ptenant\",\"SiteId\",\"GroupId\",\"GroupDisplayName\",\"Description\",\"Email\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\").agg(collect_set(col(\"Members\")).alias(\"Members\"))\r\n",
-							"\r\n",
-							"//display(spGroupsMembersExpanded.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\",\"GroupType\"))\r\n",
-							"//display(spGroupsMembersExpandedAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\",\"GroupType\"))\r\n",
-							"\r\n",
-							"\r\n",
 							"\r\n",
 							""
 						],
@@ -2610,17 +2782,9 @@
 							"                                                        )\r\n",
 							"                                               \r\n",
 							"\r\n",
-							"//display(spgroupsWithSPGroupTypeOwners)\r\n",
-							"//display(spgroupsWithSecurityTypeOwners)\r\n",
-							"//display(spgroupsWithMiscTypeOwners)\r\n",
 							"val spGroupsOwnersExpanded = spGroupsWithMembersExpandedForAADAndSPGroupTypes.unionByName(spgroupsWithMiscTypeOwners).dropDuplicates()\r\n",
 							"val spGroupsOwnersExpandedAgg= spGroupsOwnersExpanded.groupBy(\"ptenant\",\"SiteId\",\"GroupId\",\"GroupDisplayName\",\"Description\",\"Email\",\"Visibility\",\"SecurityEnabled\",\"MailEnabled\",\"GroupType\",\"GroupLinkId\")\r\n",
 							"                                                        .agg(collect_set(col(\"Owners\")).alias(\"Owners\"))\r\n",
-							"\r\n",
-							"\r\n",
-							"display(spGroupsOwnersExpanded.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))\r\n",
-							"display(spGroupsOwnersExpandedAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))\r\n",
-							"\r\n",
 							"\r\n",
 							""
 						],
@@ -2656,8 +2820,7 @@
 						},
 						"source": [
 							"\r\n",
-							"val spGroupOwnersAndMembersAgg =spGroupsMembersExpandedAgg.join(spGroupsOwnersExpandedAgg,List(\"ptenant\",\"SiteId\",\"GroupId\")).select (spGroupsMembersExpandedAgg(\"*\"),spGroupsOwnersExpandedAgg(\"Owners\"))\r\n",
-							"display(spGroupOwnersAndMembersAgg.filter(\"SiteId == '00000000-0000-0000-0000-000000000000' and GroupId == 3  \").sort(\"SiteId\",\"GroupId\"))"
+							"val spGroupOwnersAndMembersAgg =spGroupsMembersExpandedAgg.join(spGroupsOwnersExpandedAgg,List(\"ptenant\",\"SiteId\",\"GroupId\")).select (spGroupsMembersExpandedAgg(\"*\"),spGroupsOwnersExpandedAgg(\"Owners\"))"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -2712,6 +2875,136 @@
 							"    .format(\"json\")\r\n",
 							"    .mode(\"overwrite\")\r\n",
 							"    .save(latestSPGroupsMembersOnlyPath)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"######  Writing Sharing dataset to latest folder location"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"val userStruct =\r\n",
+							"   StructType(Array(\r\n",
+							"                    StructField(\"AadObjectId\", StringType, true),\r\n",
+							"                    StructField(\"Email\", StringType, false),\r\n",
+							"                    StructField(\"Name\", StringType, false),\r\n",
+							"                    StructField(\"Type\", StringType, false)\r\n",
+							"                    )\r\n",
+							"            )\r\n",
+							"\r\n",
+							"val sharingCount =\r\n",
+							"   StructType(Array(\r\n",
+							"                    StructField(\"Type\", StringType, false),\r\n",
+							"                    StructField(\"Count\", LongType, false)\r\n",
+							"                    )\r\n",
+							"            )\r\n",
+							"\r\n",
+							"val schemaSharing = \r\n",
+							"                StructType( Array(\r\n",
+							"                                    StructField(\"ptenant\", StringType,true),\r\n",
+							"                                    StructField(\"SiteId\", StringType,true),\r\n",
+							"                                    StructField(\"WebId\", StringType,true),\r\n",
+							"                                    StructField(\"ListId\", StringType,true),\r\n",
+							"                                    StructField(\"ItemType\", StringType,true),\r\n",
+							"                                    StructField(\"ItemURL\", StringType,true),\r\n",
+							"                                    StructField(\"FileExtension\", StringType,true),\r\n",
+							"                                    StructField(\"RoleDefinition\", StringType,true),\r\n",
+							"                                    StructField(\"LinkId\", StringType,true),\r\n",
+							"                                    StructField(\"ScopeId\", StringType,true),\r\n",
+							"                                    StructField(\"LinkScope\", StringType,true),\r\n",
+							"                                    StructField(\"SharedWithCount\", ArrayType(sharingCount),true),\r\n",
+							"                                    StructField(\"SharedWith\", ArrayType(userStruct),true),\r\n",
+							"                                    StructField(\"Operation\", StringType,true),\r\n",
+							"                                    StructField(\"SnapshotDate\", StringType,true),\r\n",
+							"                                    StructField(\"ShareCreatedBy\", userStruct,true),\r\n",
+							"                                    StructField(\"ShareCreatedTime\", StringType,true),\r\n",
+							"                                    StructField(\"ShareLastModifiedBy\", userStruct,true),\r\n",
+							"                                    StructField(\"ShareLastModifiedTime\", StringType,true),\r\n",
+							"                                    StructField(\"ShareExpirationTime\", StringType,true)       \r\n",
+							"                                )\r\n",
+							"                            )\r\n",
+							"\r\n",
+							"val inputJsonSharingDF =\r\n",
+							"    spark\r\n",
+							"      .read\r\n",
+							"      .schema(schemaSharing)\r\n",
+							"      .format(\"json\")\r\n",
+							"      .option(\"recursiveFileLookup\", \"false\")\r\n",
+							"      .load(sharingPath)\r\n",
+							"\r\n",
+							"inputJsonSharingDF\r\n",
+							"    .write\r\n",
+							"    .format(\"json\")\r\n",
+							"    .mode(\"overwrite\")\r\n",
+							"    .save(latestSharingPath)\r\n",
+							"\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"######  Writing Sites dataset to latest folder location"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"val inputJsonSitesDF =\r\n",
+							"    spark\r\n",
+							"      .read\r\n",
+							"      .format(\"json\")\r\n",
+							"      .option(\"recursiveFileLookup\", \"false\")\r\n",
+							"      .load(sitesPath)\r\n",
+							"\r\n",
+							"inputJsonSitesDF\r\n",
+							"    .write\r\n",
+							"    .format(\"json\")\r\n",
+							"    .mode(\"overwrite\")\r\n",
+							"    .save(latestSitesPath)"
 						],
 						"outputs": [],
 						"execution_count": null

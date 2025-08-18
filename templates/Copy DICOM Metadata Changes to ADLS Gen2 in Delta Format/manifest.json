@@ -21,7 +21,7 @@
             }
         }
     },
-    "documentation": "https://learn.microsoft.com/azure/healthcare-apis/dicom/dicom-services-overview",
+    "documentation": "https://aka.ms/dicomanalyticsquickstart",
     "author": "Microsoft",
     "annotations": [
         "Data Movement",

@@ -41,9 +41,9 @@
                                 "referenceName": "PII detection and masking",
                                 "type": "DataFlowReference",
                                 "parameters": {
-                                    "sourceFileSystem": "'pii'",
-                                    "sourceFilePath": "'PII'",
-                                    "sourceFileName": "'COVID_DATA_PII.csv'"
+                                    "sourceFileSystem": "'sourceFileSystem'",
+                                    "sourceFilePath": "'sourceFilePath'",
+                                    "sourceFileName": "'sourceFileName'"
                                 },
                                 "datasetParameters": {
                                     "dataSource": {},
@@ -114,9 +114,9 @@
                     ],
                     "scriptLines": [
                         "parameters{",
-                        "     sourceFileSystem as string ('pii'),",
-                        "     sourceFilePath as string ('PII'),",
-                        "     sourceFileName as string ('COVID_DATA_PII.csv')",
+                        "     sourceFileSystem as string ('sourceFileSystem'),",
+                        "     sourceFilePath as string ('sourceFilePath'),",
+                        "     sourceFileName as string ('sourceFileName')",
                         "}",
                         "source(output(",
                         "          case_month as string,",
