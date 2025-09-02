@@ -19,7 +19,7 @@
     "author": "sqlgenai@microsoft.com",
     "annotations": ["AI", "RAG", "SQL Database", "Embedding", "Chunking","Vector", "Redact PII","Azure Blob Storage"],
     "services": ["SQL Database in Fabric", "Azure Blob Storage"],
-    "categories": ["AI", "SQL Database", "Data Pipeline"],
+    "categories": ["AI", "SQL Database", "Pipeline"],
     "scope": ["PBI"],
     "documentation" : "https://github.com/Azure-Samples/fabric-sqldb-ai-ragpipeline"
 }
