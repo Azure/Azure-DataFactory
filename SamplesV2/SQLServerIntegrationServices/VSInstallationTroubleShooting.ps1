@@ -80,4 +80,4 @@ if (-not $errorDetected) {
 } else {
     Write-Host "See more details in $($logFile.Name)."
 }
-
+Write-Host "`nPress any key to close this window..." -ForegroundColor Cyan
