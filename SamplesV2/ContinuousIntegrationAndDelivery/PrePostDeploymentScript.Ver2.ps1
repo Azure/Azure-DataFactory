@@ -568,6 +568,14 @@ try {
     $triggersDeployed = Get-SortedTrigger -DataFactoryName $DataFactoryName -ResourceGroupName $ResourceGroupName
 
     if ($PreDeployment -eq $true) {
+
+        # New: Store the running triggers before stopping any trigger
+        $triggersRunning = $triggersDeployed | Where-Object { $_.RuntimeState -eq 'Started' } | ForEach-Object { $_.Name }
+        # New: Persist to file (JSON) so that we can use this list to find the triggers need to be started during post-deployment (same job reuse)
+        $triggersRunningJson = ($triggersRunning | ConvertTo-Json -Depth 10 -Compress)
+        $stateFile = Join-Path $env:System_DefaultWorkingDirectory 'TriggersRunning.json'
+        Set-Content -Path $stateFile -Value $triggersRunningJson -Encoding UTF8
+
         #Stop trigger only if there is change in payload
         $triggersToStop = $triggersDeployed | Where-Object { $_.Name -in $triggerNamesInTemplate -and $_.RuntimeState -ne 'Stopped' } `
         | Where-Object {
@@ -724,8 +732,17 @@ try {
         }
 
         #Start active triggers - after cleanup efforts
-        $triggersRunning = $triggersDeployed | Where-Object { $_.RuntimeState -eq 'Started' } | ForEach-Object { $_.Name }
 
+        # Read the file stored from pre-deployment script
+        $stateFile = Join-Path $env:System_DefaultWorkingDirectory 'TriggersRunning.json'
+        if (Test-Path $stateFile) {
+            $triggersRunning = Get-Content $stateFile | ConvertFrom-Json
+            Write-Host "Loaded triggers from file: $($triggersRunning -join ',')"
+        } else {
+            Write-Host "State file not found; fallback to original method to retrieve triggers in started status in template."
+            $triggersRunning = $triggersDeployed | Where-Object { $_.RuntimeState -eq 'Started' } | ForEach-Object { $_.Name }
+        }
+        # Get updated trigger from template
         $updatedTriggersInTemplate = $triggersInTemplate
         if ($PSCompatible) {
             try {
@@ -739,13 +756,35 @@ try {
             }
         }
 
-        $triggersToStart = $updatedTriggersInTemplate | Where-Object { $_.properties.runtimeState -eq 'Started' -and $_.name.Substring(37, $_.name.Length - 40) -notin $triggersRunning } `
-        | Where-Object { $_.properties.pipelines.Count -gt 0 -or $_.properties.pipeline.pipelineReference -ne $null } | ForEach-Object {
-            New-Object PSObject -Property @{
-                Name        = $_.name.Substring(37, $_.name.Length - 40)
-                TriggerType = $_.Properties.type
+        # Build a unified set of trigger names: (Started in template) OR (previously running)
+        # Force array materialization so + performs array concatenation, not string concatenation
+        $triggerNamesFromTemplate = @(
+            $updatedTriggersInTemplate |
+                Where-Object { $_.properties.runtimeState -eq 'Started' } |
+                ForEach-Object { $_.name.Substring(37, $_.name.Length - 40) }
+        )
+
+        Write-Host "Trigger names from template with runtimeState 'Started': $($triggerNamesFromTemplate -join ',')"
+        Write-Host "Triggers previously running before deployment: $($triggersRunning -join ',')"
+
+        $triggersRunning = @($triggersRunning)   # ensure array even if single value
+        $triggerNamesToStart = @($triggerNamesFromTemplate) + @($triggersRunning)
+        $triggerNamesToStart = $triggerNamesToStart | Sort-Object -Unique
+
+        Write-Host "Final trigger names to start: $($triggerNamesToStart -join ',')"
+
+        $triggersToStart = $updatedTriggersInTemplate |
+            Where-Object {
+                $name = $_.name.Substring(37, $_.name.Length - 40)
+                $name -in $triggerNamesToStart
+            } |
+            Where-Object { $_.properties.pipelines.Count -gt 0 -or $_.properties.pipeline.pipelineReference -ne $null } |
+            ForEach-Object {
+                New-Object PSObject -Property @{
+                    Name        = $_.name.Substring(37, $_.name.Length - 40)
+                    TriggerType = $_.Properties.type
+                }
             }
-        }
 
         if ($triggersToStart.Count -gt 0) {
             Write-Host "Starting $($triggersToStart.Count) triggers"
