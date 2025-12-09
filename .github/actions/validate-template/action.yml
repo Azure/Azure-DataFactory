@@ -13,10 +13,10 @@ inputs:
 outputs:
   status:
     description: Validate status
-    value: ${{ steps.validate-template.outputs.status }}
+    value: $VALIDATE_STATUS
   detail:
     description: Validate detail
-    value: ${{ steps.validate-template.outputs.detail }}
+    value: $VALIDATE_DETAIL
 
 runs:
   using: composite
@@ -38,9 +38,6 @@ runs:
         # Parse JSON and extract status and detail separately
         status=$(echo "$result" | jq -r '.status')
         detail=$(echo "$result" | jq -r '.detail')
-        # Output status
-        echo "status=${status}" >> "$GITHUB_OUTPUT"
-        # Use multiline format for detail since it contains newlines
-        echo "detail<<EOF" >> "$GITHUB_OUTPUT"
-        echo "$detail" >> "$GITHUB_OUTPUT"
-        echo "EOF" >> "$GITHUB_OUTPUT"
+        # Store in GITHUB_ENV
+        echo "VALIDATE_STATUS=${status}" >> "$GITHUB_ENV"
+        echo "VALIDATE_DETAIL={detail}" >> "$GITHUB_ENV"
