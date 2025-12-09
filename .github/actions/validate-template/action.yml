@@ -13,10 +13,10 @@ inputs:
 outputs:
   status:
     description: Validate status
-    value: ${{ fromJSON(steps.validate-template.outputs.result).status }}
+    value: ${{ steps.validate-template.outputs.status }}
   detail:
     description: Validate detail
-    value: ${{ fromJSON(steps.validate-template.outputs.result).detail }}
+    value: ${{ steps.validate-template.outputs.detail }}
 
 runs:
   using: composite
@@ -35,6 +35,8 @@ runs:
       shell: bash
       run: |
         result=$(deno run --allow-read "${ACTION_PATH}/src/main.ts" "${INPUT_PATH}" "${INPUT_DIRECTORY}")
-        # Escape special characters and ensure single-line JSON output
-        result=$(echo "$result" | jq -c '.')
-        echo "result=${result}" >> "$GITHUB_OUTPUT"
+        # Parse JSON and extract status and detail separately
+        status=$(echo "$result" | jq -r '.status')
+        detail=$(echo "$result" | jq -r '.detail')
+        echo "status=${status}" >> "$GITHUB_OUTPUT"
+        echo "detail=${detail}" >> "$GITHUB_OUTPUT"
