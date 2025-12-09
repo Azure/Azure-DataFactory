@@ -32,7 +32,9 @@ runs:
         INPUT_PATH: ${{ inputs.path }}
         INPUT_DIRECTORY: ${{ inputs.directory }}
         ACTION_PATH: ${{ github.action_path }}
+      shell: bash
       run: |
         result=$(deno run --allow-read "${ACTION_PATH}/src/main.ts" "${INPUT_PATH}" "${INPUT_DIRECTORY}")
+        # Escape special characters and ensure single-line JSON output
+        result=$(echo "$result" | jq -c '.')
         echo "result=${result}" >> "$GITHUB_OUTPUT"
-      shell: bash
