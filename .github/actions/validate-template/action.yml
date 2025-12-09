@@ -38,5 +38,9 @@ runs:
         # Parse JSON and extract status and detail separately
         status=$(echo "$result" | jq -r '.status')
         detail=$(echo "$result" | jq -r '.detail')
+        # Output status
         echo "status=${status}" >> "$GITHUB_OUTPUT"
-        echo "detail=${detail}" >> "$GITHUB_OUTPUT"
+        # Use multiline format for detail since it contains newlines
+        echo "detail<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$detail" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"

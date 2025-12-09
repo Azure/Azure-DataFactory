@@ -17,7 +17,7 @@ jobs:
         id: validate-template
         uses: ./.github/actions/validate-template
         with:
-          path: $GITHUB_WORKSPACE
+          path: ${{ github.workspace }}
 
       - name: Create comment
         if: ${{ steps.validate-template.outputs.status != 0 && !github.event.pull_request.head.repo.fork }}
