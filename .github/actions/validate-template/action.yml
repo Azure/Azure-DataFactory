@@ -10,14 +10,6 @@ inputs:
     required: false
     description: Template directory
 
-outputs:
-  status:
-    description: Validate status
-    value: ${{ steps.validate-template.outputs.status }}
-  detail:
-    description: Validate detail
-    value: ${{ steps.validate-template.outputs.detail }}
-
 runs:
   using: composite
   steps:
@@ -38,16 +30,15 @@ runs:
         # Parse JSON and extract status and detail separately
         status=$(echo "$result" | jq -r '.status')
         detail=$(echo "$result" | jq -r '.detail')
-        # Print for debugging
+        # Print validation result
         echo "::group::Validation Result"
         echo "Status: ${status}"
         echo "Detail:"
         echo "$detail"
         echo "::endgroup::"
-        # Output status and detail
-        echo "status=${status}" >> "$GITHUB_OUTPUT"
-        {
-          echo "detail<<EOF"
+        # If status is not 0, fail the action
+        if [ "$status" != "0" ]; then
+          echo "::error::Template validation failed"
           echo "$detail"
-          echo "EOF"
-        } >> "$GITHUB_OUTPUT"
+          exit 1
+        fi

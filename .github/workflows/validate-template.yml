@@ -14,14 +14,6 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Validate template
-        id: validate-template
         uses: ./.github/actions/validate-template
         with:
           path: ${{ github.workspace }}
-
-      - name: Create comment
-        if: ${{ steps.validate-template.outputs.status != 0 && !github.event.pull_request.head.repo.fork }}
-        uses: peter-evans/create-or-update-comment@v1
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ steps.validate-template.outputs.detail }}
