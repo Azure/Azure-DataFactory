@@ -1,6 +1,0 @@
-Region West US
-Region East US
-Region North US
-Region South US
-Region North Europe
-Region Asia
