@@ -1,6 +1,6 @@
 ### Sample pre- and post-deployment script (PrePostDeploymentScript.Ver2.ps1)
 
-This sample script can be used to stop triggers before deployment and restart them afterward. It stops the triggers only if they are changed and is in _started_ state which is an improvement to previous script (PrePostDeploymentScript.ps1) that stops all triggers before deployment. It will help reduce the deployment time and minimize the possibility of missing triggers during the deployment. The script also includes code to delete resources that have been removed
+This sample script can be used to stop triggers before deployment and restart them afterward. It stops the triggers only if they are changed and is in _started_ state which is an improvement to previous script (PrePostDeploymentScript.ps1) that stops all triggers before deployment. It will help reduce the deployment time and minimize the possibility of missing triggers during the deployment. 
 
 * When running a pre-deployment script, please specify a variation of the following parameters in the Script Arguments field.
 
@@ -13,10 +13,21 @@ This sample script can be used to stop triggers before deployment and restart th
 * When running a post-deployment script, please specify a variation of the following parameters in the Script Arguments field.
 
 ```azurepowershell
+-armTemplate "$(System.DefaultWorkingDirectory)/<your-arm-template-location>" -ResourceGroupName <your-resource-group-name> -DataFactoryName <your-data-factory-name> -predeployment $false -deleteDeployment $false
+```
+
+**Note:** The post-deployment script also includes code to delete resources that have been removed during post-deployment.
+
+* To delete resources that have been removed in a post-deployment script, please specify "-deleteDeployment $true" in the Script Arguments field.
+
+```azurepowershell
 -armTemplate "$(System.DefaultWorkingDirectory)/<your-arm-template-location>" -ResourceGroupName <your-resource-group-name> -DataFactoryName <your-data-factory-name> -predeployment $false -deleteDeployment $true
 ```
+
 * Make sure to use **PowerShell Core** in ADO task to run the script
 ![ADO Task](./AzurePowerShell-VstsTask.png)
+
+
 
 ### Sample pre- and post-deployment script (PrePostDeploymentScript.ps1)
 
