@@ -654,5 +654,8 @@
       "Database"
     ],
     "services": [],
-    "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023"
+    "documentation": "https://go.microsoft.com/fwlink/?linkid=2060023",
+    "compatibleWithPBI": true,
+    "descriptionForPBI": "Use this template to copy data in bulk from a database using an external control table to store the partition list of your source tables.\n\nWhen you want to migrate data from your data warehouse, like SQL Server, you often have to load a huge amount of data from multiple tables from your data source(s). In most cases, this data has to be further partitioned in each table so that you can load rows with multiple threads in parallel from single table.\n\nIf you want to copy data from a small number of tables with a smaller amount of data, it's more efficient for you to use the “Copy assistant” to create your pipeline."
+    
   }

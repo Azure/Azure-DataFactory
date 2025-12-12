@@ -10,5 +10,6 @@
     "author": "abnarain@microsoft.com",
     "annotations": ["Alerts", "Microsoft Teams", "Notifications"],
     "services": [],
-    "categories": ["Web activity"]
+    "categories": ["Web activity"],
+    "compatibleWithPBI": false
 }

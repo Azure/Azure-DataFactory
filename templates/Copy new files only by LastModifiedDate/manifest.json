@@ -321,5 +321,9 @@
     ],
     "categories":[  
         "Copy"
-    ]
+    ],
+    "compatibleWithPBI": true,
+    "descriptionForPBI": "Use this template to copy new or changed files only by using LastModifiedDate.\n\nThis template first selects the files only by their 'LastModifiedDate' attribute, and then copies the files from the specified data source to data destination.\n\nUse the 'Copy assistant' to create a similar pipeline with other connectors."
+    
+   
 }
