@@ -544,8 +544,21 @@ try {
         Write-Host "##[warning] The script is not compatible with your current PowerShell version $($PSVersionTable.PSVersion). Use either PowerShell Core or at least PS version 7.0, otherwise the script may fail to compare the trigger payload and always stop/start the trigger(s)"
     }
 
-    $templateJson = Get-Content $ArmTemplate | ConvertFrom-Json
-    $resources = $templateJson.resources
+    if ($ArmTemplate.EndsWith("ArmTemplate_master.json")) {
+        $resources = @()
+        $templateFile = Get-ChildItem -Path $ArmTemplate
+        $linkedTemplateFiles = (Get-ChildItem -Path $templateFile.Directory.FullName -File -Filter "*.json").where({
+                (@("ArmTemplate_master.json", "ArmTemplateParameters_master.json") -inotcontains $PSItem.Name)
+            }
+        )
+        foreach ($linkedTemplateFile in $linkedTemplateFiles) {
+            $templateJson = Get-Content $linkedTemplateFile.FullName | ConvertFrom-Json
+            $resources += $templateJson.resources
+        }
+    } else {
+        $templateJson = Get-Content $ArmTemplate | ConvertFrom-Json
+        $resources = $templateJson.resources
+    }
 
     if (-not $ArmTemplateParameters) {
         $ArmTemplateParameters = Join-Path -Path (Split-Path $ArmTemplate -Parent) -ChildPath 'ArmTemplateParametersForFactory.json'
@@ -713,11 +726,12 @@ try {
 
             Write-Host "Deployment to be deleted: $deploymentName"
             $deploymentOperations = Get-AzResourceGroupDeploymentOperation -DeploymentName $deploymentName -ResourceGroupName $ResourceGroupName
-            $deploymentsToDelete = $deploymentOperations | Where-Object { $_.properties.targetResource.id -like "*Microsoft.Resources/deployments*" }
+            $deploymentsToDelete = $deploymentOperations | Where-Object { $_.Id -like "*Microsoft.Resources/deployments*" }
 
             $deploymentsToDelete | ForEach-Object {
-                Write-Host "Deleting inner deployment: $($_.properties.targetResource.id)"
-                Remove-AzResourceGroupDeployment -Id $_.properties.targetResource.id
+                $innerDeploymentName = $_.TargetResource.Split("/")[-1]
+                Write-Host "Deleting inner deployment: $innerDeploymentName"
+                Remove-AzResourceGroupDeployment -Id $_.TargetResource
             }
             Write-Host "Deleting deployment: $deploymentName"
             Remove-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -Name $deploymentName
