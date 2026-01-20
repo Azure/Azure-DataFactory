@@ -1,0 +1,117 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"<Your Datatbricks Linked Service>": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/CSV Landing with Databricks')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Save CSV file to Azure Data Lake Storage (ADLS Gen2) and Create Bronze Layer Delta Table in Unity Catalog",
+				"activities": [
+					{
+						"name": "Source to Landing",
+						"description": "Save CSV files from Microsoft Learn GitHub Repo to Azure Data Lake Storage (ADLS Gen2)",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/<your user name>/<your location>/Process Data",
+							"baseParameters": {
+								"destination": {
+									"value": "@pipeline().parameters.landing",
+									"type": "Expression"
+								},
+								"source": {
+									"value": "@pipeline().parameters.csv_source",
+									"type": "Expression"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('<Your Datatbricks Linked Service>')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Landing to Bronze",
+						"description": "Create Bronze Layer Delta Table",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "Source to Landing",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/<your user name>/<your location>/Landing to Bronze",
+							"baseParameters": {
+								"source": {
+									"value": "@pipeline().parameters.landing",
+									"type": "Expression"
+								},
+								"destination": {
+									"value": "@pipeline().parameters.bronze",
+									"type": "Expression"
+								},
+								"batch_id": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('<Your Datatbricks Linked Service>')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"parameters": {
+					"landing": {
+						"type": "string",
+						"defaultValue": "abfss://<your storage container name>@<your storage account name>.dfs.core.windows.net/00_landing/products/"
+					},
+					"bronze": {
+						"type": "string",
+						"defaultValue": "abfss://<your storage container name>@<your storage account name>.dfs.core.windows.net/01_bronze/products/"
+					},
+					"csv_source": {
+						"type": "string",
+						"defaultValue": "https://raw.githubusercontent.com/MicrosoftLearning/mslearn-databricks/main/data/products.csv"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		}
+	]
+}
