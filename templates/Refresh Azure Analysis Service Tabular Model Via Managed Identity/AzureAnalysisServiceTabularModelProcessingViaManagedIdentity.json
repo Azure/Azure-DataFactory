@@ -1,0 +1,280 @@
+{
+   "$schema":"http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+   "contentVersion":"1.0.0.0",
+   "parameters":{
+      "factoryName":{
+         "type":"string",
+         "metadata":"Data Factory name"
+      }
+   },
+   "variables":{
+      "factoryId":"[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+   },
+   "resources":[
+      {
+         "name":"[concat(parameters('factoryName'), '/AzureAnalysisServiceTabularModelProcessingViaManagedIdentity')]",
+         "type":"Microsoft.DataFactory/factories/pipelines",
+         "apiVersion":"2018-06-01",
+         "properties":{
+            "description":"This pipeline would process the Azure Analysis Service",
+            "activities":[
+               {
+                  "name":"TriggerProcessCube",
+                  "description":"This activity would start the AAS processing",
+                  "type":"WebActivity",
+                  "dependsOn":[
+                     
+                  ],
+                  "policy":{
+                     "timeout":"7.00:00:00",
+                     "retry":0,
+                     "retryIntervalInSeconds":30,
+                     "secureOutput":false,
+                     "secureInput":false
+                  },
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "url":{
+                        "value":"@concat('https://',pipeline().parameters.Region,'.asazure.windows.net/servers/',pipeline().parameters.Server,'/models/',pipeline().parameters.DatabaseName,'/refreshes')",
+                        "type":"Expression"
+                     },
+                     "method":"POST",
+                     "headers":{
+                        
+                     },
+                     "body":{
+                        "Type":"Full",
+                        "CommitMode":"transactional",
+                        "MaxParallelism":10,
+                        "RetryCount":2
+                     },
+                     "authentication":{
+                        "type":"MSI",
+                        "resource":"https://*.asazure.windows.net"
+                     }
+                  }
+               },
+               {
+                  "name":"FilterCubeRefreshData",
+                  "description":"Filter outs the individual tables refresh status",
+                  "type":"Filter",
+                  "dependsOn":[
+                     {
+                        "activity":"GetCubeRefreshData",
+                        "dependencyConditions":[
+                           "Succeeded"
+                        ]
+                     }
+                  ],
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "items":{
+                        "value":"@json(activity('GetCubeRefreshData').output.Response)",
+                        "type":"Expression"
+                     },
+                     "condition":{
+                        "value":"@greaterOrEquals(item().startTime,addseconds(activity('TriggerProcessCube').output.startTime,-30))",
+                        "type":"Expression"
+                     }
+                  }
+               },
+               {
+                  "name":"UntilRefreshCompletes",
+                  "description":"This activity would wait until all the tables are refreshed.",
+                  "type":"Until",
+                  "dependsOn":[
+                     {
+                        "activity":"FilterCubeRefreshData",
+                        "dependencyConditions":[
+                           "Succeeded"
+                        ]
+                     }
+                  ],
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "expression":{
+                        "value":"@not(equals(activity('CheckRefreshStatus').output.status,'inProgress'))",
+                        "type":"Expression"
+                     },
+                     "activities":[
+                        {
+                           "name":"WaitFor1Min",
+                           "description":"This activity would wait for 1 Min",
+                           "type":"Wait",
+                           "dependsOn":[
+                              
+                           ],
+                           "userProperties":[
+                              
+                           ],
+                           "typeProperties":{
+                              "waitTimeInSeconds":60
+                           }
+                        },
+                        {
+                           "name":"CheckRefreshStatus",
+                           "description":"This activity would check the refresh status",
+                           "type":"WebActivity",
+                           "dependsOn":[
+                              {
+                                 "activity":"WaitFor1Min",
+                                 "dependencyConditions":[
+                                    "Succeeded"
+                                 ]
+                              }
+                           ],
+                           "policy":{
+                              "timeout":"7.00:00:00",
+                              "retry":0,
+                              "retryIntervalInSeconds":30,
+                              "secureOutput":false,
+                              "secureInput":true
+                           },
+                           "userProperties":[
+                              
+                           ],
+                           "typeProperties":{
+                              "url":{
+                                 "value":"@concat('https://',pipeline().parameters.Region,'.asazure.windows.net/servers/',pipeline().parameters.Server,'/models/',pipeline().parameters.DatabaseName,'/refreshes/',activity('FilterCubeRefreshData').output.Value[0].refreshId)",
+                                 "type":"Expression"
+                              },
+                              "method":"GET",
+                              "headers":{
+                                 
+                              },
+                              "authentication":{
+                                 "type":"MSI",
+                                 "resource":"https://*.asazure.windows.net"
+                              }
+                           }
+                        }
+                     ],
+                     "timeout":"7.00:00:00"
+                  }
+               },
+               {
+                  "name":"IfErrorExists",
+                  "description":"This activity checks if cube refreshed has failed and if yes then provides error message ",
+                  "type":"IfCondition",
+                  "dependsOn":[
+                     {
+                        "activity":"UntilRefreshCompletes",
+                        "dependencyConditions":[
+                           "Succeeded"
+                        ]
+                     }
+                  ],
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "expression":{
+                        "value":"@equals(activity('CheckRefreshStatus').output.status,'failed')",
+                        "type":"Expression"
+                     },
+                     "ifTrueActivities":[
+                        {
+                           "name":"ThrowErrorFailedCubeRefresh",
+                           "description":"This fail activity would provide error message for cube refresh failure",
+                           "type":"Fail",
+                           "dependsOn":[
+                              
+                           ],
+                           "userProperties":[
+                              
+                           ],
+                           "typeProperties":{
+                              "message":{
+                                 "value":"@string(activity('CheckRefreshStatus').output.messages)",
+                                 "type":"Expression"
+                              },
+                              "errorCode":"1500"
+                           }
+                        }
+                     ]
+                  }
+               },
+               {
+                  "name":"GetCubeRefreshData",
+                  "type":"WebActivity",
+                  "dependsOn":[
+                     {
+                        "activity":"TriggerProcessCube",
+                        "dependencyConditions":[
+                           "Succeeded"
+                        ]
+                     }
+                  ],
+                  "policy":{
+                     "timeout":"7.00:00:00",
+                     "retry":0,
+                     "retryIntervalInSeconds":30,
+                     "secureOutput":false
+                  },
+                  "userProperties":[
+                     
+                  ],
+                  "typeProperties":{
+                     "url":{
+                        "value":"@concat('https://',pipeline().parameters.Region,'.asazure.windows.net/servers/',pipeline().parameters.Server,'/models/',pipeline().parameters.DatabaseName,'/refreshes')",
+                        "type":"Expression"
+                     },
+                     "method":"GET",
+                     "headers":{
+                        
+                     },
+                     "body":{
+                        "Type":"Full",
+                        "CommitMode":"transactional",
+                        "MaxParallelism":10,
+                        "RetryCount":2
+                     },
+                     "authentication":{
+                        "type":"MSI",
+                        "resource":"https://*.asazure.windows.net"
+                     }
+                  }
+               }
+            ],
+            "policy":{
+               "elapsedTimeMetric":{
+                  
+               },
+               "cancelAfter":{
+                  
+               }
+            },
+            "parameters":{
+               "Region":{
+                  "type":"string",
+                  "defaultValue":"northeurope"
+               },
+               "Server":{
+                  "type":"string"
+               },
+               "DatabaseName":{
+                  "type":"string"
+               }
+            },
+            "variables":{
+               "IsCubeRefreshed":{
+                  "type":"String"
+               }
+            },
+            "annotations":[
+               
+            ],
+            "lastPublishTime":"2022-11-23T05:56:14Z"
+         },
+         "dependsOn":[
+            
+         ]
+      }
+   ]
+}
