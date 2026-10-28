@@ -22,7 +22,7 @@ runs:
   using: composite
   steps:
     - name: Setup Deno environment
-      uses: denoland/setup-deno@v1
+      uses: denoland/setup-deno@11b63cf76cfcafb4e43f97b6cad24d8e8438f62d # v1.5.2
       with:
         deno-version: v1.x
 
