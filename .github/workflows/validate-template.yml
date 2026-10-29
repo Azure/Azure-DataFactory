@@ -1,10 +1,13 @@
 name: Template Validation
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - main
 
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -12,16 +15,28 @@ jobs:
 
     steps:
       - uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2.8.0
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
 
       - name: Validate template
         id: validate-template
         uses: ./.github/actions/validate-template
         with:
-          path: $GITHUB_WORKSPACE
+          path: ${{ github.workspace }}
 
-      - name: Create comment
-        if: ${{ steps.validate-template.outputs.status != 0 && !github.event.pull_request.head.repo.fork }}
-        uses: peter-evans/create-or-update-comment@a35cf36e5301d70b76f316e867e7788a55a31dae # v1.4.5
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ steps.validate-template.outputs.detail }}
+      - name: Report validation result
+        env:
+          VALIDATION_STATUS: ${{ steps.validate-template.outputs.status }}
+          VALIDATION_DETAIL: ${{ steps.validate-template.outputs.detail }}
+        shell: bash
+        run: |
+          printf '## Template validation\n\n' >> "$GITHUB_STEP_SUMMARY"
+          if [ "$VALIDATION_STATUS" = "0" ]; then
+            printf 'All templates passed validation.\n' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$VALIDATION_STATUS" = "1" ]; then
+            printf '%s\n' "$VALIDATION_DETAIL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Template validator returned an unexpected status."
+            exit 1
+          fi
