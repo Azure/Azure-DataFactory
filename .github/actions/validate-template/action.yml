@@ -28,5 +28,11 @@ runs:
 
     - name: Validate template
       id: validate-template
-      run: echo "::set-output name=result::$(deno run --allow-read ${{ github.action_path }}/src/main.ts ${{ inputs.path }} ${{ inputs.directory }})"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        PROJECT_ROOT: ${{ inputs.path }}
+        TEMPLATE_DIRECTORY: ${{ inputs.directory || 'templates' }}
+      run: |
+        result=$(deno run --allow-read "$ACTION_PATH/src/main.ts" "$PROJECT_ROOT" "$TEMPLATE_DIRECTORY")
+        printf 'result=%s\n' "$result" >> "$GITHUB_OUTPUT"
       shell: bash
