@@ -1,0 +1,38 @@
+name: Validate template
+
+description: Validate ADF template
+
+inputs:
+  path:
+    required: true
+    description: Project root
+  directory:
+    required: false
+    description: Template directory
+
+outputs:
+  status:
+    description: Validate status
+    value: ${{ fromJSON(steps.validate-template.outputs.result).status }}
+  detail:
+    description: Validate detail
+    value: ${{ fromJSON(steps.validate-template.outputs.result).detail }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Deno environment
+      uses: denoland/setup-deno@11b63cf76cfcafb4e43f97b6cad24d8e8438f62d # v1.5.2
+      with:
+        deno-version: v1.x
+
+    - name: Validate template
+      id: validate-template
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        PROJECT_ROOT: ${{ inputs.path }}
+        TEMPLATE_DIRECTORY: ${{ inputs.directory || 'templates' }}
+      run: |
+        result=$(deno run --allow-read "$ACTION_PATH/src/main.ts" "$PROJECT_ROOT" "$TEMPLATE_DIRECTORY")
+        printf 'result=%s\n' "$result" >> "$GITHUB_OUTPUT"
+      shell: bash

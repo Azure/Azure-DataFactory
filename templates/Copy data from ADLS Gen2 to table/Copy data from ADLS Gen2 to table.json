@@ -1,0 +1,128 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "testADLS2": {
+            "type": "string"
+        },
+        "testLakehouse": {
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "name": "Copy file from ADLS Gen2 to Lakehouse Table",
+            "type": "pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copy data from ADLS Gen2 to Lakehouse",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "source": {
+                                "type": "DelimitedTextSource",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSReadSettings",
+                                    "recursive": true,
+                                    "enablePartitionDiscovery": false
+                                },
+                                "formatSettings": {
+                                    "type": "DelimitedTextReadSettings"
+                                },
+                                "datasetSettings": {
+                                    "annotations": [],
+                                    "type": "DelimitedText",
+                                    "typeProperties": {
+                                        "location": {
+                                            "type": "AzureBlobFSLocation",
+                                            "fileName": {
+                                                "value": "@pipeline().parameters.FileName",
+                                                "type": "Expression"
+                                            },
+                                            "folderPath": {
+                                                "value": "@pipeline().parameters.DirectoryName",
+                                                "type": "Expression"
+                                            },
+                                            "fileSystem": {
+                                                "value": "@pipeline().parameters.FileSystemName",
+                                                "type": "Expression"
+                                            }
+                                        },
+                                        "columnDelimiter": ",",
+                                        "escapeChar": "\\",
+                                        "quoteChar": "\""
+                                    },
+                                    "schema": [],
+                                    "externalReferences": {
+                                        "connection": "[parameters('testADLS2')]"
+                                    }
+                                }
+                            },
+                            "sink": {
+                                "type": "LakehouseTableSink",
+                                "tableActionOption": "Append",
+                                "datasetSettings": {
+                                    "annotations": [],
+                                    "linkedService": {
+                                        "name": "testLakehouse",
+                                        "properties": {
+                                            "type": "Lakehouse",
+                                            "typeProperties": {
+                                                "workspaceId": "33eca854-3c9b-498f-8cf4-9144c6661828",
+                                                "artifactId": "[parameters('testLakehouse')]",
+                                                "rootFolder": "Tables"
+                                            }
+                                        }
+                                    },
+                                    "type": "LakehouseTable",
+                                    "schema": [],
+                                    "typeProperties": {
+                                        "table": {
+                                            "value": "@pipeline().parameters.LHTableName",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        }
+                    }
+                ],
+                "parameters": {
+                    "FileSystemName": {
+                        "type": "String"
+                    },
+                    "DirectoryName": {
+                        "type": "String"
+                    },
+                    "FileName": {
+                        "type": "String"
+                    },
+                    "LHTableName": {
+                        "type": "string"
+                    }
+                },
+                "annotations": []
+            },
+            "dependsOn": []
+        }
+    ]
+}

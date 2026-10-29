@@ -1,0 +1,10 @@
+{
+    "name": "Delphix",
+    "description": "Enable compliance and security across Data Factory pipelines by automatically discovering and masking sensitive data",
+    "solutionName": "Continuous Compliance",
+    "solutionType": "Accelerators",
+    "tags": ["Delphix", "Accelerators"],
+    "homepageLink": "https://www.delphix.com",
+    "solutionLink": "https://www.delphix.com/solutions/microsoft-idp"
+}
+

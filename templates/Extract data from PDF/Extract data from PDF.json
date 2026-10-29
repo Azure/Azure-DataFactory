@@ -1,0 +1,227 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        },
+        "CognitiveServices_Get": {
+            "type": "string"
+        },
+        "myStorage": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Extract data from PDF')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Use this template to extract data from a PDF source.\n\nThis uses the prebuilt-read model to extract text from documents. ",
+                "activities": [
+                    {
+                        "name": "Cognitive Services - POST",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "url": {
+                                "value": "@pipeline().parameters.CognitiveServicesURL",
+                                "type": "Expression"
+                            },
+                            "method": "POST",
+                            "headers": {
+                                "Ocp-Apim-Subscription-Key": {
+                                    "value": "@pipeline().parameters.CognitiveServicesKey",
+                                    "type": "Expression"
+                                }
+                            },
+                            "body": {
+                                "value": "@concat('{\"urlSource\":\"',pipeline().parameters.PDF_SourceURL,'\"}')",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    {
+                        "name": "GetPDFData_Dataflow",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Cognitive Services - POST",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "1.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "Extract PDF Data Dataflow",
+                                "type": "DataFlowReference",
+                                "parameters": {
+                                    "OutputFolder": {
+                                        "value": "'@{pipeline().parameters.OutputFolder}'",
+                                        "type": "Expression"
+                                    },
+                                    "OutputContainer": {
+                                        "value": "'@{pipeline().parameters.OutputContainer}'",
+                                        "type": "Expression"
+                                    }
+                                },
+                                "datasetParameters": {
+                                    "source1": {},
+                                    "sink1": {}
+                                },
+                                "linkedServiceParameters": {
+                                    "source1": {
+                                        "linkedService": {
+                                            "url": {
+                                                "value": "@activity('Cognitive Services - POST').output.ADFWebActivityResponseHeaders['Operation-Location']",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "None",
+                            "cacheSinks": {
+                                "firstRowOnly": true
+                            }
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "parameters": {
+                    "CognitiveServicesURL": {
+                        "type": "string",
+                        "defaultValue": "https://[your-resource-name-here].cognitiveservices.azure.com/formrecognizer/documentModels/prebuilt-read:analyze?api-version=2022-08-31"
+                    },
+                    "CognitiveServicesKey": {
+                        "type": "string",
+                        "defaultValue": "KeyValue"
+                    },
+                    "PDF_SourceURL": {
+                        "type": "string",
+                        "defaultValue": "https://raw.githubusercontent.com/Azure-Samples/cognitive-services-REST-api-samples/master/curl/form-recognizer/rest-api/read.png"
+                    },
+                    "OutputContainer": {
+                        "type": "string",
+                        "defaultValue": "OutputContainer"
+                    },
+                    "OutputFolder": {
+                        "type": "string",
+                        "defaultValue": "OutputFolder"
+                    }
+                },
+                "annotations": [],
+                "lastPublishTime": "2022-04-08T17:26:12Z"
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/dataflows/Extract PDF Data Dataflow')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/Extract PDF Data Dataflow')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "This dataflow takes the output from Cognitive Services and extracts the PDF information to a storage sink.\nThis specifically works with the prebuilt-read model, but you can adjust as needed. You can also save the transformations as a flowlet if you would like to reuse the logic in other dataflows. \n\nIf you choose to use other prebuilt models, please note that you may need to reimport your dataflow source schema and make some adjustments to the transformations.",
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('CognitiveServices_Get')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "source1"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "linkedService": {
+                                "referenceName": "[parameters('myStorage')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "name": "sink1"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "flatten1"
+                        },
+                        {
+                            "name": "derivedColumn1"
+                        }
+                    ],
+                    "scriptLines": [
+                        "parameters{",
+                        "     OutputFolder as string ('output'),",
+                        "     OutputContainer as string ('formrecognizer')",
+                        "}",
+                        "source(output(",
+                        "          body as (analyzeResult as (apiVersion as date, content as string, languages as (confidence as double, locale as string, spans as (length as short, offset as short)[])[], modelId as string, pages as (angle as boolean, height as short, kind as string, lines as (content as string, polygon as short[], spans as (length as short, offset as short)[])[], pageNumber as string, spans as (length as short, offset as boolean)[], unit as string, width as short, words as (confidence as double, content as string, polygon as short[], span as (length as short, offset as short))[])[], paragraphs as (boundingRegions as (pageNumber as string, polygon as short[])[], content as string, spans as (length as short, offset as short)[])[], stringIndexType as string, styles as string[]), createdDateTime as timestamp, lastUpdatedDateTime as timestamp, status as string),",
+                        "          headers as [string,string]",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     inferDriftedColumnTypes: true,",
+                        "     format: 'rest',",
+                        "     timeout: 30,",
+                        "     requestInterval: 0,",
+                        "     httpMethod: 'GET',",
+                        "     paginationRules: ['supportRFC5988' -> 'true'],",
+                        "     responseFormat: ['type' -> 'json', 'documentForm' -> 'documentPerLine']) ~> source1",
+                        "source1 foldDown(unroll(body.analyzeResult.paragraphs),",
+                        "     mapColumn(",
+                        "          content = body.analyzeResult.paragraphs.content,",
+                        "          pageNumber = body.analyzeResult.paragraphs.boundingRegions.pageNumber",
+                        "     ),",
+                        "     skipDuplicateMapInputs: false,",
+                        "     skipDuplicateMapOutputs: false) ~> flatten1",
+                        "flatten1 derive(content = content,",
+                        "          pageNumber = pageNumber[1]) ~> derivedColumn1",
+                        "derivedColumn1 sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'delimited',",
+                        "     container: ($OutputContainer),",
+                        "     folderPath: ($OutputFolder),",
+                        "     columnDelimiter: ',',",
+                        "     escapeChar: '\\\\',",
+                        "     quoteChar: '\\\"',",
+                        "     columnNamesAsHeader: true,",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sink1"
+                    ]
+                }
+            },
+            "dependsOn": []
+        }
+    ]
+}

@@ -1,0 +1,1790 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"LS_Lakehouse-SQLEndPoint": {
+			"type": "string"
+		},
+		"LS_Office365_MGDC": {
+			"type": "string"
+		}
+	},
+	"variables": {},
+	"resources": [
+		{
+			"name": "Unlock SharePoint Capacity Insights",
+			"type": "pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Merge Sites and Files To Final Table",
+						"type": "TridentNotebook",
+						"dependsOn": [
+							{
+								"activity": "Extract Sites From MGDC",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "Extract Files From MGDC",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"notebookId": "9e1e4bfb-8b70-4a68-9212-97fa7a183a8e",
+							"workspaceId": {
+								"value": "@pipeline().DataFactory",
+								"type": "Expression"
+							},
+							"parameters": {
+								"sitesStagingTableName": {
+									"value": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesStagingTableName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"sitesFinalTableName": {
+									"value": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesFinalTableName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"filesStagingTableName": {
+									"value": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesStagingTableName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"filesFinalTableName": {
+									"value": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesFinalTableName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"runId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"lakehouseName": {
+									"value": {
+										"value": "@pipeline().parameters.LakehouseName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"workspaceId": {
+									"value": {
+										"value": "@pipeline().DataFactory",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							}
+						}
+					},
+					{
+						"name": "Set End Snapshot Date",
+						"description": "",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Read Last Snapshot Dates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "EndTime",
+							"value": {
+								"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).EndSnapshotDate\n\n",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Read Last Snapshot Dates",
+						"type": "TridentNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"notebookId": "3b37b5cd-619c-43d0-a68c-2027a8ccd32b",
+							"workspaceId": {
+								"value": "@pipeline().DataFactory",
+								"type": "Expression"
+							},
+							"parameters": {
+								"sitesStagingTableName": {
+									"value": {
+										"value": "@concat(pipeline().parameters.SitesTableName,pipeline().parameters.StagingSuffix)",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"sitesFinalTableName": {
+									"value": {
+										"value": "@pipeline().parameters.SitesTableName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"filessStagingTableName": {
+									"value": {
+										"value": "@concat(pipeline().parameters.FilesTableName,pipeline().parameters.StagingSuffix)",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"filesFinalTableName": {
+									"value": {
+										"value": "@pipeline().parameters.FilesTableName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"runId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"lakehouseName": {
+									"value": {
+										"value": "@pipeline().parameters.LakehouseName",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"workspaceId": {
+									"value": {
+										"value": "@pipeline().DataFactory",
+										"type": "Expression"
+									},
+									"type": "string"
+								},
+								"endTime": {
+									"value": {
+										"value": "@coalesce(pipeline().parameters.EndTime,formatDateTime(adddays(startOfDay(pipeline().TriggerTime),-2),'yyyy-MM-ddTHH:mm:ssZ'))\n",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							}
+						}
+					},
+					{
+						"name": "Set Sites Snapshot Date",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Read Last Snapshot Dates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "StartTimeForSites",
+							"value": {
+								"value": "@coalesce(pipeline().parameters.StartTime, json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesSnapshotDate)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Set Files Snapshot Date",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Read Last Snapshot Dates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "StartTimeForFiles",
+							"value": {
+								"value": "@coalesce(pipeline().parameters.StartTime, json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesSnapshotDate)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Sites View - Lakehouse SQLEndpoint",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "Wait 1 Min",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 300,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesView",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00",
+							"database": {
+								"value": "@pipeline().parameters.LakehouseName",
+								"type": "Expression"
+							}
+						},
+						"externalReferences": {
+							"connection": "[parameters('LS_Lakehouse-SQLEndPoint')]"
+						}
+					},
+					{
+						"name": "Files View - Lakehouse SQLEndpoint",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "Wait 1 Min",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 300,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesView",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00",
+							"database": {
+								"value": "@pipeline().parameters.LakehouseName",
+								"type": "Expression"
+							}
+						},
+						"externalReferences": {
+							"connection": "[parameters('LS_Lakehouse-SQLEndPoint')]"
+						}
+					},
+					{
+						"name": "Does Files Data Exists",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Read Last Snapshot Dates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "FilesDataExists",
+							"value": {
+								"value": "@bool(json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesDataExists)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Does Sites Data Exists",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Read Last Snapshot Dates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "SitesDataExists",
+							"value": {
+								"value": "@bool(json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesDataExists)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Extract Sites From MGDC",
+						"description": "",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Set Sites Snapshot Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Set End Snapshot Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Does Sites Data Exists",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"typeProperties": {
+							"expression": {
+								"value": "@and(and(variables('SitesDataExists'),\n     not(pipeline().parameters.ForceFullWhenDataExists)\t \n\t ), greaterOrEquals( startOfDay(variables('StartTimeForSites')) , startOfDay(variables('EndTime')) ))\n\n      ",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Extract Sites To Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"typeProperties": {
+										"source": {
+											"type": "Office365Source",
+											"dateFilterColumn": "SnapshotDate",
+											"startTime": {
+												"value": "@variables('StartTimeForSites')",
+												"type": "Expression"
+											},
+											"endTime": {
+												"value": "@variables('EndTime')",
+												"type": "Expression"
+											},
+											"datasetSettings": {
+												"annotations": [],
+												"type": "Office365Table",
+												"schema": [],
+												"typeProperties": {
+													"tableName": "BasicDataSet_v0.SharePointSites_v1"
+												},
+												"externalReferences": {
+													"connection": "[parameters('LS_Office365_MGDC')]"
+												}
+											},
+											"DataFilter": {
+												"value": "@pipeline().parameters.SitesFilter",
+												"type": "Expression"
+											}
+										},
+										"sink": {
+											"type": "LakehouseTableSink",
+											"tableActionOption": "OverwriteSchema",
+											"partitionOption": "None",
+											"datasetSettings": {
+												"annotations": [],
+												"linkedService": {
+													"name": "e629b492_d56f_43cc_a93f_3558c83b2f5d",
+													"properties": {
+														"annotations": [],
+														"type": "Lakehouse",
+														"typeProperties": {
+															"workspaceId": "@pipeline().DataFactory",
+															"artifactId": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).LakehouseId",
+															"rootFolder": "Tables"
+														}
+													}
+												},
+												"type": "LakehouseTable",
+												"schema": [],
+												"typeProperties": {
+													"schema": "dbo",
+													"table": {
+														"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).SitesStagingTableName",
+														"type": "Expression"
+													}
+												}
+											}
+										},
+										"enableStaging": true,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "ptenant",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ptenant",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Id",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Id",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Url",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Url",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ArchiveState",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ArchiveState",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "RootWeb_Configuration",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "RootWeb_Configuration",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "RootWeb_Id",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "RootWeb_Id",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "RootWeb_Title",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "RootWeb_Title",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "RootWeb_WebTemplate",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "RootWeb_WebTemplate",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "RootWeb_WebTemplateId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "RootWeb_WebTemplateId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "RootWeb_LastItemModifiedDate",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "RootWeb_LastItemModifiedDate",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "WebCount",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "WebCount",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "StorageQuota",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "StorageQuota",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "StorageUsed",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "StorageUsed",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "StorageMetrics_MetadataSize",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "StorageMetrics_MetadataSize",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "StorageMetrics_TotalFileCount",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "StorageMetrics_TotalFileCount",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "StorageMetrics_TotalFileStreamSize",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "StorageMetrics_TotalFileStreamSize",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "StorageMetrics_TotalSize",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "StorageMetrics_TotalSize",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "GroupId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "GroupId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "GeoLocation",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "GeoLocation",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IsInRecycleBin",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsInRecycleBin",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "RecycleBinItemCount",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "RecycleBinItemCount",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "RecycleBinItemSize",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "RecycleBinItemSize",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "SecondStageRecycleBinStorageUsage",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "SecondStageRecycleBinStorageUsage",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "IsTeamsConnectedSite",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsTeamsConnectedSite",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "IsTeamsChannelSite",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsTeamsChannelSite",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "TeamsChannelType",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "TeamsChannelType",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IsCommunicationSite",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsCommunicationSite",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "IsHubSite",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsHubSite",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "HubSiteId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "HubSiteId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IsOneDrive",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsOneDrive",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "BlockAccessFromUnmanagedDevices",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "BlockAccessFromUnmanagedDevices",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "BlockDownloadOfAllFilesOnUnmanagedDevices",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "BlockDownloadOfAllFilesOnUnmanagedDevices",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "BlockDownloadOfViewableFilesOnUnmanagedDevices",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "BlockDownloadOfViewableFilesOnUnmanagedDevices",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "IsExternalSharingEnabled",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsExternalSharingEnabled",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "Privacy",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Privacy",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ShareByEmailEnabled",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "ShareByEmailEnabled",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "ShareByLinkEnabled",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "ShareByLinkEnabled",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "SiteConnectedToPrivateGroup",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "SiteConnectedToPrivateGroup",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "SensitivityLabelInfo_DisplayName",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SensitivityLabelInfo_DisplayName",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SensitivityLabelInfo_Id",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SensitivityLabelInfo_Id",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Classification",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Classification",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IBMode",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "IBMode",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IBSegments",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "IBSegments",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "RelatedGroupId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "RelatedGroupId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Owner_AadObjectId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Owner_AadObjectId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Owner_Email",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Owner_Email",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Owner_Name",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Owner_Name",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Owner_UPN",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Owner_UPN",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SecondaryContact_AadObjectId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SecondaryContact_AadObjectId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SecondaryContact_Email",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SecondaryContact_Email",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SecondaryContact_Name",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SecondaryContact_Name",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SecondaryContact_UPN",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SecondaryContact_UPN",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ReadLocked",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "ReadLocked",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "ReadOnly",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "ReadOnly",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "CreatedTime",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "CreatedTime",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "LastSecurityModifiedDate",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "LastSecurityModifiedDate",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "Operation",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Operation",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "LastUserAccessDate",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "LastUserAccessDate",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "SnapshotDate",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "SnapshotDate",
+														"physicalType": "timestamp"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											},
+											"columnFlattenSettings": {
+												"treatArrayAsString": false,
+												"treatStructAsString": false,
+												"flattenColumnDelimiter": "_"
+											}
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Do Not Extract Sites",
+									"description": "Do Not Extract Sites  -  Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
+									"type": "Fail",
+									"dependsOn": [],
+									"typeProperties": {
+										"message": "Error: -999 -  Do Not Extract Sites  -  Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
+										"errorCode": "-999"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Extract Files From MGDC",
+						"description": "",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Set Files Snapshot Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Set End Snapshot Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Does Files Data Exists",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"typeProperties": {
+							"expression": {
+								"value": "@and(and(variables('FilesDataExists'),\n     not(pipeline().parameters.ForceFullWhenDataExists)\t \n\t ), greaterOrEquals( startOfDay(variables('StartTimeForFiles')) , startOfDay(variables('EndTime')) ))",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Extract Files To Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"typeProperties": {
+										"source": {
+											"type": "Office365Source",
+											"dateFilterColumn": "SnapshotDate",
+											"startTime": {
+												"value": "@variables('StartTimeForFiles')",
+												"type": "Expression"
+											},
+											"endTime": {
+												"value": "@variables('EndTime')",
+												"type": "Expression"
+											},
+											"datasetSettings": {
+												"annotations": [],
+												"type": "Office365Table",
+												"schema": [],
+												"typeProperties": {
+													"tableName": "BasicDataSet_v0.SharePointFiles_v1"
+												},
+												"DataFilter": {
+													"value": "@pipeline().parameters.FilesFilter",
+													"type": "Expression"
+												},
+												"externalReferences": {
+													"connection": "[parameters('LS_Office365_MGDC')]"
+												}
+											}
+										},
+										"sink": {
+											"type": "LakehouseTableSink",
+											"tableActionOption": "OverwriteSchema",
+											"partitionOption": "None",
+											"datasetSettings": {
+												"annotations": [],
+												"linkedService": {
+													"name": "f589a5e3_9e9f_4bbe_8e32_55faadf2c82f",
+													"properties": {
+														"annotations": [],
+														"type": "Lakehouse",
+														"typeProperties": {
+															"workspaceId": "@pipeline().DataFactory",
+															"artifactId": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).LakehouseId",
+															"rootFolder": "Tables"
+														}
+													}
+												},
+												"type": "LakehouseTable",
+												"schema": [],
+												"typeProperties": {
+													"schema": "dbo",
+													"table": {
+														"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FilesStagingTableName",
+														"type": "Expression"
+													}
+												}
+											}
+										},
+										"enableStaging": true,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "ptenant",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ptenant",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SiteId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SiteId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Author_Email",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Author_Email",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Author_Name",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Author_Name",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "DirName",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "DirName",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Extension",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Extension",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "FileName",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "FileName",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "IsLabelEncrypted",
+														"type": "Boolean",
+														"physicalType": "boolean"
+													},
+													"sink": {
+														"name": "IsLabelEncrypted",
+														"physicalType": "boolean"
+													}
+												},
+												{
+													"source": {
+														"name": "ItemId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ItemId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ListId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ListId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ListServerTemplate",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ListServerTemplate",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "MajorVersion",
+														"type": "Int32",
+														"physicalType": "int32"
+													},
+													"sink": {
+														"name": "MajorVersion",
+														"physicalType": "integer"
+													}
+												},
+												{
+													"source": {
+														"name": "MinorVersion",
+														"type": "Int32",
+														"physicalType": "int32"
+													},
+													"sink": {
+														"name": "MinorVersion",
+														"physicalType": "integer"
+													}
+												},
+												{
+													"source": {
+														"name": "ModifiedBy_Email",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ModifiedBy_Email",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ModifiedBy_Name",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ModifiedBy_Name",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "Operation",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "Operation",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "QuickXorHash",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "QuickXorHash",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "ScopeId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "ScopeId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SensitivityLabelInfo_DisplayName",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SensitivityLabelInfo_DisplayName",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SensitivityLabelInfo_Id",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SensitivityLabelInfo_Id",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SiteUrl",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "SiteUrl",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "SizeInBytes",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "SizeInBytes",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "SizeInBytesWithVersions",
+														"type": "Int64",
+														"physicalType": "int64"
+													},
+													"sink": {
+														"name": "SizeInBytesWithVersions",
+														"physicalType": "long"
+													}
+												},
+												{
+													"source": {
+														"name": "TimeCreated",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "TimeCreated",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "TimeLastModified",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "TimeLastModified",
+														"physicalType": "timestamp"
+													}
+												},
+												{
+													"source": {
+														"name": "WebId",
+														"type": "String",
+														"physicalType": "string"
+													},
+													"sink": {
+														"name": "WebId",
+														"physicalType": "string"
+													}
+												},
+												{
+													"source": {
+														"name": "WebTemplateId",
+														"type": "Int32",
+														"physicalType": "int32"
+													},
+													"sink": {
+														"name": "WebTemplateId",
+														"physicalType": "integer"
+													}
+												},
+												{
+													"source": {
+														"name": "SnapshotDate",
+														"type": "DateTime",
+														"physicalType": "datetime"
+													},
+													"sink": {
+														"name": "SnapshotDate",
+														"physicalType": "timestamp"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											},
+											"columnFlattenSettings": {
+												"treatArrayAsString": false,
+												"treatStructAsString": false,
+												"flattenColumnDelimiter": "_"
+											}
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Do Not Extract Files",
+									"description": "Do Not Extract Files -  Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
+									"type": "Fail",
+									"dependsOn": [],
+									"typeProperties": {
+										"message": "Error: -999 -  Do Not Extract Files - Data already exists and (both start time and end time same or start time is greater than end time) and ForceFullWhenDataExists parameter set to false",
+										"errorCode": "-999"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Files Validations Failed",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Extract Files From MGDC",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "FilesExtractValidationsFailed",
+							"value": "true"
+						}
+					},
+					{
+						"name": "Site Validations Failed",
+						"description": "true",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Extract Sites From MGDC",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "FilesExtractValidationsFailed",
+							"value": "true"
+						}
+					},
+					{
+						"name": "Pipeline Success",
+						"description": "If this activity completed then Pipeline Completed Successfully",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Sites View - Lakehouse SQLEndpoint",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Files View - Lakehouse SQLEndpoint",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Files Aggs View - Lakehouse SQLEndpoint",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"variableName": "PipelineFinalStatus",
+							"value": "Pipeline Completed Successfully"
+						}
+					},
+					{
+						"name": "Wait 1 Min",
+						"description": "Some times SQL Endpoint does not understand the newly created delta lake tables. Need to wait some time for newly created tables to get reflected in SQL catalog.",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "Merge Sites and Files To Final Table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"typeProperties": {
+							"waitTimeInSeconds": 60
+						}
+					},
+					{
+						"name": "Files Aggs View - Lakehouse SQLEndpoint",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "Wait 1 Min",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 300,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": {
+										"value": "@json(activity('Read Last Snapshot Dates').output.result.exitValue).FileAggsView",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00",
+							"database": {
+								"value": "@pipeline().parameters.LakehouseName",
+								"type": "Expression"
+							}
+						},
+						"externalReferences": {
+							"connection": "[parameters('LS_Lakehouse-SQLEndPoint')]"
+						}
+					}
+				],
+				"parameters": {
+					"FilesTableName": {
+						"type": "string",
+						"defaultValue": "Files"
+					},
+					"SitesTableName": {
+						"type": "string",
+						"defaultValue": "Sites"
+					},
+					"StagingSuffix": {
+						"type": "string",
+						"defaultValue": "_Staging"
+					},
+					"LakehouseName": {
+						"type": "string",
+						"defaultValue": "<<LakeHouseNameHere>>"
+					},
+					"StartTime": {
+						"type": "string"
+					},
+					"EndTime": {
+						"type": "string"
+					},
+					"SitesFilter": {
+						"type": "string"
+					},
+					"FilesFilter": {
+						"type": "string"
+					},
+					"ForceFullWhenDataExists": {
+						"type": "bool",
+						"defaultValue": false
+					}
+				},
+				"variables": {
+					"StartTimeForSites": {
+						"type": "String"
+					},
+					"EndTime": {
+						"type": "String"
+					},
+					"StartTimeForFiles": {
+						"type": "String"
+					},
+					"SitesDataExists": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"FilesDataExists": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"SiteExtractValidationsFailed": {
+						"type": "String",
+						"defaultValue": "false"
+					},
+					"FilesExtractValidationsFailed": {
+						"type": "String",
+						"defaultValue": "false"
+					},
+					"PipelineFinalStatus": {
+						"type": "String"
+					}
+				},
+				"lastModifiedByObjectId": "909f00ae-4251-400b-9be6-4af2e0aa2c1c",
+				"lastPublishTime": "2025-07-10T01:55:59Z"
+			},
+			"dependsOn": []
+		}
+	]
+}

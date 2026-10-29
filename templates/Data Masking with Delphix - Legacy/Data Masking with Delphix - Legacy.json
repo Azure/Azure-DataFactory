@@ -1,0 +1,1470 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.1.1.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": "Data Factory name"
+    },
+    "AzureFileStorageLinkedService": {
+      "type": "string"
+    },
+    "AzureBlobStorageLinkedService": {
+      "type": "string"
+    },
+    "AzureSynapseAnalyticsLinkedService": {
+      "type": "string"
+    },
+    "AzureSqlDatabaseLinkedService": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('factoryName'), '/Data Masking with Delphix - Legacy')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "description": "Use this template to mask sensitive data using Delphix Continuous Compliance and load the compliant (masked) data to Azure Synapse. This template extracts data from a source data store, executes Delphix Masking Job(s) to mask sensitive data in the extract using appropriate algorithms, and finally, loads the compliant data into target datastore.\n\nApply data-ready rules for regulatory needs like GDPR, CCPA, HIPAA, and others, and automatically move compliant data from sources like SAP, Salesforce, and Oracle EBS to high-value service layers, like Microsoft Synapse. Delphix masks data consistently across data sources, maintaining referential integrity for integrated application testing.\n\nNote: A purchase of Delphix Continuous Compliance engine is required to use this template. To receive Delphix support, please register your engine at https://support-register.delphix.com",
+        "activities": [
+          {
+            "name": "Delphix Login",
+            "description": "API login to Delphix Compliance Engine",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Get Compliance Engine Password",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 2,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.MaskingEngineIP,'/masking/api/v5.1.11/login')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              "body": {
+                "value": "{\"username\":\"@{activity('Get Compliance Engine User').output.value}\",\"password\":\"@{activity('Get Compliance Engine Password').output.value}\"}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Trigger Masking Jobs",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "Delphix Login",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@pipeline().parameters.Joblist",
+                "type": "Expression"
+              },
+              "isSequential": false,
+              "activities": [
+                {
+                  "name": "Trigger masking job in parallel",
+                  "type": "ExecutePipeline",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "pipeline": {
+                      "referenceName": "Invoke atomic masking job",
+                      "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                      "job": {
+                        "value": "@item()",
+                        "type": "Expression"
+                      },
+                      "authkey": {
+                        "value": "@activity('Delphix Login').output.Authorization",
+                        "type": "Expression"
+                      },
+                      "maskingengineip": {
+                        "value": "@pipeline().parameters.MaskingEngineIP",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "One or more Masking Jobs Failed",
+            "type": "Fail",
+            "dependsOn": [
+              {
+                "activity": "Trigger Masking Jobs",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "message": "One or more Masking Jobs Failed",
+              "errorCode": "1"
+            }
+          },
+          {
+            "name": "List files in Target Fileshare",
+            "description": "",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Copy Unmasked Files to Target Fileshare",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "FileShareDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "DirectoryName": {
+                    "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Target')",
+                    "type": "Expression"
+                  },
+                  "FileName": "*"
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureFileStorageReadSettings",
+                "recursive": true,
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Load data to Synapse",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "List files in Target Fileshare",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('List files in Target Fileshare').output.childItems",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Copy data from Blob Storage to Synapse",
+                  "type": "Copy",
+                  "dependsOn": [
+                    {
+                      "activity": "Copy data from Target Fileshare to Blob Storage",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "wildcardFolderPath": "maskeddata",
+                        "wildcardFileName": {
+                          "value": "@item().name",
+                          "type": "Expression"
+                        },
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "SqlDWSink",
+                      "writeBehavior": "Insert",
+                      "tableOption": "autoCreate",
+                      "disableMetricsCollection": false
+                    },
+                    "enableStaging": false
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "rootDataSetRowHeader1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "maskeddata",
+                        "fileName": "@item().name"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "ConnectToSynapseDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "tableName": "@split(item().name,'.' )[1]",
+                        "schmaName": "@pipeline().parameters.TargetSchemaName"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Copy data from Target Fileshare to Blob Storage",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureFileStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                      "type": "TabularTranslator",
+                      "typeConversion": true,
+                      "typeConversionSettings": {
+                        "allowDataTruncation": true,
+                        "treatBooleanAsNumber": false
+                      }
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "FileShareDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Target')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@item().name"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "rootDataSetRowHeader1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "maskeddata",
+                        "fileName": "@item().name"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Delete Files in Target FileShare",
+                  "type": "Delete",
+                  "dependsOn": [
+                    {
+                      "activity": "Copy data from Blob Storage to Synapse",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "dataset": {
+                      "referenceName": "FileShareDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Target')",
+                          "type": "Expression"
+                        },
+                        "FileName": {
+                          "value": "@item().name",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    "enableLogging": false,
+                    "storeSettings": {
+                      "type": "AzureFileStorageReadSettings",
+                      "recursive": true,
+                      "enablePartitionDiscovery": false
+                    }
+                  }
+                },
+                {
+                  "name": "Delete Files in Source FileShare",
+                  "type": "Delete",
+                  "dependsOn": [
+                    {
+                      "activity": "Copy data from Blob Storage to Synapse",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "dataset": {
+                      "referenceName": "FileShareDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Source')",
+                          "type": "Expression"
+                        },
+                        "FileName": {
+                          "value": "@item().name",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    "enableLogging": false,
+                    "storeSettings": {
+                      "type": "AzureFileStorageReadSettings",
+                      "recursive": true,
+                      "enablePartitionDiscovery": false
+                    }
+                  }
+                },
+                {
+                  "name": "Delete Files in masked data container",
+                  "type": "Delete",
+                  "dependsOn": [
+                    {
+                      "activity": "Copy data from Blob Storage to Synapse",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "dataset": {
+                      "referenceName": "rootDataSet1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "containerName": {
+                          "value": "@pipeline().parameters.ContainerRootFolder",
+                          "type": "Expression"
+                        },
+                        "directoryName": "maskeddata",
+                        "fileName": {
+                          "value": "@item().name",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    "enableLogging": false,
+                    "storeSettings": {
+                      "type": "AzureBlobStorageReadSettings",
+                      "recursive": true,
+                      "enablePartitionDiscovery": false
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Copy Unmasked Files to Target Fileshare",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "List Unmasked Files",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('List Unmasked Files').output.childItems",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Copy data from Source to Target Fileshare",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "DelimitedTextSource",
+                      "storeSettings": {
+                        "type": "AzureFileStorageReadSettings",
+                        "recursive": true,
+                        "wildcardFolderPath": {
+                          "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Source')",
+                          "type": "Expression"
+                        },
+                        "wildcardFileName": {
+                          "value": "@item().name",
+                          "type": "Expression"
+                        },
+                        "enablePartitionDiscovery": false
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureFileStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "FileShareDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Source')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@item().name"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "FileShareDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.fileSharerootFolder,'/Target')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@item().name"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "List Unmasked Files",
+            "type": "GetMetadata",
+            "dependsOn": [
+              {
+                "activity": "Trigger Masking Jobs",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "FileShareDataset",
+                "type": "DatasetReference",
+                "parameters": {
+                  "DirectoryName": {
+                    "value": "@concat(pipeline().parameters.FileSharerootFolder,'/Target')",
+                    "type": "Expression"
+                  },
+                  "FileName": "*"
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureFileStorageReadSettings",
+                "recursive": true,
+                "modifiedDatetimeEnd": {
+                  "value": "@pipeline().TriggerTime",
+                  "type": "Expression"
+                },
+                "enablePartitionDiscovery": false
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "Is Extract Source data required",
+            "type": "IfCondition",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@equals(pipeline().parameters.ExtractData,true)",
+                "type": "Expression"
+              },
+              "ifTrueActivities": [
+                {
+                  "name": "Extract Source Data",
+                  "type": "ExecutePipeline",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "pipeline": {
+                      "referenceName": "Extract Source Data",
+                      "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                      "QueryToFetchTables": {
+                        "value": "@pipeline().parameters.QueryToFetchTables",
+                        "type": "Expression"
+                      },
+                      "rootFolder": {
+                        "value": "@pipeline().parameters.FileSharerootFolder",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "Get Compliance Engine User",
+            "description": "This web activity gets the Compliance engine username from the Key Vault.",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Is Extract Source data required",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.VaultURLForUsername",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {},
+              "authentication": {
+                "type": "MSI",
+                "resource": "https://vault.azure.net"
+              }
+            }
+          },
+          {
+            "name": "Get Compliance Engine Password",
+            "description": "This web activity gets the Compliance engine Password from the Key Vault.",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Get Compliance Engine User",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": true,
+              "secureInput": true
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.VaultURLForPassword",
+                "type": "Expression"
+              },
+              "method": "GET",
+              "headers": {},
+              "authentication": {
+                "type": "MSI",
+                "resource": "https://vault.azure.net"
+              }
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "Joblist": {
+            "type": "array"
+          },
+          "VaultURLForUsername": {
+            "type": "securestring"
+          },
+          "VaultURLForPassword": {
+            "type": "securestring"
+          },
+          "MaskingEngineIP": {
+            "type": "string"
+          },
+          "QueryToFetchTables": {
+            "type": "string"
+          },
+          "TargetSchemaName": {
+            "type": "string"
+          },
+          "ExtractData": {
+            "type": "bool",
+            "defaultValue": true
+          },
+          "FileSharerootFolder": {
+            "type": "string"
+          },
+          "ContainerRootFolder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "result": {
+            "type": "String"
+          },
+          "status": {
+            "type": "String"
+          },
+          "PipelineRunId": {
+            "type": "String"
+          },
+          "Output": {
+            "type": "String"
+          },
+          "appId": {
+            "type": "String"
+          },
+          "ApplicationId": {
+            "type": "String"
+          },
+          "final": {
+            "type": "String"
+          },
+          "uploadStatus": {
+            "type": "String"
+          },
+          "targetSetup": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [
+          "Delphix",
+          "Anonymization",
+          "Masking",
+          "Compliance"
+        ],
+        "lastPublishTime": "2022-12-15T04:51:39Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/FileShareDataset')]",
+        "[concat(variables('factoryId'), '/pipelines/Invoke atomic masking job')]",
+        "[concat(variables('factoryId'), '/datasets/rootDataSetRowHeader1')]",
+        "[concat(variables('factoryId'), '/datasets/ConnectToSynapseDataset')]",
+        "[concat(variables('factoryId'), '/datasets/rootDataSet1')]",
+        "[concat(variables('factoryId'), '/pipelines/Extract Source Data')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/FileShareDataset')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureFileStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "DirectoryName": {
+            "type": "string"
+          },
+          "FileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure File Shares"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureFileStorageLocation",
+            "fileName": {
+              "value": "@dataset().FileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().DirectoryName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": true,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/Invoke atomic masking job')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "activities": [
+          {
+            "name": "Trigger Masking Job",
+            "type": "WebActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": {
+                "value": "@concat('http://',pipeline().parameters.maskingengineip,'/masking/api/v5.1.11/executions')",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "headers": {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": {
+                  "value": "@pipeline().parameters.authkey",
+                  "type": "Expression"
+                }
+              },
+              "body": {
+                "value": "{\"jobId\":@{pipeline().parameters.job}}",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "Polling",
+            "type": "Until",
+            "dependsOn": [
+              {
+                "activity": "Trigger Masking Job",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@or(equals(activity('Check masking job in polling').output.status, 'SUCCEEDED'),or(equals(activity('Check masking job in polling').output.status,'FAILED'),or(equals(activity('Check masking job in polling').output.status,'CANCELLED'), equals(activity('Check masking job in polling').output.status,'NON-CONFORMANT'))))",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Status Polling",
+                  "type": "SetVariable",
+                  "dependsOn": [
+                    {
+                      "activity": "Check masking job in polling",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "status",
+                    "value": {
+                      "value": "@activity('Check masking job in polling').output.status",
+                      "type": "Expression"
+                    }
+                  }
+                },
+                {
+                  "name": "Check masking job in polling",
+                  "type": "WebActivity",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "url": {
+                      "value": "@concat('http://',pipeline().parameters.maskingengineip,'/masking/api/v5.1.11/executions/', activity('Trigger Masking Job').output.executionId)",
+                      "type": "Expression"
+                    },
+                    "method": "GET",
+                    "headers": {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                      "Authorization": {
+                        "value": "@pipeline().parameters.authkey",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                }
+              ],
+              "timeout": "0.12:00:00"
+            }
+          },
+          {
+            "name": "If final status of the job is FAILED",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "Polling",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@or(equals(activity('Check masking job in polling').output.status, 'FAILED'),equals(activity('Check masking job in polling').output.status, 'CANCELLED'))",
+                "type": "Expression"
+              },
+              "ifFalseActivities": [
+                {
+                  "name": "Job Result",
+                  "type": "SetVariable",
+                  "dependsOn": [],
+                  "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "variableName": "result",
+                    "value": {
+                      "value": "@concat('Job: ', activity('Check masking job in polling').output.jobId, ' succeeded')",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ],
+              "ifTrueActivities": [
+                {
+                  "name": "Failure",
+                  "type": "Fail",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "message": {
+                      "value": "@concat('Job: ', activity('Check masking job in polling').output.jobId, ' failed. Please check the masking engine logs.')",
+                      "type": "Expression"
+                    },
+                    "errorCode": "1"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "job": {
+            "type": "string"
+          },
+          "authkey": {
+            "type": "string"
+          },
+          "maskingengineip": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "result": {
+            "type": "String"
+          },
+          "status": {
+            "type": "String"
+          },
+          "sourceSetup": {
+            "type": "Boolean"
+          },
+          "maskingSetupSuccess": {
+            "type": "Boolean"
+          },
+          "Execution": {
+            "type": "Boolean"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [],
+        "lastPublishTime": "2022-12-09T04:14:55Z"
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/rootDataSetRowHeader1')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": true,
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/ConnectToSynapseDataset')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureSynapseAnalyticsLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "tableName": {
+            "type": "string"
+          },
+          "schmaName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Synapse"
+        },
+        "annotations": [],
+        "type": "AzureSqlDWTable",
+        "schema": [
+          {
+            "name": "NAME",
+            "type": "varchar"
+          },
+          {
+            "name": "LAST_NAME",
+            "type": "varchar"
+          },
+          {
+            "name": "AGE",
+            "type": "int",
+            "precision": 10
+          },
+          {
+            "name": "GENDER",
+            "type": "varchar"
+          }
+        ],
+        "typeProperties": {
+          "schema": {
+            "value": "@dataset().schmaName",
+            "type": "Expression"
+          },
+          "table": {
+            "value": "@dataset().tableName",
+            "type": "Expression"
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/rootDataSet1')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureBlobStorageLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "containerName": {
+            "type": "string"
+          },
+          "directoryName": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure Blob Storage"
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directoryName",
+              "type": "Expression"
+            },
+            "container": {
+              "value": "@dataset().containerName",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "quoteChar": "\""
+        },
+        "schema": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/Extract Source Data')]",
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "activities": [
+          {
+            "name": "List All Tables",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "0.12:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "AzureSqlSource",
+                "sqlReaderQuery": {
+                  "value": "@pipeline().parameters.QueryToFetchTables",
+                  "type": "Expression"
+                },
+                "queryTimeout": "02:00:00",
+                "partitionOption": "None"
+              },
+              "dataset": {
+                "referenceName": "ConnectToSourceData1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "TableName": "*",
+                  "TableSchema": "*"
+                }
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "Iterator to loop over all tables",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "List All Tables",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('List All Tables').output.value",
+                "type": "Expression"
+              },
+              "activities": [
+                {
+                  "name": "Copies data from table to csv file",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "AzureSqlSource",
+                      "sqlReaderQuery": {
+                        "value": "SELECT * FROM [@{item().TABLE_SCHEMA}].[@{item().TABLE_NAME}];",
+                        "type": "Expression"
+                      },
+                      "queryTimeout": "02:00:00",
+                      "partitionOption": "None"
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureFileStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "quoteAllText": true,
+                        "fileExtension": ".txt"
+                      }
+                    },
+                    "enableStaging": false
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "GetSourceData1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "TableName": "@item().TABLE_NAME",
+                        "TableSchema": "@item().TABLE_SCHEMA"
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "FileShareDataset",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "DirectoryName": {
+                          "value": "@concat(pipeline().parameters.rootFolder,'/Source')",
+                          "type": "Expression"
+                        },
+                        "FileName": "@{item().TABLE_SCHEMA}.@{item().TABLE_NAME}.csv"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {},
+          "cancelAfter": {}
+        },
+        "parameters": {
+          "QueryToFetchTables": {
+            "type": "string"
+          },
+          "rootFolder": {
+            "type": "string"
+          }
+        },
+        "variables": {
+          "sourceSetup": {
+            "type": "Boolean"
+          },
+          "maskingSetupSuccess": {
+            "type": "Boolean"
+          },
+          "Execution": {
+            "type": "Boolean"
+          },
+          "uploadStatus": {
+            "type": "String"
+          },
+          "targetSetup": {
+            "type": "String"
+          }
+        },
+        "folder": {
+          "name": "Delphix Continous Compliance"
+        },
+        "annotations": [],
+        "lastPublishTime": "2022-12-12T05:22:44Z"
+      },
+      "dependsOn": [
+        "[concat(variables('factoryId'), '/datasets/ConnectToSourceData1')]",
+        "[concat(variables('factoryId'), '/datasets/GetSourceData1')]",
+        "[concat(variables('factoryId'), '/datasets/FileShareDataset')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/ConnectToSourceData1')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureSqlDatabaseLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "TableName": {
+            "type": "string"
+          },
+          "TableSchema": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure SQL Database"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+          {
+            "name": "Street",
+            "type": "varchar"
+          },
+          {
+            "name": "city",
+            "type": "varchar"
+          },
+          {
+            "name": "Zip",
+            "type": "int",
+            "precision": 10
+          },
+          {
+            "name": "Country",
+            "type": "varchar"
+          }
+        ],
+        "typeProperties": {
+          "schema": {
+            "value": "@dataset().TableSchema",
+            "type": "Expression"
+          },
+          "table": {
+            "value": "@dataset().TableName",
+            "type": "Expression"
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('factoryName'), '/GetSourceData1')]",
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[parameters('AzureSqlDatabaseLinkedService')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "TableName": {
+            "type": "string"
+          },
+          "TableSchema": {
+            "type": "string"
+          }
+        },
+        "folder": {
+          "name": "Azure SQL Database"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+          {
+            "name": "Street",
+            "type": "varchar"
+          },
+          {
+            "name": "city",
+            "type": "varchar"
+          },
+          {
+            "name": "Zip",
+            "type": "int",
+            "precision": 10
+          },
+          {
+            "name": "Country",
+            "type": "varchar"
+          }
+        ],
+        "typeProperties": {
+          "schema": {
+            "value": "@dataset().TableSchema",
+            "type": "Expression"
+          },
+          "table": {
+            "value": "@dataset().TableName",
+            "type": "Expression"
+          }
+        }
+      },
+      "dependsOn": []
+    }
+  ]
+}

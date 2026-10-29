@@ -1,0 +1,352 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/Databricks - Run Serverless Notebook')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "This template can be used to submit notebook runs to a Databricks Workspace using serverless jobs compute.",
+                "activities": [
+                    {
+                        "name": "Execute Jobs API",
+                        "description": "This task submits the notebook to the run submit API endpoint.",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.00:10:00",
+                            "retry": 3,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "method": "POST",
+                            "headers": {},
+                            "url": {
+                                "value": "@concat('https://',pipeline().parameters.DatabricksWorkspaceID,'.azuredatabricks.net/api/2.1/jobs/runs/submit')",
+                                "type": "Expression"
+                            },
+                            "body": {
+                                "value": "{\n  \"run_name\": \"@{pipeline().parameters.DatabricksRunName}\",\n  \"tasks\": [\n    {\n      \"task_key\": \"@{pipeline().parameters.DatabricksRunName}\",\n      \"notebook_task\": {\n                \"base_parameters\": @{pipeline().parameters.DatabricksNotebookParameters},\n        \"notebook_path\": \"@{pipeline().parameters.DatabricksNotebookPath}\",\n        \"source\": \"WORKSPACE\"\n        }\n    }\n  ]\n}\n",
+                                "type": "Expression"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Wait Until Job Completes",
+                        "type": "Until",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Jobs API",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@not(equals(variables('JobStatus'),'Running'))",
+                                "type": "Expression"
+                            },
+                            "activities": [
+                                {
+                                    "name": "Check Job Run API",
+                                    "type": "WebActivity",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.00:10:00",
+                                        "retry": 3,
+                                        "retryIntervalInSeconds": 60,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "method": "GET",
+                                        "headers": {},
+                                        "url": {
+                                            "value": "@concat('https://',pipeline().parameters.DatabricksWorkspaceID,'.azuredatabricks.net/api/2.1/jobs/runs/get?run_id=',activity('Execute Jobs API').output.run_id)",
+                                            "type": "Expression"
+                                        },
+                                        "body": {
+                                            "job_id": 3895
+                                        },
+                                        "authentication": {
+                                            "type": "MSI",
+                                            "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Set Job Status",
+                                    "type": "SetVariable",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Check Job Run API",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "policy": {
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "variableName": "JobStatus",
+                                        "value": {
+                                            "value": "@if(\nor(\nequals(activity('Check Job Run API').output.state.life_cycle_state, 'PENDING'), equals(activity('Check Job Run API').output.state.life_cycle_state, 'RUNNING')\n), \n'Running',\nactivity('Check Job Run API').output.state.result_state\n)",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Wait to Recheck API",
+                                    "type": "Wait",
+                                    "dependsOn": [
+                                        {
+                                            "activity": "Set Job Status",
+                                            "dependencyConditions": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    ],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "waitTimeInSeconds": {
+                                            "value": "@pipeline().parameters.ADFWaitSeconds",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "timeout": "7.00:00:00"
+                        }
+                    },
+                    {
+                        "name": "Check Job Status",
+                        "type": "IfCondition",
+                        "dependsOn": [
+                            {
+                                "activity": "Wait Until Job Completes",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "expression": {
+                                "value": "@equals(variables('JobStatus'),'SUCCESS')",
+                                "type": "Expression"
+                            },
+                            "ifFalseActivities": [
+                                {
+                                    "name": "Databricks Job Fail",
+                                    "description": "The Databricks job has failed.",
+                                    "type": "Fail",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "message": {
+                                            "value": "@concat('Job Run URL: ', activity('Check Job Run API').output.run_page_url)",
+                                            "type": "Expression"
+                                        },
+                                        "errorCode": "Databricks Error"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Get Job Run URL",
+                        "description": "Get's the job run URL after the run has been submitted.",
+                        "type": "WebActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Execute Jobs API",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.00:10:00",
+                            "retry": 3,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "method": "GET",
+                            "headers": {},
+                            "url": {
+                                "value": "@concat('https://',pipeline().parameters.DatabricksWorkspaceID,'.azuredatabricks.net/api/2.1/jobs/runs/get?run_id=',activity('Execute Jobs API').output.run_id)",
+                                "type": "Expression"
+                            },
+                            "body": {
+                                "job_id": 3895
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set Run Page URL",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Job Run URL",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "jobRunURL",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@activity('Get Job Run URL').output.run_page_url"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    },
+                    {
+                        "name": "Get Job Output",
+                        "type": "WebActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "Check Job Status",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "method": "GET",
+                            "headers": {},
+                            "url": {
+                                "value": "@concat('https://',pipeline().parameters.DatabricksWorkspaceID,'.azuredatabricks.net/api/2.1/jobs/runs/get-output?run_id=',activity('Check Job Run API').output.tasks[0].run_id)",
+                                "type": "Expression"
+                            },
+                            "authentication": {
+                                "type": "MSI",
+                                "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Set Notebook Output Result",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "Get Job Output",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "variableName": "pipelineReturnValue",
+                            "value": [
+                                {
+                                    "key": "notebookOutputResult",
+                                    "value": {
+                                        "type": "Expression",
+                                        "content": "@if(\n    contains(activity('Get Job Output').output.notebook_output, 'result'),\n    activity('Get Job Output').output.notebook_output.result,\n    null\n)"
+                                    }
+                                }
+                            ],
+                            "setSystemVariable": true
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "parameters": {
+                    "DatabricksNotebookPath": {
+                        "type": "string",
+                        "defaultValue": "/Workspace/Shared/test"
+                    },
+                    "DatabricksWorkspaceID": {
+                        "type": "string",
+                        "defaultValue": "adb-193752524297111.11"
+                    },
+                    "ADFWaitSeconds": {
+                        "type": "int",
+                        "defaultValue": 30
+                    },
+                    "DatabricksNotebookParameters": {
+                        "type": "string",
+                        "defaultValue": {
+                            "Example_ETL_PARAM": "99"
+                        }
+                    },
+                    "DatabricksRunName": {
+                        "type": "string",
+                        "defaultValue": "ADFServerlessJob"
+                    }
+                },
+                "variables": {
+                    "JobStatus": {
+                        "type": "String",
+                        "defaultValue": "Running"
+                    }
+                },
+                "folder": {
+                    "name": "Custom Databricks Activities"
+                },
+                "annotations": [
+                    "Databricks"
+                ],
+                "lastPublishTime": "2024-10-21T23:16:25Z"
+            },
+            "dependsOn": []
+        }
+    ]
+}

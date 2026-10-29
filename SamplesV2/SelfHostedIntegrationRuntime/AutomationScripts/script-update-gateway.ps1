@@ -1,196 +1,286 @@
-﻿# This script is used to udpate/ install + register latest self-hosted integration runtime.
-# And the steps are like this:
-# 1. check current self-hosted IR version
-# 2. Get latest version or specified version from argument
-# 3. if there is newer version than current version  
-#    3.1 download self-hosted IR msi
-#    3.2 upgrade it
-
-## And here is the usage:
-## 1. Download and install latest gateway
-## PS > .\script-update-gateway.ps1
-## 2. Download and install gateway of specified version
-## PS > .\script-update-gateway.ps1 -version 2.11.6380.20
-
-param(
-    [Parameter(Mandatory=$false)]
+﻿param (
+    [Parameter(Mandatory = $false)]
     [string]
-    $version
+    $version,
+    [Parameter(Mandatory = $false)]
+    [string]
+    $allowDowngrade,
+    [Parameter(Mandatory = $false)]
+    [string]
+    $servicePassword
 )
 
-function Get-CurrentGatewayVersion()
-{
-    $registryKeyValue = Get-RegistryKeyValue "Software\Microsoft\DataTransfer\DataManagementGateway\ConfigurationManager"
+$ErrorActionPreference = "Stop"
 
-    $baseFolderPath = [System.IO.Path]::GetDirectoryName($registryKeyValue.GetValue("DiacmdPath"))
-    $filePath = [System.IO.Path]::Combine($baseFolderPath, "Microsoft.DataTransfer.GatewayManagement.dll")
-    
-    $version = $null
-    if (Test-Path $filePath)
-    {
-        $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($filePath).FileVersion
-        $msg = "Current gateway: " + $version
-        Write-Host $msg
-    }
-    
-    return $version
-}
+$ProductName = "Microsoft Integration Runtime"
+$supportedVersion = [System.Version]::new("5.4.7793.1")
 
-function Get-LatestGatewayVersion()
-{
-    $latestGateway = Get-RedirectedUrl "https://go.microsoft.com/fwlink/?linkid=839822"
-    $item = $latestGateway.split("/") | Select-Object -Last 1
-    if ($item -eq $null -or $item -notlike "IntegrationRuntime*")
-    {
-        throw "Can't get latest gateway info"
+function Get-PushedIntegrationRuntimeVersion() {
+    $latestIR = Get-RedirectedUrl "https://go.microsoft.com/fwlink/?linkid=839822"
+    $item = $latestIR.split("/") | Select-Object -Last 1
+    if ($null -eq $item -or $item -notlike "IntegrationRuntime*") {
+        throw "Can't get pushed $ProductName info"
     }
 
     $regexp = '^IntegrationRuntime_(\d+\.\d+\.\d+\.\d+)\s*\.msi$'
 
     $version = [regex]::Match($item, $regexp).Groups[1].Value
-    if ($version -eq $null)
-    {
-        throw "Can't get version from gateway download uri"
+    if ($null -eq $version) {
+        throw "Can't get version from $ProductName download uri"
     }
 
-    $msg = "Latest gateway: " + $version
-    Write-Host $msg
+    Write-InfoMsg "Pushed $ProductName version is $version"
+
     return $version
 }
 
-function Get-RegistryKeyValue
-{
-     param($registryPath)
-
-     $is64Bits = Is-64BitSystem
-     if($is64Bits)
-     {
-          $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64)
-          return $baseKey.OpenSubKey($registryPath)
-     }
-     else
-     {
-          $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry32)
-          return $baseKey.OpenSubKey($registryPath)
-     }
-}
-
-
-function Get-RedirectedUrl 
-{
-    $URL = "https://go.microsoft.com/fwlink/?linkid=839822"
- 
-    $request = [System.Net.WebRequest]::Create($url)
-    $request.AllowAutoRedirect=$false
-    $response=$request.GetResponse()
- 
-    If ($response.StatusCode -eq "Found")
-    {
-        $response.GetResponseHeader("Location")
-    }
-}
-
-function Download-GatewayInstaller
-{
-    Param (
-        [Parameter(Mandatory=$true)]
-        [String]$version
-    )
-
-    Write-Host "Start to download MSI"
-    $uri = Populate-Url $version
-    $folder = New-TempDirectory
+function Get-IntegrationRuntimeInstaller([string] $folder, [string] $version) {
+    $uri = Get-InstallerUrl $version
     $output = Join-Path $folder "IntegrationRuntime.msi"
+    Write-InfoMsg "Start to download $ProductName installer of version $version from $uri"
     (New-Object System.Net.WebClient).DownloadFile($uri, $output)
 
-    $exist = Test-Path($output)
-    if ( $exist -eq $false)
-    {
-        throw "Cannot download specified MSI"
+    if (-Not (Test-Path $output -PathType Leaf)) {
+        throw "Cannot download $ProductName installer of version $version"
     }
 
-    $msg = "New gateway MSI has been downloaded to " + $output
-    Write-Host $msg
+    Write-InfoMsg "$ProductName installer has been downloaded to $output."
     return $output
 }
 
-function Populate-Url
-{
-    Param (
-        [Parameter(Mandatory=$true)]
-        [String]$version
-    )
-    
+function Get-InstallerUrl([string] $version) {
     $uri = Get-RedirectedUrl
     $uri = $uri.Substring(0, $uri.LastIndexOf('/') + 1)
     $uri += "IntegrationRuntime_$version.msi"
-    
+
     return $uri
 }
 
-function Install-Gateway
-{
-    Param (
-        [Parameter(Mandatory=$true)]
-        [String]$msi
-    )
+function Get-RedirectedUrl {
+    $URL = "https://go.microsoft.com/fwlink/?linkid=839822"
 
-    $exist = Test-Path($msi)
-    if ( $exist -eq $false)
-    {
-        throw 'there is no MSI found: $msi'
+    $request = [System.Net.WebRequest]::Create($url)
+    $request.AllowAutoRedirect = $false
+    $response = $request.GetResponse()
+
+    If ($response.StatusCode -eq "Found") {
+        $response.GetResponseHeader("Location")
     }
-
-
-    Write-Host "Start to install gateway ..."
-
-    $arg = "/i " + $msi + " /quiet /norestart"
-    Start-Process -FilePath "msiexec.exe" -ArgumentList $arg -Wait -Passthru -NoNewWindow
-    
-    Write-Host "Gateway has been successfully updated!"
 }
 
 function New-TempDirectory {
     $parent = [System.IO.Path]::GetTempPath()
     [string] $name = [System.Guid]::NewGuid()
-    New-Item -ItemType Directory -Path (Join-Path $parent $name)
+    return (New-Item -ItemType Directory -Path (Join-Path $parent $name))
 }
 
+function Get-CurrentIntegrationRuntimeVersion() {
+    $baseFolderPath = [System.IO.Path]::GetDirectoryName((Get-CmdFilePath))
+    $filePath = [System.IO.Path]::Combine($baseFolderPath, "Microsoft.DataTransfer.GatewayManagement.dll")
+    
+    $currentVersion = $null
+    if (Test-Path $filePath -PathType Leaf) {
+        $currentVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($filePath).FileVersion
+        Write-InfoMsg "Current $ProductName version is $currentVersion"
+    }
 
-function Is-64BitSystem
-{
-     $computerName= $env:COMPUTERNAME
-     $osBit = (get-wmiobject win32_processor -computername $computerName).AddressWidth
-     return $osBit -eq '64'
+    return $currentVersion
 }
 
+function Get-RegistryKeyValue ([string] $registryPath) {
+    $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64)
+    return $baseKey.OpenSubKey($registryPath)
+}
+
+function Get-IntegrationRuntimeIdentityNumber {
+    $installedSoftwares = Get-ChildItem "hklm:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+    foreach ($installedSoftware in $installedSoftwares) {
+        $displayName = $installedSoftware.GetValue("DisplayName")
+        if ($DisplayName -eq "$ProductName Preview" -or $DisplayName -eq "$ProductName") {
+            return Split-Path $installedSoftware.Name -Leaf
+        }
+    }
+
+    return $null
+}
+
+function Backup-IntegrationRuntimeConfig ([string] $installPath) {
+    Write-InfoMsg "Start to backup $ProductName configuration files."
+    $cmd = Get-CmdFilePath
+    $process = Start-Process $cmd "-ucf ""$installPath"" store" -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0) {
+        throw "Failed to backup $ProductName configuration files. Exit code: $($process.ExitCode)"
+    }
+    Write-InfoMsg "Succeed to backup $ProductName configuration files."
+}
+
+function Restore-IntegrationRuntimeConfig ([string] $installPath) {
+    Write-InfoMsg "Start to restore $ProductName configuration files."
+    $cmd = Get-CmdFilePath
+    $process = Start-Process $cmd "-ucf ""$installPath"" recover true" -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0) {
+        throw "Failed to restore $ProductName configuration files. Exit code: $($process.ExitCode)"
+    }
+    Write-InfoMsg "Succeed to restore $ProductName configuration files."
+}
+
+function Get-CmdFilePath {
+    $registryKeyValue = Get-RegistryKeyValue "Software\Microsoft\DataTransfer\DataManagementGateway\ConfigurationManager"
+    $filePath = $registryKeyValue.GetValue("DiacmdPath")
+    if ([string]::IsNullOrEmpty($filePath)) {
+        throw "Cannot find CLI executable file."
+    }
+    return (Split-Path -Parent $filePath) + "\dmgcmd.exe"
+}
+
+function Get-IntegrationRuntimeServiceAccount {
+    $irService = Get-WmiObject win32_service | Where-Object { $_.Name -eq "DIAHostService" }
+    return $irService.startname
+}
+
+function Set-IntegrationRuntimeServiceAccount ([string] $account, [string] $password) {
+    $cmd = Get-CmdFilePath
+    $process = Start-Process $cmd "-ssa $account $password" -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0) {
+        throw "Failed to set service account of $ProductName. Exit code: $($process.ExitCode)"
+    }
+    Write-InfoMsg "Succeed to set service account of $ProductName."
+}
+
+function Get-IntegrationRuntimeExeFolder {
+    $registryKeyValue = Get-RegistryKeyValue "Software\Microsoft\DataTransfer\DataManagementGateway\ConfigurationManager"
+    return Split-Path $registryKeyValue.GetValue("DiacmdPath") -Parent
+}
+
+function Uninstall-IntegrationRuntime ([string] $identityNumber) {
+    Write-InfoMsg "Start to uninstall $ProductName with identity number: $identityNumber"
+    $process = Start-Process "msiexec.exe" "/x $identityNumber /quiet KEEPDATA=1" -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0) {
+        throw "Failed to uninstall $ProductName. Exit code: $($process.ExitCode). Please try to uninstall $ProductName manually"
+    }
+    Write-InfoMsg "Succeed to uninstall $ProductName."
+}
+
+function Install-IntegrationRuntime ([string] $installerPath, [string] $installedPath, [boolean] $skipStartService) {
+    Write-InfoMsg "Start to install $ProductName"
+    $installArgs = "/i $installerPath /quiet"
+    if (-not [string]::IsNullOrEmpty($installedPath)) {
+        $installArgs += " INSTALLLOCATION=""$installedPath"""
+    }
+    if ($skipStartService) {
+        $installArgs += " SKIPSTARTSERVICE=""Yes"""
+    }
+    Write-InfoMsg "Install arguments: $installArgs"
+    $process = Start-Process "msiexec.exe" $installArgs -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0) {
+        throw "Failed to install $ProductName. Exit code: $($process.ExitCode). Please try to install $installPath manually"
+    }
+    Write-InfoMsg "Succeed to install $ProductName."
+}
+
+function Write-InfoMsg([string] $msg) {
+    Write-Host "[$(Get-UtcNowString)][Info] $msg"
+}
+
+function Write-ErrorMsg([string] $msg) {
+    Write-Host "[$(Get-UtcNowString)][Error] $msg" -ForegroundColor Red
+}
+
+function Get-UtcNowString {
+    $utcNow = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date), 'UTC')
+    return $utcNow.ToString("yyyy-MM-dd HH:mm:ss UTC")
+}
+
+# Main
 If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
-    [Security.Principal.WindowsBuiltInRole] "Administrator"))
-{
-    Write-Warning "You do not have Administrator rights to run this script!`nPlease re-run this script as an Administrator!"
-    Break
+            [Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-ErrorMsg "You do not have Administrator rights to run this script!`nPlease re-run this script as an Administrator!"
+    Exit 1001
 }
 
-$currentVersion = Get-CurrentGatewayVersion
-if ($currentVersion -eq $null)
-{
-    Write-Host "There is no gateway found on your machine, exiting ..."
-    break
+if ([string]::IsNullOrWhiteSpace($version)) {
+    $version = Get-PushedIntegrationRuntimeVersion
 }
 
-$versionToInstall = $version
-if ([string]::IsNullOrEmpty($versionToInstall))
-{
-    $versionToInstall = Get-LatestGatewayVersion
+$versionObject = $null
+if (-Not [System.Version]::TryParse($version, [ref]$versionObject)) {
+    Write-ErrorMsg "Invalid version value: $version."
+    Exit 1002
+}
+if ($versionObject -lt $supportedVersion) {
+    Write-ErrorMsg "Update to version less than $supportedVersion isn't supported."
+    Exit 1003
+}
+Write-InfoMsg "The version to be installed is $version"
+
+$identityNumber = Get-IntegrationRuntimeIdentityNumber
+$installed = ($null -ne $identityNumber)
+
+if ($installed -and ($version -ieq (Get-CurrentIntegrationRuntimeVersion))) {
+    Write-InfoMsg "Current installed $ProductName is $version, no operation needed."
+    Exit
+}
+$isDowngrade = ($installed -and ($versionObject -lt [System.Version]::Parse((Get-CurrentIntegrationRuntimeVersion))))
+
+if ($isDowngrade -and ($allowDowngrade -ine "true")) {
+    Write-ErrorMsg "You're trying to downgrade $ProductName, please set '-allowDowngrade' to true to enable downgrade."
+    Exit 1004
 }
 
-if ([System.Version]$currentVersion -ge [System.Version]$versionToInstall)
-{
-    Write-Host "Your gateway is latest, no update need..."
+$serviceAccount = $null
+if ($installed -and ("NT SERVICE\DIAHostService" -ine (Get-IntegrationRuntimeServiceAccount))) {
+    $serviceAccount = Get-IntegrationRuntimeServiceAccount
+    Write-InfoMsg "$ProductName service account is $serviceAccount"
 }
-else
-{
-    $msi = Download-GatewayInstaller $versionToInstall
-    Install-Gateway $msi
-    Remove-Item -Path $msi -Force
+if (($null -ne $serviceAccount) -and $isDowngrade -and ($null -eq $servicePassword)) {
+    Write-ErrorMsg "$ProductName isn't run as default account. You need to provide password of $serviceAccount with option '-servicePassword' to process downgrade."
+    Exit 1005
+}
+
+$installedPath = $null
+if ($installed) {
+    $installedPath = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Get-CmdFilePath))))
+}
+
+$tmpFolder = New-TempDirectory
+
+$installerPath = Get-IntegrationRuntimeInstaller $tmpFolder $version
+if (-Not (Test-Path -Path $installerPath -PathType Leaf)) {
+    Write-ErrorMsg "The installer $installerPath doesn't exist."
+    Exit
+}
+
+if ($installed -and $isDowngrade) {
+    $backupPath = Join-Path -Path $installedPath -ChildPath "$([System.Version]::Parse((Get-CurrentIntegrationRuntimeVersion)).Major).0"
+    Backup-IntegrationRuntimeConfig $backupPath
+    Write-InfoMsg "Uninstall old $ProductName."
+    Uninstall-IntegrationRuntime $identityNumber
+}
+
+Write-InfoMsg "Install $ProductName"
+Install-IntegrationRuntime $installerPath $installedPath ($null -ne $serviceAccount)
+
+if ($isDowngrade) {
+    try {
+        $restorePath = Join-Path -Path $installedPath -ChildPath "$($versionObject.Major).0"
+        Restore-IntegrationRuntimeConfig $restorePath
+    }
+    catch {
+        Write-ErrorMsg $_
+    }
+    if ($null -ne $serviceAccount) {
+        try {
+            Set-IntegrationRuntimeServiceAccount $serviceAccount $servicePassword
+        }
+        catch {
+            Write-ErrorMsg $_
+        }
+    }
+}
+
+Write-InfoMsg "Clean up downloaded $ProductName installer: $installerPath."
+Remove-Item $installerPath
+
+if ($null -eq $identityNumber) {
+    Write-InfoMsg "Install complete. You may need to open $ProductName to manually register node."
 }

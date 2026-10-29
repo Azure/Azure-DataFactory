@@ -1,9 +1,0 @@
-{
-  "name": "AzureSqlLinkedService",
-  "properties": {
-    "type": "AzureSqlDatabase",
-    "typeProperties": {
-      "connectionString": "Server=tcp:<azure sql server>.database.windows.net,1433;Database=MarketingCampaigns;User ID=<user name>;Password=<password>;Trusted_Connection=False;Encrypt=True;Connection Timeout=30"
-    }
-  }
-}

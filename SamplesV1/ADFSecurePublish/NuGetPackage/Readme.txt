@@ -1,1 +1,0 @@
-﻿Contains core library for ADF secure publish. See https://github.com/Azure/Azure-DataFactory/tree/master/Samples/ADFSecurePublish for more information.
